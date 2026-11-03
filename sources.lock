@@ -1,0 +1,7 @@
+# Pinned 2026-11-03. scripts/fetch-sources.sh checks these out under src/.
+# name url rev
+linux-gts4lv https://github.com/pulpoff/linux-gts4lv.git 36f309c0708764886b6528b9ef0603bb73cc4731
+android_device_samsung_gts4lvwifi https://github.com/LineageOS/android_device_samsung_gts4lvwifi.git b54236c99ffb18aab2387833274cca7009c6c17c
+android_device_samsung_gts4lv-common https://github.com/LineageOS/android_device_samsung_gts4lv-common.git d1b339be7abea07f62fef2bee3b7a2006694df67
+android_kernel_samsung_sdm670 https://github.com/LineageOS/android_kernel_samsung_sdm670.git a30605a54f3b92627d868f169c72ef9c6ef82123
+omarchy-mobile https://github.com/derekross/omarchy-mobile.git e7ad2759cb73f4b6449234c94dbaf2428ac33cb9

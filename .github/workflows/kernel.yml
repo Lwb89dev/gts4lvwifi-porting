@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+# Manual kernel check. A full modules build does not fit a default runner's
+# disk, so this job stops at Image.gz and the board DTB. The Omen builds
+# modules with scripts/build-kernel.sh.
+name: kernel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Image.gz and gts4lvwifi DTB
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache || true
+          df -h /
+
+      - uses: actions/checkout@v5
+
+      - name: Cross compiler
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu bc bison flex libssl-dev
+
+      - name: Pinned kernel tree
+        run: scripts/fetch-sources.sh
+
+      - name: Build
+        run: scripts/build-kernel.sh --no-modules
+
+      - name: Upload Image.gz-dtb
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image.gz-dtb
+          path: out/kernel/arch/arm64/boot/Image.gz-dtb
+          if-no-files-found: error
