@@ -22,8 +22,11 @@ log "up, kernel $(uname -r)"
 
 # Order is modules.dep for 7.2.13-gts4lvwifi. simpledrm first: a splash
 # means this init ran, even when the gadget never enumerates.
+# phy-qcom-qusb2 has no dependencies. dwc3 is built-in and defers until
+# this module registers the USB2 PHY.
 for mod in backlight drm drm_kms_helper drm_client_lib \
 	drm_sysfb_helper drm_shmem_helper simpledrm \
+	phy-qcom-qusb2 \
 	libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis
 do
 	insmod /lib/modules/$mod.ko || log "insmod $mod failed"

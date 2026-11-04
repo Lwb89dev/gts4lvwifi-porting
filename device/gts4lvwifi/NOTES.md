@@ -2,6 +2,23 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — USB PHY module packed and written, not booted
+
+`CONFIG_PHY_QCOM_QUSB2=m` and the module has no dependencies. The
+initramfs now insmods `phy-qcom-qusb2` after simpledrm and before the
+gadget modules. The kernel image is unchanged.
+
+Heimdall 2.0.2 wrote this `recovery.img` to `RECOVERY` with
+`--no-reboot`. The only download-mode device was `04e8:685d`, product
+`SDM710`. The tablet was still in download mode afterwards.
+
+| File | Bytes | sha256 |
+| --- | --- | --- |
+| recovery.img | 16736256 | `cf1703154e13732b5040714980438527632ea75f7ec09106bd7c84d753c0d864` |
+| initramfs.cpio.gz | 1861108 | `812e1aae8b0cd2c0cce0e4ea186f8c3d78b29fcaab7d76d5f40c78478e93a5c5` |
+
+Readback count for a later `dd` check: `16736256 / 4096 = 4086`.
+
 ## 2026-11-04 — console photo: init ran, dwc3 did not
 
 `photo_2026-11-04_20-40-21.jpg` is the framebuffer console. Lines read
