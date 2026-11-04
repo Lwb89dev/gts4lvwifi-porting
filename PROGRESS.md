@@ -835,8 +835,83 @@ Da fare appena il tablet è raggiungibile:
    `flash_recovery`) e verificare che resti spento dopo un riavvio. Poi
    `scripts/flash-recovery-adb.sh` e `adb reboot recovery`.
 
+## Notte del 2026-11-04: lavoro offline mentre il tablet non è raggiungibile
+
+Il proprietario ha lasciato il PC acceso e ha chiesto di proseguire con le
+milestone successive. Il tablet è rimasto in uno stato che richiede i tasti
+(vedi sopra), quindi tutto quello che segue è offline. Un osservatore staccato
+(`out/night-watch.log`) registra ogni cambio di id USB, stato `adb` e porte
+22/23; dalle 23:01 mostra `18d1:d001`, `unauthorized`, nessuna porta, senza
+variazioni.
+
+- **Controlli statici (M9).** `.github/workflows/static.yml` gira a ogni push e
+  pull request: shellcheck a soglia `warning` su tutti gli script, yamllint
+  (`.yamllint`), gli strumenti C compilati con `-Werror` per aarch64, i test del
+  packer, e una guardia che non siano tracciati foto, immagini, chiavi o cpio
+  (eccezione documentata: il `dtbo` di Lineage). Ho corretto i vecchi avvisi
+  SC1007 e SC2125; l'initramfs ricostruito ha gli stessi 23 file con gli stessi
+  hash di quello flashato. `kernel.yml` non è toccato.
+- **Matrice hardware.** `scripts/hw-matrix.py` parte dal DTB compilato, trova i
+  dispositivi abilitati, il sorgente del driver, il simbolo Kconfig e se il
+  modulo esiste. `docs/HARDWARE-MATRIX.md` separa le misure fatte sul tablet da
+  quello che la build ha solo. Trovati vuoti veri nella configurazione: non sono
+  compilati il driver del pannello (`DRM_PANEL_SAMSUNG_ANA38401`), i CS35L41,
+  `BATTERY_SM5705` (il suo Kconfig dice che i chip caricano da soli e il driver
+  solo riporta) e i due sensori camera; manca `CONFIG_INPUT_UINPUT` per il
+  demone del touch.
+- **Kernel M7.** Sei opzioni, tutte `=m` e nessuna caricata all'avvio, aggiunte
+  a `device/gts4lvwifi/kernel.config`. Build senza warning, tutti i `.ko`
+  presenti. **Non è nell'immagine che è sul tablet.**
+- **Licenze.** I file di `mobian/` di pulpoff non hanno nessuna intestazione né
+  file di licenza: non copio nulla (`dmlinear`, `fiemap`, `rebootmode` sono
+  scritti da zero), uso i suoi script solo per ordine e parametri.
+  `docs/LICENSES.md`.
+- **Pacchetti Qualcomm.** Arch Linux ARM non ha `qrtr`, `rmtfs`, `tqftpserv`,
+  `pd-mapper`, `hexagonrpc`. Cinque `PKGBUILD` in `packages/`, pinnati per tag e
+  sha256 (BSD-3-Clause, `hexagonrpc` GPL-3.0), compilati da
+  `scripts/build-packages.sh` nel container come utente non privilegiato:
+  aarch64, con licenze e unità systemd. L'unità di `rmtfs` usa `-r`, quindi le
+  partizioni del modem si leggono e non si scrivono.
+- **Rootfs v2** (`out/rootfs/rootfs.img`, sha256
+  `f4bbee5544b1058cfdb12bb3bb54c13e98161f1f93b00381f002205df6f7357f`): 231
+  pacchetti, i cinque nostri, `libssc`, `iio-sensor-proxy`, `iw`,
+  `wpa_supplicant`, ALSA, `mesa` e `vulkan-freedreno` di Arch Linux ARM, più
+  overlay: blacklist dei moduli da caricare a mano (i pin LPASS appendono il bus
+  finché l'ADSP non gira), `gts4lv-firmware` (monta `modem`, `apnhlos` e
+  `vendor` in sola lettura e collega i file sotto `/run`, nulla viene copiato),
+  `gts4lv-dsp` e un'unità che ferma l'ADSP allo spegnimento (con l'ADSP acceso
+  l'ABL entra in loop). Ancora sul tablet c'è la v1 (extents in
+  `out/prev/rootfs-extents-v1.txt`); la v2 non è stata copiata.
+- **M8.** `docs/OMARCHY-PLAN.md`. Gli indici dei repository mostrano
+  `[omarchy]` (187 pacchetti stable) e `[omamobile]` (43) pubblicati per aarch64.
+  Scoperta importante: il `mesa` di `[omamobile]` è una build solo Mali, senza
+  Freedreno; con l'ordine dei repository dell'upstream sostituirebbe il nostro e
+  toglierebbe l'accelerazione sull'Adreno 615. `mesa` e `vulkan-freedreno` devono
+  venire da Arch Linux ARM. L'insieme mobile è di 443 pacchetti e 748 MiB da
+  scaricare: la prossima immagine va a 12 GiB.
+- **Documentazione.** `README.md` riscritto, `AUDIT.md` e `BRINGUP-M1.md` marcati
+  come superati.
+
+## Quando il tablet è raggiungibile
+
+Il proprietario deve prima tenere Power + Volume giù finché si spegne e riparte
+(vedi la sezione sul giro Lineage → Arch). Poi, nell'ordine:
+
+1. Lineage con `adb root`: leggere `recovery` e confrontarla con
+   `out/lineage-recovery-before-mainline.img` (`81f4d19e…`) e con
+   `out/prev/recovery-landlock-23ce1656.img` (l'immagine scritta alle 22:40).
+   Confermare o smentire che Android la riscrive.
+2. Se confermato, spegnere `install-recovery` su Lineage e verificare che resti
+   spento dopo un riavvio.
+3. Ricompilare l'immagine con il kernel M7 (`scripts/build-initramfs.sh`), copiare
+   il rootfs v2 con `scripts/rootfs-to-tablet.sh` (nuovi estratti, quindi
+   ricostruire initramfs e immagine dopo), scrivere con
+   `scripts/flash-recovery-adb.sh` e `adb reboot recovery`.
+4. In Arch: `scripts/arch-smoke.sh`, poi i passi di `docs/PORTING-ROADMAP.md`
+   nell'ordine del paragrafo 4, uno per volta e annunciati.
+
 ## Prossimo passo
 
-Offline, in attesa del tablet: matrice hardware con i fatti noti, CI statica,
-piano del pacchetto device e dell'integrazione Omarchy. Con il tablet
-raggiungibile: la procedura qui sopra, poi M7.
+Quello della lista qui sopra. Offline resta da fare il demone del touch (vedi
+`docs/LICENSES.md`: da scrivere noi, sulla base del driver GPL di Samsung) e le
+unità di avvio dei DSP.
