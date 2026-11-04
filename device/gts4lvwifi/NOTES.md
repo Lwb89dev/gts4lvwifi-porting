@@ -2,6 +2,29 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — simpledrm module packed, not flashed
+
+`CONFIG_DRM=m` and `CONFIG_DRM_SIMPLEDRM=m`. `CONFIG_FB_SIMPLE` and
+`CONFIG_DRM_PANEL_SAMSUNG_ANA38401` stay off. The initramfs insmods, in
+`modules.dep` order, before the USB gadget: `backlight`, `drm`,
+`drm_kms_helper`, `drm_client_lib`, `drm_sysfb_helper`, `drm_shmem_helper`,
+`simpledrm`, then the six gadget modules.
+
+This build used Ubuntu GCC 13.3.0. `Image.gz-dtb` is the concatenation of
+`Image.gz` and the unchanged DTB. Nothing was written to the tablet.
+
+| File | Bytes | sha256 |
+| --- | --- | --- |
+| Image.gz | 13447162 | `35404e2b0f4d439d424edde353d4aeff34131637588d4acf40eecf05242b8426` |
+| DTB | 101142 | `e496d21301ce3306f11a9bc0092e457b04ab585016c71dc97b19c22fb13e1212` |
+| Image.gz-dtb | 13548304 | `ca07119d914b06b89167f262ef94978716ef078190886f17aedfb8d1cafd76bd` |
+| initramfs.cpio.gz | 1855221 | `ad9acb6670ffb3e05d5dbd592f874ad4c8b4b92588ba8a958c6e3f421badfedf` |
+| recovery.img | 16715776 | `71e09d2993306753e0ce4ebafb27b4fd83cc1e195438dd25dc7b4b55f3c2477a` |
+
+Release `7.2.13-gts4lvwifi-g36f309c07087`. The earlier distro-gcc image
+without simpledrm is no longer the file at `out/recovery.img`. Do not flash
+the GCC 15.3.0 image `ffe87fe60cffc74e3770ad9e57a7861a17bb89b7756bcf430fe138bb02cc8ee7`.
+
 ## 2026-11-04 — mainline recovery booted to a black screen, then Lineage was restored
 
 `out/recovery.img` from the GCC 15.3.0 nolibc kernel build, 15839232 bytes,

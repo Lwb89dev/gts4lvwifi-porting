@@ -76,9 +76,11 @@ whose product string is `gts4lvwifi first light`, address `172.16.42.1`,
 telnet to a shell. `bcdDevice 4.09` with product `SAMSUNG_Android` and an
 ADB interface is Lineage, not this initramfs.
 
-The screen can stay black even if that shell exists: `CONFIG_DRM_SIMPLEDRM`
-is off. Do not treat a black panel alone as proof the kernel is dead.
-Do treat a minute with no USB device as a failed boot.
+The current initramfs loads simpledrm before it binds the gadget. A
+bootloader splash means that insmod ran. A black panel means it did not
+bind the framebuffer, and that alone does not prove the kernel is dead.
+`CONFIG_DRM_PANEL_SAMSUNG_ANA38401` stays off. A minute with no USB
+device is a failed boot.
 
 ## 3. Rollback
 

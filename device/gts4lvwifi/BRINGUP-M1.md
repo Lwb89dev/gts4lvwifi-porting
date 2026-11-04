@@ -44,8 +44,10 @@ DTS:
 4. Boot that image once, from recovery, with Lineage still in `boot`.
    Tried on 2026-11-04 with the GCC 15.3.0 image. The panel stayed black and
    USB never enumerated. Lineage was restored from the partition backup.
-   First success is still a shell over USB. `CONFIG_DRM_SIMPLEDRM` is off,
-   so `/dev/dri/card0` is not expected from that config. Display, GPU and
+   First success is still a shell over USB. The image that was flashed had
+   `CONFIG_DRM_SIMPLEDRM` off, so `/dev/dri/card0` was not part of that
+   boot. The current tree builds it as a module and the initramfs loads
+   it before USB. That image has not been flashed. Display, GPU and
    touch come after a shell exists on this tablet.
 
 ## Known from the pinned tree, not yet from our boot

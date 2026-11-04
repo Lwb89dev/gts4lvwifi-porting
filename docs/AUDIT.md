@@ -36,7 +36,7 @@ be run on this single-slot tablet.
 | `device/gts4lvwifi/device.conf` | Holds the measured header fields, including `OS_VERSION=0x1e0001a8`. |
 | `scripts/pack-recovery.py` | Packs a v1 image, checks the dtbo sha256, refuses an oversize file. No flash command. |
 | `scripts/verify-recovery.py` | Inverse check of that image. |
-| `scripts/build-initramfs.sh` | BusyBox 1.36.1 static, six gadget modules, `muic-usb`. |
+| `scripts/build-initramfs.sh` | BusyBox 1.36.1 static, simpledrm plus its DRM dependencies, six gadget modules, `muic-usb`. |
 | `tests/test-pack-recovery.py` | Offline. Passed on this machine. |
 | GitHub `kernel.yml` | Manual dispatch, `Image.gz` and DTB only, no modules. Left as it is. |
 | Arch rootfs, Hyprland, Omarchy | Not started. |
@@ -60,13 +60,16 @@ The USB functions used by the initramfs are modules, not built-in:
 `CONFIG_USB_LIBCOMPOSITE`, `CONFIG_USB_F_ACM`, `CONFIG_USB_F_NCM`,
 `CONFIG_USB_F_RNDIS`, `CONFIG_USB_CONFIGFS`. The initramfs insmods them.
 
-Not enabled, and not changed in this cycle:
+`CONFIG_DRM` stays `=m`. `CONFIG_DRM_SIMPLEDRM=m` is set in
+`device/gts4lvwifi/kernel.config`. The initramfs insmods, in `modules.dep`
+order and before the gadget: `backlight`, `drm`, `drm_kms_helper`,
+`drm_client_lib`, `drm_sysfb_helper`, `drm_shmem_helper`, `simpledrm`.
 
-- `CONFIG_DRM_SIMPLEDRM` is off, and so is `CONFIG_FB_SIMPLE`.
-- `CONFIG_DRM_PANEL_SAMSUNG_ANA38401` is off.
+Still off: `CONFIG_FB_SIMPLE` and `CONFIG_DRM_PANEL_SAMSUNG_ANA38401`.
 
-A boot can therefore leave the panel black even if the kernel reaches
-userspace. That is a display gap, not proof that USB came up.
+The image that was flashed had simpledrm off, so a black panel on that
+boot was expected. The rebuilt image has not been written to the tablet.
+A black panel is still not proof that USB came up.
 
 ## First boot attempt
 

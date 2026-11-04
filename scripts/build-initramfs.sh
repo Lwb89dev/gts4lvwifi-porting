@@ -92,7 +92,10 @@ cp "$bb/busybox" "$stage/bin/busybox"
 cp "$root/device/gts4lvwifi/initramfs/init" "$stage/init"
 "${cross}gcc" -static -Os -s -o "$stage/usr/sbin/muic-usb" \
 	"$root/device/gts4lvwifi/initramfs/muic-usb.c"
-for name in libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis; do
+for name in backlight drm drm_kms_helper drm_client_lib \
+	drm_sysfb_helper drm_shmem_helper simpledrm \
+	libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis
+do
 	found=$(find "$rel" -name "$name.ko" -print)
 	if [ -z "$found" ]; then
 		echo "module missing: $name.ko" >&2
