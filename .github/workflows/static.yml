@@ -30,7 +30,8 @@ jobs:
             scripts/*.sh \
             device/gts4lvwifi/initramfs/boot-android \
             device/gts4lvwifi/rootfs/*.sh \
-            device/gts4lvwifi/rootfs/overlay/usr/local/sbin/boot-android
+            device/gts4lvwifi/rootfs/overlay/usr/local/sbin/* \
+            packages/*.sh
 
       - name: Workflow YAML
         run: yamllint .github/workflows
