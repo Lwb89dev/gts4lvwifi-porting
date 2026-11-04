@@ -50,6 +50,12 @@ if ! d image inspect "$tag" >/dev/null 2>&1; then
 	d import --platform linux/arm64 "$tarball" "$tag" >/dev/null
 fi
 
+# the packages of scripts/build-packages.sh, when it has been run
+pkgs_mount=()
+if ls "$root"/out/repo/aarch64/*.pkg.tar.zst >/dev/null 2>&1; then
+	pkgs_mount=(-v "$root/out/repo/aarch64:/pkgs:ro")
+fi
+
 echo "==> customize ($release)"
 d rm -f gts4lv-rootfs-build >/dev/null 2>&1 || true
 d run --name gts4lv-rootfs-build --platform linux/arm64 \
@@ -59,6 +65,8 @@ d run --name gts4lv-rootfs-build --platform linux/arm64 \
 	-v "$out:/out" \
 	-v gts4lv-pkgcache:/var/cache/pacman/pkg \
 	-v "$root/$dev/rootfs/customize.sh:/customize.sh:ro" \
+	-v "$root/$dev/rootfs/packages.txt:/overlay-packages.txt:ro" \
+	"${pkgs_mount[@]}" \
 	"$tag" bash /customize.sh "$release"
 d export gts4lv-rootfs-build -o "$out/rootfs.tar"
 d rm gts4lv-rootfs-build >/dev/null

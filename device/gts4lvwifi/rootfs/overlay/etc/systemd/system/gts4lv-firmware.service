@@ -1,0 +1,11 @@
+[Unit]
+Description=Expose the tablet's own firmware partitions to the kernel (read-only)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gts4lv-firmware
+
+[Install]
+WantedBy=multi-user.target

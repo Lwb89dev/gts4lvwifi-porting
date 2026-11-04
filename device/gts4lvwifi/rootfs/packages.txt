@@ -1,0 +1,18 @@
+# Packages added to the image on top of the Arch Linux ARM base, one per line.
+# The bring-up tools: radio, sound, input, GPU and USB, nothing graphical yet.
+iw
+wpa_supplicant
+wireless-regdb
+alsa-utils
+alsa-ucm-conf
+evtest
+i2c-tools
+usbutils
+libdrm
+mesa-utils
+vulkan-tools
+vulkan-freedreno
+libssc
+iio-sensor-proxy
+tree
+htop

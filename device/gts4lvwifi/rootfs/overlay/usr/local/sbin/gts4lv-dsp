@@ -1,0 +1,58 @@
+#!/bin/bash
+# Start, stop or show one of the tablet's DSPs through remoteproc.
+#
+#   gts4lv-dsp start|stop|status modem|adsp
+#
+# Start order matters. The firmware path must be set first (gts4lv-firmware).
+# After the ADSP is running the LPASS LPI pin controller is loaded, never
+# before: its registers hang the bus until then. The ADSP must be stopped
+# before any restart: left running, the bootloader loops on the next boot
+# until a Power + Volume-down reset. gts4lv-adsp-stop.service does that at
+# shutdown.
+set -euo pipefail
+
+die() { echo "gts4lv-dsp: $*" >&2; exit 1; }
+
+find_rproc() {
+	local r name
+	for r in /sys/class/remoteproc/remoteproc*; do
+		[ -f "$r/name" ] || continue
+		name=$(cat "$r/name")
+		case "$1:$name" in
+		modem:*4080000.remoteproc* | modem:*mss* | modem:*modem*) echo "$r"; return 0 ;;
+		adsp:adsp | adsp:*62400000.remoteproc*) echo "$r"; return 0 ;;
+		esac
+	done
+	return 1
+}
+
+action=${1:-}
+which=${2:-}
+case $which in modem | adsp) ;; *) die "usage: gts4lv-dsp start|stop|status modem|adsp" ;; esac
+rproc=$(find_rproc "$which") || die "no remoteproc for $which"
+state=$(cat "$rproc/state")
+
+case $action in
+status)
+	echo "$which: $state ($rproc)"
+	;;
+start)
+	[ -d /run/gts4lv-fw ] || die "run gts4lv-firmware first, the DSP needs its firmware"
+	[ "$state" != offline ] || echo start > "$rproc/state"
+	for _ in $(seq 20); do
+		[ "$(cat "$rproc/state")" != offline ] && break
+		sleep 1
+	done
+	echo "$which: $(cat "$rproc/state")"
+	if [ "$which" = adsp ] && [ "$(cat "$rproc/state")" = running ]; then
+		modprobe pinctrl_sdm670_lpass_lpi
+	fi
+	;;
+stop)
+	[ "$state" != running ] || echo stop > "$rproc/state"
+	echo "$which: $(cat "$rproc/state")"
+	;;
+*)
+	die "usage: gts4lv-dsp start|stop|status modem|adsp"
+	;;
+esac

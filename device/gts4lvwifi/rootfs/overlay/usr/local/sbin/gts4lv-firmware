@@ -1,0 +1,50 @@
+#!/bin/bash
+# Make the tablet's own firmware visible to the kernel without copying a byte.
+# The partitions "modem" and "apnhlos" (vfat) and "vendor" (ext4) are mounted
+# read-only, their files are linked under /run/gts4lv-fw, and the kernel's
+# firmware search path is pointed there. The device tree asks for
+# qcom/sdm670/gts4lv/<name>. Nothing here writes to an Android partition and
+# nothing is stored: the links live in /run and are gone at the next boot.
+set -euo pipefail
+
+fw=/run/gts4lv-fw
+run=/run/gts4lv
+
+part() { # device node of the partition with this GPT name
+	local u
+	for u in /sys/class/block/mmcblk0p*/uevent; do
+		grep -qx "PARTNAME=$1" "$u" || continue
+		echo "/dev/$(basename "$(dirname "$u")")"
+		return 0
+	done
+	return 1
+}
+
+mount_ro() { # <name> <fstype> <options>
+	local dev
+	dev=$(part "$1") || { echo "gts4lv-firmware: no partition '$1'" >&2; return 1; }
+	mkdir -p "$run/$1"
+	mountpoint -q "$run/$1" || mount -t "$2" -o "$3" "$dev" "$run/$1"
+}
+
+mount_ro modem vfat ro
+mount_ro apnhlos vfat ro
+mount_ro vendor ext4 ro,noload
+
+install -d "$fw/qcom/sdm670/gts4lv" "$fw/ath10k/WCN3990/hw1.0" "$fw/qca"
+for dir in "$run/modem/image" "$run/apnhlos/image" "$run/vendor/firmware"; do
+	[ -d "$dir" ] || continue
+	for f in "$dir"/*; do
+		ln -sf "$f" "$fw/qcom/sdm670/gts4lv/"
+		ln -sf "$f" "$fw/"
+	done
+done
+
+# Names the drivers ask for that differ from the files' own: ath10k wants its
+# board data as board.bin, btqca wants qca/crbtfw21.tlv and crnv21.bin.
+[ ! -e "$fw/bdwlan.bin" ] || ln -sf "$fw/bdwlan.bin" "$fw/ath10k/WCN3990/hw1.0/board.bin"
+[ ! -e "$fw/crbtfw21.tlv" ] || ln -sf "$fw/crbtfw21.tlv" "$fw/qca/"
+[ ! -e "$fw/crnv21.bin" ] || ln -sf "$fw/crnv21.bin" "$fw/qca/"
+
+echo -n "$fw" > /sys/module/firmware_class/parameters/path
+echo "gts4lv-firmware: $(find "$fw/qcom/sdm670/gts4lv" -type l | wc -l) files linked, path $fw"

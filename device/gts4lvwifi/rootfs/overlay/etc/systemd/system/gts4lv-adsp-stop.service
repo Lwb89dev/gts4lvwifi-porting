@@ -1,0 +1,14 @@
+# Does nothing at start. At shutdown it stops the ADSP if it is running: with
+# the ADSP left on, the bootloader loops on the next boot until a key reset.
+[Unit]
+Description=Stop the ADSP before the tablet restarts
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/true
+ExecStop=/usr/local/sbin/gts4lv-dsp stop adsp
+
+[Install]
+WantedBy=multi-user.target

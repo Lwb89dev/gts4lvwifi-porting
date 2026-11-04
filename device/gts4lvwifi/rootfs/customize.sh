@@ -26,9 +26,18 @@ pacman -Rdd --noconfirm linux-aarch64 mkinitcpio mkinitcpio-busybox \
 	linux-firmware-intel linux-firmware-mediatek linux-firmware-nvidia \
 	linux-firmware-other linux-firmware-radeon linux-firmware-realtek
 
-say "upgrade and add the Qualcomm firmware"
+say "upgrade and add the Qualcomm firmware and the tools of the bring-up"
 pacman -Syu --noconfirm
 pacman -S --noconfirm --needed linux-firmware-qcom
+# shellcheck disable=SC2046
+pacman -S --noconfirm --needed $(grep -v '^#' /overlay-packages.txt)
+
+# Packages built here (scripts/build-packages.sh): the Qualcomm services Arch
+# Linux ARM does not carry. Skipped when the directory is not mounted.
+if ls /pkgs/*.pkg.tar.zst >/dev/null 2>&1; then
+	say "local packages"
+	pacman -U --noconfirm --needed /pkgs/*.pkg.tar.zst
+fi
 
 say "our modules for $release"
 rm -rf "/usr/lib/modules/$release"
@@ -44,7 +53,12 @@ passwd -l root
 passwd -l alarm
 install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
-systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service
+systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
+	gts4lv-firmware.service gts4lv-adsp-stop.service
+# qrtr-ns is the name service every Qualcomm remote service needs
+if [ -e /usr/lib/systemd/system/qrtr-ns.service ]; then
+	systemctl enable qrtr-ns.service
+fi
 
 say "undo the container-only pacman settings"
 cp /tmp/pacman.conf.orig /etc/pacman.conf
