@@ -2,6 +2,15 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — same recovery rewritten from download mode, not booted
+
+The owner asked to repeat the boot with a camera ready. Heimdall 2.0.2
+wrote `out/recovery.img` (16728064 bytes, sha256
+`d57f386497b67aec1de7a4386a5cd9a84e89d737763a3d9bd14ab77709fccb11`)
+to `RECOVERY` with `--no-reboot`. The download-mode device was `04e8:685d`,
+product `SDM710`, on bus 003. The other Samsung phone was left in MTP and
+was not addressed. The tablet was still in download mode after the upload.
+
 ## 2026-11-04 — ramoops recovery showed a terminal, then powered off
 
 The owner saw a black screen with terminal text, then the tablet powered
