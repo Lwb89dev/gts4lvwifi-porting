@@ -90,11 +90,14 @@ rm -rf "$stage"
 mkdir -p "$stage/bin" "$stage/usr/sbin" "$stage/lib/modules"
 cp "$bb/busybox" "$stage/bin/busybox"
 cp "$root/device/gts4lvwifi/initramfs/init" "$stage/init"
+cp "$root/device/gts4lvwifi/initramfs/boot-android" "$stage/usr/sbin/boot-android"
 "${cross}gcc" -static -Os -s -o "$stage/usr/sbin/muic-usb" \
 	"$root/device/gts4lvwifi/initramfs/muic-usb.c"
+"${cross}gcc" -static -Os -s -Wall -Wextra -o "$stage/usr/sbin/rebootmode" \
+	"$root/device/gts4lvwifi/initramfs/rebootmode.c"
 for name in backlight drm drm_kms_helper drm_client_lib \
 	drm_sysfb_helper drm_shmem_helper simpledrm \
-	phy-qcom-qusb2 \
+	phy-qcom-qusb2 qcom-pon \
 	libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis
 do
 	found=$(find "$rel" -name "$name.ko" -print)
@@ -104,7 +107,8 @@ do
 	fi
 	cp "$found" "$stage/lib/modules/$name.ko"
 done
-chmod 755 "$stage/bin/busybox" "$stage/init" "$stage/usr/sbin/muic-usb"
+chmod 755 "$stage/bin/busybox" "$stage/init" "$stage/usr/sbin/muic-usb" \
+	"$stage/usr/sbin/rebootmode" "$stage/usr/sbin/boot-android"
 
 archive=$root/out/initramfs.cpio.gz
 (cd "$stage" && find . | cpio -o -H newc -R 0:0 --quiet) | gzip -9 > "$archive"

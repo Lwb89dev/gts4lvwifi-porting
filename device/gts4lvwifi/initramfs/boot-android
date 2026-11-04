@@ -1,0 +1,32 @@
+#!/bin/busybox sh
+# Restart into LineageOS (the boot partition) without a flash and without
+# key presses. A key reset from this recovery re-enters the recovery, so the
+# PMIC restart reason has to be set: "android" is NORMALBOOT (0x14) in the DTS.
+# That needs qcom-pon, which init loads after the telnet is up. Without it
+# nothing is written and the restart is a warm reset the ABL can hang on.
+# Writes nothing to eMMC. Refuses unless both conditions hold.
+
+if [ ! -e /sys/class/reboot-mode/qcom-pon ]; then
+	echo "boot-android: /sys/class/reboot-mode/qcom-pon missing, qcom-pon not loaded" >&2
+	exit 1
+fi
+
+misc=
+for uevent in /sys/class/block/mmcblk0p*/uevent; do
+	grep -q '^PARTNAME=misc$' "$uevent" 2>/dev/null || continue
+	misc=/dev/$(basename "$(dirname "$uevent")")
+	break
+done
+if [ -z "$misc" ] || [ ! -b "$misc" ]; then
+	echo "boot-android: misc partition not found" >&2
+	exit 1
+fi
+nonzero=$(dd if="$misc" bs=4096 count=1 2>/dev/null | tr -d '\000' | wc -c)
+if [ "$nonzero" != 0 ]; then
+	echo "boot-android: $misc is not empty ($nonzero bytes), not restarting" >&2
+	echo "boot-android: it would send the tablet back to recovery" >&2
+	exit 1
+fi
+
+echo "boot-android: restarting into LineageOS"
+exec /usr/sbin/rebootmode android

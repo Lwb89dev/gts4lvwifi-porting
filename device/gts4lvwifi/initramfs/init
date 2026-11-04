@@ -100,6 +100,19 @@ udhcpd /tmp/udhcpd.conf
 telnetd -l /bin/sh -b "$IP"
 log "telnet $IP"
 
+# qcom-pon writes the PMIC restart reason and makes restarts a hard reset.
+# Loaded after the USB shell is up so the path that was proved does not
+# change. boot-android and rebootmode use it. No dependencies.
+if insmod /lib/modules/qcom-pon.ko; then
+	if [ -e /sys/class/reboot-mode/qcom-pon ]; then
+		log "qcom-pon loaded, reboot-mode ready"
+	else
+		log "qcom-pon loaded, reboot-mode missing"
+	fi
+else
+	log "insmod qcom-pon failed"
+fi
+
 while true; do
 	if [ -c /dev/ttyGS0 ]; then
 		setsid sh -c 'exec sh </dev/ttyGS0 >/dev/ttyGS0 2>&1'
