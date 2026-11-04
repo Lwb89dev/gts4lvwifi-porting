@@ -15,6 +15,7 @@ It does not contain the kernel, and it does not flash the tablet.
 | `device/gts4lvwifi/kernel.config` | Tablet config fragment (`CONFIG_LOCALVERSION`) |
 | `device/gts4lvwifi/BRINGUP-M1.md` | First-light plan. No flashing in this stage |
 | `device/gts4lvwifi/NOTES.md` | What has actually been checked |
+| `PROCESS.md` | Handoff: decisions, measurements, where to resume |
 | `sources.lock` | Commits `scripts/fetch-sources.sh` checks out under `src/` |
 | `scripts/build-kernel.sh` | Cross-build of `Image.gz` plus the board DTB |
 | `.github/workflows/kernel.yml` | Manual Actions build of `Image.gz` and the DTB, without modules |
