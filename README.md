@@ -18,6 +18,10 @@ It does not contain the kernel, and it does not flash the tablet.
 | `PROCESS.md` | Handoff: decisions, measurements, where to resume |
 | `sources.lock` | Commits `scripts/fetch-sources.sh` checks out under `src/` |
 | `scripts/build-kernel.sh` | Cross-build of `Image.gz` plus the board DTB |
+| `scripts/build-initramfs.sh` | First-light initramfs and `out/recovery.img` |
+| `scripts/pack-recovery.py` | Header v1 packer. It does not flash |
+| `scripts/verify-recovery.py` | Inverse check of a packed image |
+| `docs/RECOVERY-RUNBOOK.md` | Manual recovery boot and rollback. Needs a fresh approval |
 | `.github/workflows/kernel.yml` | Manual Actions build of `Image.gz` and the DTB, without modules |
 
 `src/` and `out/` are local. They are gitignored.
@@ -30,9 +34,12 @@ at the commit in `sources.lock`, configured with `defconfig` plus
 
 ```sh
 scripts/fetch-sources.sh
+# Pop!_OS / Debian:
+sudo apt-get install -y gcc-aarch64-linux-gnu bc bison flex libssl-dev
 # Arch:
 sudo pacman -S --needed aarch64-linux-gnu-gcc aarch64-linux-gnu-binutils bc bison flex openssl
 scripts/build-kernel.sh
+scripts/build-initramfs.sh
 ```
 
 The result is `out/kernel/arch/arm64/boot/Image.gz-dtb`. On a machine with

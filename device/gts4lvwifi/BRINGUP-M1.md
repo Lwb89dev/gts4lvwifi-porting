@@ -38,13 +38,15 @@ DTS:
    72744960 bytes. The dtbo the bootloader already accepts is
    `lineage-recovery-dtbo.img`.
 3. Pack a header-v1 recovery image that reuses that dtbo byte for byte, with
-   an initramfs that brings up USB networking and a shell. The packer is not
-   written yet. It must refuse an image larger than 72744960 bytes.
+   an initramfs that brings up USB networking and a shell. `scripts/pack-recovery.py`
+   does this and refuses an image larger than 72744960 bytes. Offline checks
+   pass. That is not a boot.
 4. Boot that image once, from recovery, with Lineage still in `boot`.
-   First success is a shell over USB, then the splash framebuffer on
-   `/dev/dri/card0` from simpledrm. Display, GPU and touch come after that
-   shell exists on this tablet, even though the pinned tree already contains
-   those drivers.
+   Tried on 2026-11-04 with the GCC 15.3.0 image. The panel stayed black and
+   USB never enumerated. Lineage was restored from the partition backup.
+   First success is still a shell over USB. `CONFIG_DRM_SIMPLEDRM` is off,
+   so `/dev/dri/card0` is not expected from that config. Display, GPU and
+   touch come after a shell exists on this tablet.
 
 ## Known from the pinned tree, not yet from our boot
 

@@ -2,6 +2,26 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — mainline recovery booted to a black screen, then Lineage was restored
+
+`out/recovery.img` from the GCC 15.3.0 nolibc kernel build, 15839232 bytes,
+sha256 `ffe87fe60cffc74e3770ad9e57a7861a17bb89b7756bcf430fe138bb02cc8ee7`,
+was written only to `recovery`. The readback matched. `boot` was not
+written. `misc` was empty before the reboot. `adb reboot recovery` ran at
+14:01. The panel stayed black. The host logged a USB disconnect at 14:01:43
+and then no `04e8` or `18d1` device for more than a minute.
+
+Download mode came up as `04e8:685d` (product string `SDM710`). Heimdall
+2.0.2 flashed the pre-write partition copy to PIT partition `RECOVERY`
+(142080 × 512 = 72744960 bytes) and rebooted. The following boot was
+Lineage: `uname -r` = `4.9.337-ga30605a54f3b`, `sys.boot_completed=1`,
+zygote running. The recovery header matched the backup. `misc` was empty
+again. adbd was returned to the shell user.
+
+A later USB id `18d1:d001` on that boot was still Android: `bcdDevice 4.09`,
+product `SAMSUNG_Android`, ADB interface. It was not the initramfs, whose
+product string is `gts4lvwifi first light`. No mainline `uname` was read.
+
 ## 2026-11-04 — recovery is 72744960 bytes, not 64 MiB
 
 With adb root, `blockdev --getsize64` on this tablet:

@@ -1,0 +1,100 @@
+#!/bin/busybox sh
+# First light: USB network (NCM + RNDIS), ACM serial, telnet shell.
+# Does not write eMMC. Does not reboot.
+
+/bin/busybox mkdir -p /bin /sbin /usr/bin /usr/sbin /proc /sys /dev /tmp /run /lib/modules
+/bin/busybox --install -s
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /tmp
+mount -t tmpfs tmpfs /run
+mount -t configfs configfs /sys/kernel/config
+
+log() {
+	echo "gts4lv-init: $*" > /dev/kmsg
+}
+
+log "up, kernel $(uname -r)"
+
+for mod in libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis; do
+	insmod /lib/modules/$mod.ko || log "insmod $mod failed"
+done
+
+IP=172.16.42.1
+G=/sys/kernel/config/usb_gadget/g1
+if mkdir -p "$G" && cd "$G"; then
+	echo 0x18d1 > idVendor
+	echo 0xd001 > idProduct
+	mkdir -p strings/0x409
+	echo Samsung > strings/0x409/manufacturer
+	echo "gts4lvwifi first light" > strings/0x409/product
+	if ! tr -d '\000' < /proc/device-tree/serial-number > strings/0x409/serialnumber 2>/dev/null; then
+		echo gts4lvwifi > strings/0x409/serialnumber
+	fi
+	mkdir -p configs/c.1/strings/0x409
+	echo "NCM+RNDIS+ACM" > configs/c.1/strings/0x409/configuration
+	echo 500 > configs/c.1/MaxPower
+	for fn in ncm.usb0 rndis.usb0 acm.usb0; do
+		mkdir -p functions/$fn
+		ln -s functions/$fn configs/c.1/
+	done
+	cd /
+	i=0
+	udc=
+	while [ "$i" -lt 60 ]; do
+		udc=$(ls /sys/class/udc 2>/dev/null | head -n 1)
+		[ -n "$udc" ] && break
+		i=$((i + 1))
+		sleep 1
+	done
+	if [ -n "$udc" ] && echo "$udc" > "$G/UDC"; then
+		log "gadget bound to $udc"
+	else
+		log "no UDC"
+	fi
+else
+	log "configfs gadget failed"
+fi
+
+bus=
+for dev in /sys/bus/i2c/devices/i2c-*; do
+	name=$(cat "$dev/of_node/name" 2>/dev/null) || continue
+	[ "$name" = i2c-charger ] || continue
+	base=$(basename "$dev")
+	bus=${base#i2c-}
+	break
+done
+if [ -n "$bus" ] && /usr/sbin/muic-usb "$bus"; then
+	log "muic usb on i2c-$bus"
+else
+	log "muic not switched"
+fi
+
+ip link set lo up
+ip link set usb0 up 2>/dev/null
+ip link set usb1 up 2>/dev/null
+ip addr add "$IP/24" dev usb0 2>/dev/null && log "usb0 $IP"
+
+cat > /tmp/udhcpd.conf <<EOF
+start 172.16.42.2
+end 172.16.42.2
+interface usb0
+option subnet 255.255.255.0
+max_leases 1
+lease_file /tmp/udhcpd.leases
+EOF
+touch /tmp/udhcpd.leases
+udhcpd /tmp/udhcpd.conf
+telnetd -l /bin/sh -b "$IP"
+log "telnet $IP"
+
+while true; do
+	if [ -c /dev/ttyGS0 ]; then
+		setsid sh -c 'exec sh </dev/ttyGS0 >/dev/ttyGS0 2>&1'
+	fi
+	sleep 1
+done
