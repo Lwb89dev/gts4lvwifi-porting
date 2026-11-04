@@ -35,8 +35,10 @@ DTS:
    Done when `out/kernel/arch/arm64/boot/Image.gz-dtb` exists and `uname` is
    not involved yet: this step never touches the tablet.
 2. Read the live partition table from a running LineageOS (`ls -l /dev/block/by-name`)
-   and confirm `recovery` is at least 64 MiB. The BoardConfig size is what we
-   trust until that listing exists.
+   and confirm `recovery` is at least 64 MiB. The names are confirmed on this
+   tablet (2026-11-04, see NOTES). The byte size still needs root: Developer
+   options, Rooted debugging, then `adb root`. Until that read, the BoardConfig
+   size of 64 MiB is what an image must fit in.
 3. Pack a header-v1 recovery image that reuses Lineage's `recovery_dtbo`
    byte for byte, with an initramfs that brings up USB networking and a shell.
    The packer is not written yet. It must refuse an image larger than the
