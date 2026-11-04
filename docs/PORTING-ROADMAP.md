@@ -33,6 +33,21 @@ not yet confirmed on this tablet.
 | `msm` is a module and the panel must survive until it loads | pulpoff adds `regulator_ignore_unused` for that. We keep `clk_ignore_unused pd_ignore_unused` and change nothing else until display is the subject of an attempt |
 | A previous boot that died starting the modem would loop | keep the "start marker" idea of `/boot-attempt`: a flag written before the risky step and cleared after it |
 
+### A safety net to measure, not to rely on
+
+pulpoff's README says the bootloader leaves the APSS watchdog running and that
+the kernel's own worker pings it once `qcom-wdt` is loaded
+(`CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED=y` here, `qcom_wdt` is a module). If so,
+a hard kernel hang stops the pings and the tablet resets itself instead of
+waiting for a person at the keys. A hang in userspace would not trip it, because
+the kernel keeps the pings going. Not measured on this tablet. Until it is,
+every risky module load is announced in `PROGRESS.md` before it is tried and
+done only when someone can press the keys.
+
+Upstream's rules are worth keeping: a dead-man switch (`systemd-run
+--on-active=90 <undo>`) before anything that can cut the USB link, a log stream
+to the PC, and a hang marker for anything at boot.
+
 ## 3. What blocks the start
 
 1. **Lineage rewrites `recovery`.** After a Lineage boot, `adb reboot recovery`
