@@ -2,6 +2,23 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — console photo: init ran, dwc3 did not
+
+`photo_2026-11-04_20-40-21.jpg` is the framebuffer console. Lines read
+from it:
+
+- `gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087` at about 1.06 s
+- `clk: Not disabling unused clocks` and `PM: genpd: Not disabling unused power domains`
+- `mmc0` on `7c4000.mmc`, HS400, `mmcblk0` `DH6DAB` 58.2 GiB, partitions through `p56`
+- `[drm] Initialized simpledrm 1.0.0 for chosen/framebuffer@9c000000`
+- `/init: line 40: can't open /proc/device-tree/serial-number: no such file`
+- `platform a600000.usb: deferred probe pending: dwc3: failed to initialize core` at about 11.26 s
+- then `Timed out, forcing sync_state()` from `gcc`, `qnoc-sdm670`, `gpucc`, `videocc`, `disp_cc` and `qcom-rpmhpd`
+- `random: crng init done` at about 23.4 s
+
+No `Kernel panic` in the frame. The initramfs USB id never appeared
+because `dwc3` did not finish core init, so no UDC was registered.
+
 ## 2026-11-04 — same recovery rewritten from download mode, not booted
 
 The owner asked to repeat the boot with a camera ready. Heimdall 2.0.2

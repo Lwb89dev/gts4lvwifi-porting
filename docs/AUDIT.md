@@ -115,6 +115,14 @@ on a black panel, then the tablet powered itself off. The host never saw
 the initramfs USB id. The console means the kernel reached the framebuffer.
 The log in RAM is not available after that power-off.
 
+The photograph `photo_2026-11-04_20-40-21.jpg` shows init did run:
+`gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087`. simpledrm
+bound `chosen/framebuffer@9c000000`. eMMC came up as a 58.2 GiB HS400
+card. `platform a600000.usb` was still deferred at 11.26 s with
+`dwc3: failed to initialize core`. That is why the host never saw
+`18d1:d001`. The frame has no panic. `random: crng init done` is at
+about 23.4 s, so the kernel was still alive then.
+
 ## Milestone status
 
 | Milestone | Status |
