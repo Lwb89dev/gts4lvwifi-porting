@@ -1,0 +1,2 @@
+# The root filesystem is mapped and mounted by the initramfs (dm-linear over
+# a file in userdata), so there is no entry for it here.

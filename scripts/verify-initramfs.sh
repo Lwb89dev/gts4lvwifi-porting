@@ -9,7 +9,8 @@ trap 'rm -rf "$work"' EXIT
 
 gzip -dc "$archive" | (cd "$work" && cpio -id --quiet)
 for path in init bin/busybox usr/sbin/muic-usb usr/sbin/rebootmode \
-	usr/sbin/boot-android lib/modules/qcom-pon.ko \
+	usr/sbin/boot-android usr/sbin/dmlinear lib/modules/qcom-pon.ko \
+	lib/modules/dm-mod.ko \
 	lib/modules/backlight.ko lib/modules/drm.ko \
 	lib/modules/drm_kms_helper.ko lib/modules/drm_client_lib.ko \
 	lib/modules/drm_sysfb_helper.ko lib/modules/drm_shmem_helper.ko \
@@ -29,6 +30,19 @@ file "$work/usr/sbin/muic-usb" | grep -q "ARM aarch64"
 file "$work/usr/sbin/muic-usb" | grep -q "statically linked"
 file "$work/usr/sbin/rebootmode" | grep -q "ARM aarch64"
 file "$work/usr/sbin/rebootmode" | grep -q "statically linked"
+file "$work/usr/sbin/dmlinear" | grep -q "ARM aarch64"
+file "$work/usr/sbin/dmlinear" | grep -q "statically linked"
+if [ -f "$root/out/rootfs/rootfs-extents.txt" ]; then
+	cmp "$root/out/rootfs/rootfs-extents.txt" "$work/etc/rootfs-extents.txt"
+fi
+# The shells without a password must be killed before the root is switched,
+# and only after every check that can still keep the USB shell alive.
+kill_line=$(grep -n 'killall telnetd' "$work/init" | head -n 1 | cut -d: -f1)
+switch_line=$(grep -n '^	switch_root ' "$work/init" | head -n 1 | cut -d: -f1)
+marker_line=$(grep -n "boot-attempt ]" "$work/init" | head -n 1 | cut -d: -f1)
+[ -n "$kill_line" ] && [ -n "$switch_line" ] && [ -n "$marker_line" ]
+[ "$marker_line" -lt "$kill_line" ] && [ "$kill_line" -lt "$switch_line" ]
+grep -q 'gts4lv.stay' "$work/init"
 [ -x "$work/usr/sbin/boot-android" ]
 head -n 1 "$work/usr/sbin/boot-android" | grep -q '^#!/bin/busybox sh'
 grep -q 'qcom-pon' "$work/init"

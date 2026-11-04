@@ -12,7 +12,7 @@
 # rootfs.lock when a build must be reproducible.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 dest=${ALARM_DIR:-$root/src/alarm}
 url=${ALARM_URL:-http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz}
 # Arch Linux ARM Build System <builder@archlinuxarm.org>, same pin as

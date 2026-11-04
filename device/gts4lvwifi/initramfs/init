@@ -18,6 +18,61 @@ log() {
 	echo "gts4lv-init: $*" > /dev/kmsg
 }
 
+part() {
+	for uevent in /sys/class/block/mmcblk0p*/uevent; do
+		grep -q "^PARTNAME=$1\$" "$uevent" 2>/dev/null || continue
+		basename "$(dirname "$uevent")"
+		return 0
+	done
+	return 1
+}
+
+# The Arch Linux ARM root is a file in Android's userdata. dm-linear maps its
+# extents (a list baked into this initramfs) over the raw partition, so /data
+# is never mounted. Returns, and the USB shell stays, whenever something is
+# missing or the last attempt never finished (/boot-attempt still there).
+try_arch() {
+	[ -s /etc/rootfs-extents.txt ] || { log "arch: no rootfs baked in"; return 1; }
+	if grep -qw gts4lv.stay /proc/cmdline; then
+		log "arch: staying (gts4lv.stay)"
+		return 1
+	fi
+	userdata=$(part userdata) || { log "arch: no userdata partition"; return 1; }
+	insmod /lib/modules/dm-mod.ko || { log "arch: insmod dm-mod failed"; return 1; }
+	i=0
+	while [ ! -c /dev/mapper/control ] && [ "$i" -lt 10 ]; do
+		sleep 1
+		i=$((i + 1))
+	done
+	devno=$(dmlinear arch "/dev/$userdata" /etc/rootfs-extents.txt) ||
+		{ log "arch: dmlinear failed"; return 1; }
+	node=/dev/dm-${devno#*:}
+	mkdir -p /mnt/root
+	mount -t ext4 -o rw,noatime "$node" /mnt/root ||
+		{ log "arch: no ext4 on $node ($devno)"; return 1; }
+	if [ ! -x /mnt/root/usr/lib/systemd/systemd ]; then
+		log "arch: no systemd in the root"
+		umount /mnt/root
+		return 1
+	fi
+	if [ -e /mnt/root/boot-attempt ]; then
+		log "arch: the last attempt never finished, staying"
+		umount /mnt/root
+		return 1
+	fi
+	: > /mnt/root/boot-attempt
+	sync
+	log "GTS4LV-SWITCHROOT"
+	# the unauthenticated shells of this initramfs must not live on in Arch
+	killall telnetd udhcpd 2>/dev/null
+	for m in dev proc sys run; do
+		mount --move "/$m" "/mnt/root/$m"
+	done
+	switch_root /mnt/root /usr/lib/systemd/systemd
+	log "arch: switch_root failed"
+	return 1
+}
+
 log "up, kernel $(uname -r)"
 
 # Order is modules.dep for 7.2.13-gts4lvwifi. simpledrm first: a splash
@@ -112,6 +167,8 @@ if insmod /lib/modules/qcom-pon.ko; then
 else
 	log "insmod qcom-pon failed"
 fi
+
+try_arch || log "arch: not started, the USB shell stays"
 
 while true; do
 	if [ -c /dev/ttyGS0 ]; then

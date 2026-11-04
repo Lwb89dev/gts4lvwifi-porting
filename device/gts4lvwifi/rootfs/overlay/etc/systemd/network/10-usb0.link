@@ -1,0 +1,7 @@
+# Keep the name init gave the USB gadget interface. Without this udev may
+# rename it to enx<mac>, which the .network file below would not match.
+[Match]
+OriginalName=usb0
+
+[Link]
+Name=usb0

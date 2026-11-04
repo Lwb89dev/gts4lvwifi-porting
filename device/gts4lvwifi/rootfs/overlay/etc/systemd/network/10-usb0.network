@@ -1,0 +1,14 @@
+# The USB gadget network (ncm.usb0). The address is the one the initramfs
+# already uses, and the host gets the single lease .2 as it did from udhcpd.
+[Match]
+Name=usb0
+
+[Network]
+Address=172.16.42.1/24
+DHCPServer=yes
+ConfigureWithoutCarrier=yes
+
+[DHCPServer]
+PoolOffset=2
+PoolSize=1
+EmitDNS=no

@@ -95,9 +95,17 @@ cp "$root/device/gts4lvwifi/initramfs/boot-android" "$stage/usr/sbin/boot-androi
 	"$root/device/gts4lvwifi/initramfs/muic-usb.c"
 "${cross}gcc" -static -Os -s -Wall -Wextra -o "$stage/usr/sbin/rebootmode" \
 	"$root/device/gts4lvwifi/initramfs/rebootmode.c"
+"${cross}gcc" -static -Os -s -Wall -Wextra -o "$stage/usr/sbin/dmlinear" \
+	"$root/device/gts4lvwifi/initramfs/dmlinear.c"
+mkdir -p "$stage/etc" "$stage/mnt/root"
+# The extent list of the rootfs image in userdata, made on the tablet by
+# scripts/rootfs-to-tablet.sh. Without it the initramfs never leaves the shell.
+if [ -f "$root/out/rootfs/rootfs-extents.txt" ]; then
+	cp "$root/out/rootfs/rootfs-extents.txt" "$stage/etc/rootfs-extents.txt"
+fi
 for name in backlight drm drm_kms_helper drm_client_lib \
 	drm_sysfb_helper drm_shmem_helper simpledrm \
-	phy-qcom-qusb2 qcom-pon \
+	phy-qcom-qusb2 qcom-pon dm-mod \
 	libcomposite u_serial usb_f_acm u_ether usb_f_ncm usb_f_rndis
 do
 	found=$(find "$rel" -name "$name.ko" -print)
@@ -108,7 +116,8 @@ do
 	cp "$found" "$stage/lib/modules/$name.ko"
 done
 chmod 755 "$stage/bin/busybox" "$stage/init" "$stage/usr/sbin/muic-usb" \
-	"$stage/usr/sbin/rebootmode" "$stage/usr/sbin/boot-android"
+	"$stage/usr/sbin/rebootmode" "$stage/usr/sbin/boot-android" \
+	"$stage/usr/sbin/dmlinear"
 
 archive=$root/out/initramfs.cpio.gz
 (cd "$stage" && find . | cpio -o -H newc -R 0:0 --quiet) | gzip -9 > "$archive"

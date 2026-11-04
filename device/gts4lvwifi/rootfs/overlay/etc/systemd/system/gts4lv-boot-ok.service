@@ -1,0 +1,15 @@
+# The initramfs creates /boot-attempt before it switches to this root. When
+# the next boot finds the file still there, the last attempt never got this
+# far and the initramfs stays in its USB shell instead of looping.
+[Unit]
+Description=Mark this boot as good for the gts4lvwifi initramfs
+After=systemd-networkd.service sshd.service
+Wants=sshd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/rm -f /boot-attempt
+
+[Install]
+WantedBy=multi-user.target
