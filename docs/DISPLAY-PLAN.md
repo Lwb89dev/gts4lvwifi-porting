@@ -36,8 +36,12 @@ and both 10 nm DSI PHYs.
 1. **Cmdline only.** Add `regulator_ignore_unused` to `device.conf`'s cmdline,
    rebuild, boot. Pass: Arch comes up, `simpledrm` still shows the console, the
    panel stays lit. Nothing else changed. If the panel regulators are shut off
-   by the late init today, the simpledrm console would already have gone dark;
-   the photos show it lit at 24 s, so this is expected to be harmless.
+   by the late init today, the simpledrm console would already have gone dark.
+   The kernel log shows a cleanup of unused regulators at about 31 s
+   (`octa-vdd: disabling`), and the photo of 22:16, taken about 90 s after the
+   restart, still shows the console lit. So the panel's supplies are not
+   among the ones switched off, and this attempt is expected to be harmless.
+   It is still a measurement, not a guarantee.
 2. **Panel module alone.** With a person at the screen and the module blacklist
    in place: `modprobe panel_samsung_ana38401`. Pass: it registers, the screen
    does not change. No `msm` yet.
