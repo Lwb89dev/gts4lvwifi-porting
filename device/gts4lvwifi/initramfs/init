@@ -68,9 +68,10 @@ try_arch() {
 	for m in dev proc sys run; do
 		mount --move "/$m" "/mnt/root/$m"
 	done
-	switch_root /mnt/root /usr/lib/systemd/systemd
-	log "arch: switch_root failed"
-	return 1
+	# exec: switch_root insists on being PID 1, and a child of this shell is
+	# not. If it fails PID 1 dies, the kernel panics and reboots after
+	# panic=10 s, and /boot-attempt keeps the next boot in the USB shell.
+	exec switch_root /mnt/root /usr/lib/systemd/systemd
 }
 
 log "up, kernel $(uname -r)"

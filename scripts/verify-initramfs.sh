@@ -38,7 +38,7 @@ fi
 # The shells without a password must be killed before the root is switched,
 # and only after every check that can still keep the USB shell alive.
 kill_line=$(grep -n 'killall telnetd' "$work/init" | head -n 1 | cut -d: -f1)
-switch_line=$(grep -n '^	switch_root ' "$work/init" | head -n 1 | cut -d: -f1)
+switch_line=$(grep -n '^	exec switch_root ' "$work/init" | head -n 1 | cut -d: -f1)
 marker_line=$(grep -n "boot-attempt ]" "$work/init" | head -n 1 | cut -d: -f1)
 [ -n "$kill_line" ] && [ -n "$switch_line" ] && [ -n "$marker_line" ]
 [ "$marker_line" -lt "$kill_line" ] && [ "$kill_line" -lt "$switch_line" ]
