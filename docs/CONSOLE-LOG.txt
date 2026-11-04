@@ -19,12 +19,13 @@ Regole di questo file
   <MAC omesso>. Nessun seriale compare nelle foto.
 - Tutti i tempi tra parentesi quadre sono secondi dall'avvio del kernel.
 
-Le quattro foto, in sintesi
+Le foto, in sintesi
 
   20:40:21  recovery ramoops built-in   init parte, dwc3 resta in deferred probe
   21:00:39  recovery con PHY USB2       gadget legato, "muic not switched"
   21:19:18  recovery con I2C_GPIO       "muic usb on i2c-1", il host vede 18d1:d001
   21:43:44  recovery con qcom-pon       "qcom-pon loaded, reboot-mode ready"
+  22:16:53  Arch, primo tentativo       ext4 montato da /data, switch_root senza exec
 
 
 ================================================================================
@@ -280,3 +281,83 @@ Cosa si legge: "gts4lv-init: qcom-pon loaded, reboot-mode ready" a 1.281 s, subi
 dopo il telnet e gli input pm8941_pwrkey e pm8941_resin che il driver crea. Nessun
 insmod fatto a mano. Nessun panic. Dopo questa foto, alle 21:43:41, dalla shell e'
 stato lanciato boot-android: il tablet e' tornato a Lineage alle 21:44:17.
+
+
+================================================================================
+2026-11-04 22:16:53   photo_2026-11-04_22-16-53.jpg
+================================================================================
+Immagine: recovery.img "Arch, primo tentativo", 17362944 byte, 4239 pagine, sha256
+ade2027b461bcc1c77fe9f050549747696aab58c3a7acf0ccc8aa41819f90dab (init che
+chiamava switch_root senza exec), scritta alle 22:15:09 con
+scripts/flash-recovery-adb.sh, rilettura identica. Kernel
+7.2.13-gts4lvwifi-g36f309c07087 senza Landlock.
+Avvio: adb reboot recovery alle 22:15:25. Foto scattata circa 90 s dopo.
+Foto: leggibile, con il riflesso di una mano. Le righe prima di 1.054611 sono
+uscite dalla parte alta dello schermo.
+
+[    1.054611] 898000.serial: ttyHS1 at MMIO 0x898000 (irq = 104, base_baud = 0) is a MSM
+[    1.055570] serial serial0: tty port ttyHS1 registered
+[    1.061451] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    1.062310] clk: Not disabling unused clocks
+[    1.062331] PM: genpd: Not disabling unused power domains
+[    1.072118] mmc0: SDHCI controller on 7c4000.mmc [7c4000.mmc] using ADMA 64-bit
+[    1.072174] sdhci_msm 7c4000.mmc: mmc0: CQE init: success
+[    1.074833] Freeing unused kernel memory: 9920K
+[    1.074948] Run /init as init process
+[    1.111832] gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087
+[    1.147622] mmc0: Command Queue Engine enabled
+[    1.147675] mmc0: new HS400 MMC card at address 0001
+[    1.148263] mmcblk0: mmc0:0001 DH6DAB 58.2 GiB
+[    1.154191]  mmcblk0: p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16
+                p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31 p32 p33 p34 p35 p36
+                p37 p38 p39 p40 p41 p42 p43 p44 p45 p46 p47 p48 p49 p50 p51 p52 p53 p54 p55 p56
+                p57
+[    1.160946] mmcblk0boot0: mmc0:0001 DH6DAB 4.00 MiB
+[    1.162804] mmcblk0boot1: mmc0:0001 DH6DAB 4.00 MiB
+[    1.164826] mmcblk0rpmb: mmc0:0001 DH6DAB 16.0 MiB, chardev (234:0)
+[    1.167215] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer@9c000000 on minor 0
+[    1.193165] Console: switching to colour frame buffer device 320x100
+[    1.210590] simple-framebuffer chosen:framebuffer@9c000000: [drm] fb0: simpledrmdrmfb frame buffer device
+/init: line 98: can't open /proc/device-tree/serial-number: no such file
+[    1.278118] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.278211] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.278602] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.278641] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.281381] gts4lv-init: gadget bound to a600000.usb
+[    1.288186] gts4lv-init: muic usb on i2c-1
+[    1.295073] gts4lv-init: usb0 172.16.42.1
+[    1.302192] gts4lv-init: telnet 172.16.42.1
+[    1.310890] input: pm8941_pwrkey as /devices/platform/soc@0/c440000.spmi/spmi-0/0-00/c440000.spmi:pmic@0:pon@800/c440000.spmi:pmic@0:pon@800:pwrkey/input/input1
+[    1.312873] input: pm8941_resin as /devices/platform/soc@0/c440000.spmi/spmi-0/0-00/c440000.spmi:pmic@0:pon@800/c440000.spmi:pmic@0:pon@800:resin/input/input2
+[    1.314269?] gts4lv-init: qcom-pon loaded, reboot-mode ready
+[    1.476249?] device-mapper: ioctl: 4.50.0-ioctl (2025-04-28) initialised: dm-devel@lists.linux.dev
+[    1.670041?] EXT4-fs (dm-0): mounted filesystem 2fa18134-770f-4852-823e-bb995049d808 r/w with ordered data mode. Quota mode: none.
+[    1.687428?] gts4lv-init: GTS4LV-SWITCHROOT
+BusyBox v1.36.1 (2026-11-04 13:55:31 CET) multi-call binary.
+
+Usage: switch_root [-c CONSOLE_DEV] NEW_ROOT NEW_INIT [ARGS]
+
+Free initramfs and switch to another root fs:
+chroot to NEW_ROOT, delete all in /, move NEW_ROOT to /.
+execute NEW_INIT. PID must be 1. NEW_ROOT must be a mountpoint.
+
+	-c DEV	Reopen stdio to DEV after switch
+[   11.770621] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   11.770723] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   11.770791] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   11.770864] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   11.770929] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   11.770994] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   11.771067] sdm845-camcc ad00000.clock-controller: Timed out. Forcing sync_state()
+[   11.771168] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   11.771242?] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   11.771319?] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   11.771452?] qnoc-sdm670 16e0000.interconnect: Timed out. Forcing sync_state()
+[   11.771522?] qnoc-sdm670 1700000.interconnect: Timed out. Forcing sync_state()
+[   16.987237] random: crng init done
+
+Cosa si legge: la catena arriva fino al mount dell'ext4 del file in /data
+(EXT4-fs (dm-0): mounted ... r/w) e a GTS4LV-SWITCHROOT. Subito dopo BusyBox
+stampa l'uso di switch_root, cioe' switch_root e' stato lanciato come processo
+figlio della shell e non come PID 1: l'init non usava exec. Il kernel resta
+vivo (timeout di sync_state a 11.77 s, crng init a 16.99 s). Nessun panic.

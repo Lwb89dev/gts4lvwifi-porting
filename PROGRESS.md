@@ -742,13 +742,101 @@ via dm-linear, C ripartizionamento, D rootfs in RAM scaricato via USB.
 Consiglio D come prima prova (stima di 585–715 MiB contro 3,47 GiB di RAM,
 non misurata) e poi A o B.
 
+## M6 passato: Arch Linux ARM avviato dal file in `/data` (2026-11-04, 22:34)
+
+Con l'autorizzazione permanente del proprietario («il tablet è throwaway»).
+
+- **Immagine.** `scripts/build-rootfs.sh` costruisce `out/rootfs/rootfs.img` in
+  container aarch64 (Docker 29.1.3 più `qemu-user-static`, installati dal
+  proprietario): il tarball verificato, keyring `archlinuxarm`, kernel Arch,
+  `mkinitcpio` e firmware inutile rimossi con pacman, `linux-firmware-qcom`
+  aggiunto, `root` e `alarm` bloccati (le password pubbliche non
+  sopravvivono), `sshd` a sola chiave con una chiave dedicata in `out/keys/`
+  (gitignored, mai la `~/.ssh` del proprietario), `usb0` con `172.16.42.1/24`
+  e DHCP server per il lease `.2`, moduli del nostro kernel con `depmod`.
+  ext4 da 6 GiB, `e2fsck` pulito, 154 pacchetti, sha256
+  `c68262ca93b825a01ae616144cf77161ba57d13befbc770a06ae0c1516959444`.
+  Controllato con `debugfs` prima di spedirlo.
+- **Sul tablet.** `scripts/rootfs-to-tablet.sh` verifica identità, che `/data`
+  stia direttamente su `mmcblk0p57` in ext4 senza strato di cifratura sotto,
+  lo spazio, poi copia il file in `/data/lost+found/gts4lv/rootfs.img` (hash
+  riletto sul tablet uguale) e registra gli estratti con il nostro `fiemap`:
+  125 estratti, flag solo 0 e `LAST`, nessun buco, tutti allineati.
+- **Initramfs.** Carica `dm-mod`, mappa gli estratti con il nostro `dmlinear`
+  (codice scritto da noi, non quello di pulpoff, di licenza non chiarita),
+  monta l'ext4 in lettura e scrittura e passa ad Arch con `exec switch_root`,
+  dopo aver ucciso `telnetd` e `udhcpd` (shell senza password). Il file
+  `/boot-attempt`, creato prima del passaggio e tolto da un servizio
+  dell'immagine, fa restare l'init nella shell USB se l'ultimo tentativo non è
+  finito.
+- **Primo tentativo, fallito per un mio errore.** Foto
+  `photo_2026-11-04_22-16-53.jpg`: `dm-mod` caricato, `EXT4-fs (dm-0):
+  mounted filesystem … r/w`, `GTS4LV-SWITCHROOT`, poi BusyBox stampa l'uso di
+  `switch_root`. Nel sorgente di BusyBox l'uso compare se il processo non è
+  PID 1: avevo scritto `switch_root` senza `exec`, quindi girava come figlio
+  della shell. Il tablet è rimasto senza telnet. Dopo un reset a tasti il
+  marker ha fatto restare l'init nella shell (`arch: the last attempt never
+  finished, staying`), come progettato. Correzione `exec switch_root`
+  (commit `35f1598`).
+- **Secondo tentativo, 22:34.** `sshd` (porta 22) aperta, telnet (23) chiuso.
+  `systemctl is-system-running`: `running`, 0 servizi falliti, root su
+  `/dev/dm-0` (il file in `/data`), `usb0` `172.16.42.1/24`, 3550 MB di RAM
+  con 286 usati, `systemd 262.1`, `pacman 7.1.0`, marker già tolto.
+- **`pacman` e Landlock.** `pacman -Sy` falliva: `restricting filesystem
+  access failed because Landlock is not supported by the kernel`. Il kernel
+  aveva `# CONFIG_SECURITY_LANDLOCK is not set` e un solo LSM, `capability`.
+  Aggiunto `CONFIG_SECURITY_LANDLOCK=y` a `device/gts4lvwifi/kernel.config`
+  (build #6, nessun warning, `Image.gz` `499b5503…`, DTB invariato
+  `e496d213…`). Immagine `recovery.img` 17395712 byte, 4247 pagine, sha256
+  `23ce16564b90d4f846ee06923e91fe7355a88409b30899a096f54af9de08b85e`,
+  scritta dalla shell SSH di Arch con `scripts/flash-recovery-shell.sh`
+  (rilettura identica) dopo `scripts/sync-modules.sh` per tenere i moduli del
+  rootfs della stessa build. LSM attivi dopo: `capability,landlock`.
+- **Accettazione.** `scripts/arch-smoke.sh`: imposta l'orologio dall'host (il
+  tablet non ha RTC e parte nel 1977, `pacman` rifiuterebbe le firme), avvia
+  `scripts/usb-http-proxy.py` sull'indirizzo USB dell'host (niente NAT, niente
+  `sudo`), `pacman -Sy` sincronizza `core`, `extra`, `alarm`, `aur`,
+  `pacman -S tree` installa con controllo di keyring e integrità, `pacman -Qk
+  tree`: 7 file su 7. Systemd, shell SSH su USB, rete USB e gestione pacchetti
+  funzionano: criterio di M6 soddisfatto.
+- **Ritorno ad Android da Arch.** `boot-android` (nuovo, nell'overlay del
+  rootfs, installato anche a mano nel sistema in esecuzione) cancella la
+  richiesta `boot-recovery` di `misc`, rifiuta qualunque altro comando, poi
+  `systemctl reboot --reboot-argument=android`. Provato alle 22:43:21: alle
+  22:44:53 `adb` vedeva Lineage, `boot_completed=1`, kernel 4.9.337,
+  `boot_recovery=0`.
+
+## Il giro Lineage → Arch non è chiuso: la recovery sembra riscritta
+
+Alle 22:45:30 `adb reboot recovery` dopo quell'avvio di Lineage non ha
+riportato in Arch. Dopo 7 minuti e oltre: nessuna porta 22 o 23, e l'host
+vede `18d1:d001`, product `SAMSUNG_Android`, `bcdDevice 4.09`, **una sola
+interfaccia (ADB)**, `adb` lo dà `unauthorized` e non cambia in 5 minuti.
+Non è l'MTP+ADB (`04e8:6860`) che Lineage mostra da avviato. L'ipotesi, non
+verificata: all'avvio Android `install-recovery.sh` (AOSP; il device tree
+Lineage non imposta `BOARD_USES_FULL_RECOVERY_IMAGE`) ha trovato la partizione
+`recovery` diversa da quella attesa e l'ha riscritta con quella di Lineage,
+quindi `adb reboot recovery` ha avviato la recovery di Lineage, che non conosce
+la chiave `adb` perché `/data` cifrato non è montato. Coerente con tutto il
+resto: finora ogni scrittura di `recovery` è stata seguita da un riavvio
+diretto, mai da un avvio di Android in mezzo. Non c'è modo di entrare nel
+tablet senza tasti: serve il proprietario.
+
+Da fare appena il tablet è raggiungibile:
+
+1. Con i tasti: Power + Volume giù finché si spegne e riparte. Con `misc` pulito
+   (lo ha cancellato `boot-android`) e la recovery di Lineage dentro, un avvio
+   normale dovrebbe andare in `boot`, cioè Lineage.
+2. Da Lineage con `adb root`: leggere la partizione `recovery` e confrontarla
+   con `out/lineage-recovery-before-mainline.img` (sha256 `81f4d19e…`) e con
+   `out/recovery.img`, per confermare o smentire l'ipotesi.
+3. Se confermata: spegnere `install-recovery` su Lineage (la proprietà della
+   voce «Update recovery» delle opzioni sviluppatore, o il servizio
+   `flash_recovery`) e verificare che resti spento dopo un riavvio. Poi
+   `scripts/flash-recovery-adb.sh` e `adb reboot recovery`.
+
 ## Prossimo passo
 
-Tre decisioni del proprietario (in fondo a `docs/ROOTFS-PLAN.md`): c'è una
-microSD e va bene toccare DT e kernel per lo slot? Si può scrivere un file in
-`/data` di Lineage? Si possono installare con `sudo apt` i prerequisiti di
-M6.3? Per M6.1 (opzione D) non serve nessuna delle tre, ma serve un nuovo
-`recovery.img` e quindi un nuovo sì al flash. Se `18d1:d001`
-non compare, la foto della console dice se `muic usb on i2c-N` è stato
-stampato; non si cambia nient'altro nello stesso passo (`dr_mode`, cmdline,
-pannello).
+Offline, in attesa del tablet: matrice hardware con i fatti noti, CI statica,
+piano del pacchetto device e dell'integrazione Omarchy. Con il tablet
+raggiungibile: la procedura qui sopra, poi M7.
