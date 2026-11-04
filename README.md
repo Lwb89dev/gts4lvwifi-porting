@@ -62,6 +62,7 @@ Known: after a LineageOS boot, `recovery` may be rewritten by Android
 | `hw-matrix.py` | what the build has for every enabled device | no |
 | `rootfs-to-tablet.sh` | copy the root image into userdata and record its extents | writes one file in `/data` |
 | `flash-recovery-adb.sh`, `flash-recovery-shell.sh` | write `recovery` from Android, or from the running tablet | writes `recovery` |
+| `lineage-recovery-check.sh` | read-only: what is in `recovery` and what could rewrite it | no writes (adb root, read) |
 | `sync-modules.sh`, `tablet-deploy.sh` | put modules, overlay and packages on the running Arch | writes `/usr`, `/etc` |
 | `arch-smoke.sh`, `usb-http-proxy.py` | test systemd and `pacman` over the cable | installs one package |
 

@@ -897,7 +897,7 @@ variazioni.
 Il proprietario deve prima tenere Power + Volume giù finché si spegne e riparte
 (vedi la sezione sul giro Lineage → Arch). Poi, nell'ordine:
 
-1. Lineage con `adb root`: leggere `recovery` e confrontarla con
+1. Lineage con `adb root` (`scripts/lineage-recovery-check.sh`, sola lettura): leggere `recovery` e confrontarla con
    `out/lineage-recovery-before-mainline.img` (`81f4d19e…`) e con
    `out/prev/recovery-landlock-23ce1656.img` (l'immagine scritta alle 22:40).
    Confermare o smentire che Android la riscrive.
