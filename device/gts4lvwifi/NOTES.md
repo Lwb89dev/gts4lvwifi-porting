@@ -2,6 +2,25 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — simpledrm recovery written, USB still absent
+
+The distro-gcc image was written only to `recovery` while Lineage was
+running. The readback matched. `boot` was not written. `misc` was empty
+before `adb reboot recovery`.
+
+| Fact | Value |
+| --- | --- |
+| Image sha256 | `71e09d2993306753e0ce4ebafb27b4fd83cc1e195438dd25dc7b4b55f3c2477a` |
+| Size | 16715776 bytes |
+| Reboot | `adb reboot recovery` at 19:50:41 |
+| Host USB | disconnect of `04e8:6860` at 19:50:43, then no `04e8` and no `18d1` for 90 seconds |
+| Ping | `172.16.42.1` did not answer |
+
+The host cannot see the panel. No mainline `uname` was read. Rollback is
+still `out/lineage-recovery-before-mainline.img`, sha256
+`81f4d19e4d9d3ba37c2044d57b77c72f01487dbaaa3a24173b14bacc161b14a7`.
+That file matched the live partition before this write.
+
 ## 2026-11-04 — simpledrm module packed, not flashed
 
 `CONFIG_DRM=m` and `CONFIG_DRM_SIMPLEDRM=m`. `CONFIG_FB_SIMPLE` and

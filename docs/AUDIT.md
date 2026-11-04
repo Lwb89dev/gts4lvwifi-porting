@@ -88,6 +88,13 @@ was rebooted into recovery.
 | After reboot | Lineage 15, kernel `4.9.337-ga30605a54f3b`, `sys.boot_completed=1`, `misc` empty |
 
 No `uname` was collected from the mainline kernel. M5 is failed, not skipped.
+
+A second image, the distro-gcc build with simpledrm, was written the same
+way on 2026-11-04 at 19:50. sha256
+`71e09d2993306753e0ce4ebafb27b4fd83cc1e195438dd25dc7b4b55f3c2477a`,
+16715776 bytes, readback matched. `adb reboot recovery` dropped
+`04e8:6860` at 19:50:43. Nothing re-enumerated for 90 seconds, and
+`172.16.42.1` did not answer. The panel was not observed from the host.
 The copy used for rollback is `out/lineage-recovery-before-mainline.img`
 (gitignored). There is still no stock firmware package on this machine.
 Heimdall plus that copy was enough to return to Lineage this time.
