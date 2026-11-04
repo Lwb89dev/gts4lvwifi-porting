@@ -2,6 +2,15 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — ramoops recovery written, not booted yet
+
+`out/recovery.img`, 16728064 bytes, sha256
+`d57f386497b67aec1de7a4386a5cd9a84e89d737763a3d9bd14ab77709fccb11`,
+was written only to `recovery` while Lineage was running. The readback
+of `4084` pages matched. `boot` was not written. `misc` was empty before
+the write and was not changed. `adb reboot recovery` was not used.
+The running kernel was still `4.9.337-ga30605a54f3b`.
+
 ## 2026-11-04 — ramoops console built in, not flashed
 
 The two flashed images used the same load addresses, page size, header
