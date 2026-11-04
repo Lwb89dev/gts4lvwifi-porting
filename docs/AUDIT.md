@@ -95,9 +95,14 @@ way on 2026-11-04 at 19:50. sha256
 16715776 bytes, readback matched. `adb reboot recovery` dropped
 `04e8:6860` at 19:50:43. Nothing re-enumerated for 90 seconds, and
 `172.16.42.1` did not answer. The panel was not observed from the host.
-The copy used for rollback is `out/lineage-recovery-before-mainline.img`
-(gitignored). There is still no stock firmware package on this machine.
-Heimdall plus that copy was enough to return to Lineage this time.
+
+Download mode `04e8:685d` came back. Heimdall 2.0.2 wrote
+`out/lineage-recovery-before-mainline.img` to `RECOVERY` and rebooted.
+The following boot was Lineage: `uname -r` = `4.9.337-ga30605a54f3b`,
+`sys.boot_completed=1`. The recovery bytes matched the backup, sha256
+`81f4d19e4d9d3ba37c2044d57b77c72f01487dbaaa3a24173b14bacc161b14a7`.
+`misc` was empty. adbd was returned to uid 2000. There is still no stock
+firmware package on this machine.
 
 ## Milestone status
 
@@ -106,7 +111,7 @@ Heimdall plus that copy was enough to return to Lineage this time.
 | M0 audit and host | Passed for this machine |
 | M1 kernel artifacts | Passed offline. Hashes are in `out/MANIFEST.sha256` after `scripts/hash-artifacts.sh`. |
 | M2 initramfs | Passed offline. Not proven on the tablet. |
-| M3 recovery image | Passed offline. The one image that was flashed did not yield a shell. |
+| M3 recovery image | Passed offline. Two images were flashed. Neither yielded a shell. |
 | M4 recovery plan | Written in `docs/RECOVERY-RUNBOOK.md`. Another flash needs a new approval. |
 | M5 shell on device | Failed, rolled back |
 | M6–M9 | Not started |

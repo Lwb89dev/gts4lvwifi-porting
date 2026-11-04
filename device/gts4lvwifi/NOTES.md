@@ -2,6 +2,21 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — Lineage restored after the simpledrm recovery boot
+
+Download mode was `04e8:685d`. Heimdall 2.0.2 uploaded `RECOVERY` to 100%
+from `out/lineage-recovery-before-mainline.img` and rebooted. `boot` was
+not written. After adb was authorized again:
+
+| Fact | Value |
+| --- | --- |
+| Device | SM-T720, `gts4lvwifi`, serial `R52M410RCVR` |
+| Kernel | `4.9.337-ga30605a54f3b` |
+| `sys.boot_completed` | `1` |
+| `recovery` | 72744960 bytes, sha256 `81f4d19e4d9d3ba37c2044d57b77c72f01487dbaaa3a24173b14bacc161b14a7`, identical to the backup, magic `ANDROID!` |
+| `misc` | command, status, recovery and stage fields empty |
+| adbd | returned to uid 2000 |
+
 ## 2026-11-04 — simpledrm recovery written, USB still absent
 
 The distro-gcc image was written only to `recovery` while Lineage was
