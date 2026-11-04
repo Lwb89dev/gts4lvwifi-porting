@@ -109,6 +109,12 @@ The following boot was Lineage: `uname -r` = `4.9.337-ga30605a54f3b`,
 `misc` was empty. adbd was returned to uid 2000. There is still no stock
 firmware package on this machine.
 
+The ramoops image was then written to `recovery` and booted with the
+volume keys, not with `adb reboot recovery`. The owner saw terminal text
+on a black panel, then the tablet powered itself off. The host never saw
+the initramfs USB id. The console means the kernel reached the framebuffer.
+The log in RAM is not available after that power-off.
+
 ## Milestone status
 
 | Milestone | Status |

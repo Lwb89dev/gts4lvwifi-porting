@@ -2,6 +2,16 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — ramoops recovery showed a terminal, then powered off
+
+The owner saw a black screen with terminal text, then the tablet powered
+off by itself. The host USB log does not show `18d1:d001` or the product
+string `gts4lvwifi first light` at any point. The last tablet enumeration
+was Lineage at 20:22:38 (`04e8:6860`, `bcdDevice 4.09`, serial
+`R52M410RCVR`, product `SAMSUNG_Android`). That port disconnected at
+20:30:14 and did not come back. A full power-off drops the ramoops RAM
+buffer. `boot` was not written.
+
 ## 2026-11-04 — ramoops recovery written, not booted yet
 
 `out/recovery.img`, 16728064 bytes, sha256
