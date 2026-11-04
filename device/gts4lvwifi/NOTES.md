@@ -2,6 +2,28 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — ramoops console built in, not flashed
+
+The two flashed images used the same load addresses, page size, header
+version, board name `SRPSA14B001` and `os_version` as the Lineage recovery
+that boots. `CONFIG_PSTORE_RAM` was `=m`, so the DTS region `0xa1300000`
+(1 MiB, same sizes as the Lineage 4.9 tree) never attached before init.
+This build sets `CONFIG_PSTORE_RAM=y` and `CONFIG_PSTORE_CONSOLE=y`.
+`ramoops` is in `modules.builtin` and there is no loadable `ramoops.ko`.
+`CONFIG_DRM_SIMPLEDRM` stays `=m`. The DTB hash is unchanged. Compiler is
+Ubuntu GCC 13.3.0. `Image.gz-dtb` is the concatenation of the two files.
+Nothing was written to the tablet.
+
+| File | Bytes | sha256 |
+| --- | --- | --- |
+| Image.gz | 13458503 | `efcf82d92cbee39558ff019254346bca54f3fed0dbb50e760ba5379c4f5673e8` |
+| DTB | 101142 | `e496d21301ce3306f11a9bc0092e457b04ab585016c71dc97b19c22fb13e1212` |
+| Image.gz-dtb | 13559645 | `997d6d975c2f43c17eaca0ab8cb100473c6aae36a3e58f761393efb1badaf8c9` |
+| initramfs.cpio.gz | 1855217 | `b60c769fb5e1ac5387d884f9f8d28af7a7cc1580946a3e208082d3171b63ea12` |
+| recovery.img | 16728064 | `d57f386497b67aec1de7a4386a5cd9a84e89d737763a3d9bd14ab77709fccb11` |
+
+Readback count for this file only: `16728064 / 4096 = 4084`.
+
 ## 2026-11-04 — Lineage restored after the simpledrm recovery boot
 
 Download mode was `04e8:685d`. Heimdall 2.0.2 uploaded `RECOVERY` to 100%

@@ -67,6 +67,11 @@ order and before the gadget: `backlight`, `drm`, `drm_kms_helper`,
 
 Still off: `CONFIG_FB_SIMPLE` and `CONFIG_DRM_PANEL_SAMSUNG_ANA38401`.
 
+`CONFIG_PSTORE` was already `=y` and `CONFIG_PSTORE_RAM` was `=m`. The
+fragment now sets `CONFIG_PSTORE_RAM=y` and `CONFIG_PSTORE_CONSOLE=y`.
+The resulting recovery image is on the PC only. Reading it back from
+Lineage after a warm reset is section 4 of `docs/RECOVERY-RUNBOOK.md`.
+
 The image that was flashed had simpledrm off, so a black panel on that
 boot was expected. The rebuilt image has not been written to the tablet.
 A black panel is still not proof that USB came up.

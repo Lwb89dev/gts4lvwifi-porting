@@ -104,6 +104,41 @@ adb shell getprop sys.boot_completed
 Expected kernel `4.9.337-ga30605a54f3b` and `sys.boot_completed` = `1`.
 Then `adb unroot` if root was enabled.
 
+## 4. Read ramoops after a failed mainline boot
+
+This applies only to an image built with `CONFIG_PSTORE_RAM=y` and
+`CONFIG_PSTORE_CONSOLE=y`. The two images already flashed did not have
+that, and their console is gone. Do not flash again until this section
+is the approved attempt.
+
+The DTS reserves `0xa1300000` for 1 MiB, with the same record, console,
+ftrace and pmsg sizes as the Lineage 4.9 tree. Lineage has
+`CONFIG_PSTORE_RAM=y`, so a warm boot back into Android can show the
+mainline console under `/sys/fs/pstore/`.
+
+`adb reboot recovery` writes `boot-recovery` into `misc`. A hang then
+stays in the broken recovery, and Download mode is a power cut that
+drops the RAM buffer. For this attempt, boot with Volume Up plus Power
+from the powered-off state and do not use `adb reboot recovery`.
+
+If no `18d1:d001` gadget appears within a minute:
+
+1. Hold Power and Volume Down only until the tablet resets, then release.
+   Do not hold the keys until it stays off. A full power-off clears ramoops.
+2. Let it boot normally. `misc` was empty, so this should enter `boot`.
+3. If USB returns as Lineage (`04e8:6860` or `18d1:d001` with product
+   `SAMSUNG_Android`), do not flash. Read the buffer:
+
+```sh
+adb root
+adb shell ls -l /sys/fs/pstore
+adb pull /sys/fs/pstore out/pstore
+```
+
+4. Download mode remains the rollback if that warm reset does not reach
+   Lineage. Expect the ramoops contents to be gone in that case, then
+   follow section 3.
+
 ## What the 2026-11-04 attempt showed
 
 The image was the GCC 15.3.0 nolibc build, sha256
