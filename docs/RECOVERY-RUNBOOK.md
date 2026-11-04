@@ -104,6 +104,42 @@ adb shell getprop sys.boot_completed
 Expected kernel `4.9.337-ga30605a54f3b` and `sys.boot_completed` = `1`.
 Then `adb unroot` if root was enabled.
 
+## 3b. Back to Lineage from the mainline shell, no flash (tested 2026-11-04)
+
+A key reset does **not** do this. On 2026-11-04 at 21:29 a Power plus Volume
+Down reset from the running initramfs came back into the same recovery
+(`androidboot.boot_recovery=1`), with `misc` empty before and after. What
+worked is a software restart that asks the PMIC for Samsung's NORMALBOOT
+(0x14, `mode-android` in the DTS), which starts the `boot` partition.
+
+It needs the `qcom-pon` module, which is `=m` and which the initramfs init
+does not load yet. Without it nothing writes `PON_SOFT_RB_SPARE`, and the
+restart is a warm reset, which this tablet's ABL can hang on. Until the init
+loads it, copy it into RAM from the PC (nothing touches the eMMC):
+
+```sh
+KO=out/kernel/modules/lib/modules/*/kernel/drivers/power/reset/qcom-pon.ko
+# on the tablet, over telnet 172.16.42.1:
+#   (nc -l -p 9001 > /tmp/qcom-pon.ko &); (nc -l -p 9002 > /tmp/rebootmode &)
+nc -w 3 172.16.42.1 9001 < $KO
+nc -w 3 172.16.42.1 9002 < rebootmode      # static aarch64, 15 lines of C
+# on the tablet:
+#   chmod +x /tmp/rebootmode; insmod /tmp/qcom-pon.ko
+#   ls /sys/class/reboot-mode/qcom-pon     # must exist, else stop
+#   dd if=/dev/mmcblk0p34 bs=4096 count=1 | tr -d '\0' | wc -c   # must be 0
+#   /tmp/rebootmode android
+```
+
+Result on 2026-11-04: the command ran at 21:35:20, the host saw
+`04e8:6860` (`SAMSUNG_Android`, `bcdDevice 4.09`) at 21:35:57 and
+`sys.boot_completed=1` by 21:36:23. Lineage 22.2-20260909, kernel
+`4.9.337-ga30605a54f3b`, `ro.boot.boot_recovery=0`, adbd as uid 2000.
+`/proc/cmdline` is not readable from the shell user on this build, so use
+the `ro.boot.*` properties. Always pass `adb -s R52M410RCVR`: a Galaxy S24
+may be on the same host.
+
+Stop and use section 3 if no USB id appears within about 90 seconds.
+
 ## 4. Read ramoops after a failed mainline boot
 
 This applies only to an image built with `CONFIG_PSTORE_RAM=y` and
@@ -125,7 +161,8 @@ If no `18d1:d001` gadget appears within a minute:
 
 1. Hold Power and Volume Down only until the tablet resets, then release.
    Do not hold the keys until it stays off. A full power-off clears ramoops.
-2. Let it boot normally. `misc` was empty, so this should enter `boot`.
+2. Let it boot. `misc` was empty, but on 2026-11-04 this did **not** enter
+   `boot`: it re-entered recovery (see section 3b).
 3. If USB returns as Lineage (`04e8:6860` or `18d1:d001` with product
    `SAMSUNG_Android`), do not flash. Read the buffer:
 
