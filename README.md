@@ -1,61 +1,104 @@
 # Omarchy on the Galaxy Tab S5e (SM-T720)
 
-Mainline Linux and, later, Omarchy for the Samsung Galaxy Tab S5e Wi-Fi
-(`gts4lvwifi`, SM-T720 / SM-T720N, Snapdragon 670). The LTE models
-(SM-T725) are a different board and are out of scope.
+Mainline Linux, Arch Linux ARM and, next, Omarchy Mobile for the Samsung
+Galaxy Tab S5e Wi-Fi (`gts4lvwifi`, SM-T720 / SM-T720N, Snapdragon 670). The
+LTE models (SM-T725) are a different board and are out of scope.
 
-This tree is the port notes, the device descriptor and the kernel build.
-It does not contain the kernel, and it does not flash the tablet.
+## Status, 2026-11-04
+
+| Milestone | State |
+| --- | --- |
+| M0 to M3: audit, kernel, initramfs, recovery packer | passed, built and checked offline |
+| M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
+| M6: Arch Linux ARM | passed: systemd, ssh over USB and `pacman` run from a root file inside userdata |
+| M7: hardware | prepared, not started: see `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
+| M8: Omarchy Mobile | planned: `docs/OMARCHY-PLAN.md` |
+| M9: CI | a static workflow runs on every push; the kernel build stays manual |
+
+The state in detail, with every measurement and what went wrong, is in
+`PROGRESS.md`. `PROCESS.md` is the short handoff. Nothing here is a claim that
+the display, GPU, touch, sound, Wi-Fi or sensors work: they are not measured.
+
+## How it boots
+
+The tablet has one slot and eMMC. LineageOS stays in `boot`. Linux is in the
+`recovery` partition as an Android boot image (header v1, `Image.gz` with the
+DTB appended) together with Lineage's own `recovery_dtbo`, which the bootloader
+insists on. The initramfs brings up USB networking (`172.16.42.1`), then maps a
+root image that lives in a file in Android's `userdata` with dm-linear, without
+mounting `/data`, and switches to Arch. Going back to LineageOS is
+`boot-android`, from either system.
+
+Do not point Omarchy's `tools/install-phone` at this tablet. That tool writes a
+fastboot slot B.
+
+Known: after a LineageOS boot, `recovery` may be rewritten by Android
+(`PROGRESS.md`, last sections); write it after the last Android boot.
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
-| `device/gts4lvwifi/device.conf` | Board facts the image has to match |
-| `device/gts4lvwifi/kernel.config` | Tablet config fragment (`CONFIG_LOCALVERSION`) |
-| `device/gts4lvwifi/BRINGUP-M1.md` | First-light plan. No flashing in this stage |
-| `device/gts4lvwifi/NOTES.md` | What has actually been checked |
-| `PROCESS.md` | Handoff: decisions, measurements, where to resume |
-| `sources.lock` | Commits `scripts/fetch-sources.sh` checks out under `src/` |
-| `scripts/build-kernel.sh` | Cross-build of `Image.gz` plus the board DTB |
-| `scripts/build-initramfs.sh` | First-light initramfs and `out/recovery.img` |
-| `scripts/pack-recovery.py` | Header v1 packer. It does not flash |
-| `scripts/verify-recovery.py` | Inverse check of a packed image |
-| `docs/RECOVERY-RUNBOOK.md` | Manual recovery boot and rollback. Needs a fresh approval |
-| `.github/workflows/kernel.yml` | Manual Actions build of `Image.gz` and the DTB, without modules |
+| `device/gts4lvwifi/device.conf`, `kernel.config` | board facts and the kernel config fragment |
+| `device/gts4lvwifi/initramfs/` | `init`, `boot-android`, and the C tools of the initramfs |
+| `device/gts4lvwifi/tools/` | `fiemap`, run on the tablet to map the root file |
+| `device/gts4lvwifi/rootfs/` | overlay, package list and the in-container scripts of the root image |
+| `packages/` | `PKGBUILD`s for the Qualcomm userspace Arch Linux ARM lacks |
+| `scripts/` | build, flash, deploy and test scripts, listed below |
+| `docs/` | audit, recovery runbook, hardware matrix, roadmap, plans, licences, console log |
+| `sources.lock`, `rootfs.lock` | pinned git trees and the pinned Arch Linux ARM tarball |
+| `PROGRESS.md`, `PROCESS.md` | the long account and the short handoff |
 
-`src/` and `out/` are local. They are gitignored.
+`src/` and `out/` are local and gitignored, as are the console photos.
 
-## Build on the other machine
+## Scripts
+
+| Script | Does | Touches the tablet |
+| --- | --- | --- |
+| `fetch-sources.sh`, `fetch-alarm-rootfs.sh` | fetch the pinned trees and the verified Arch Linux ARM tarball | no |
+| `build-kernel.sh`, `build-initramfs.sh` | kernel and modules; initramfs and `out/recovery.img` | no |
+| `pack-recovery.py`, `verify-recovery.py`, `verify-initramfs.sh` | packer and offline checks | no |
+| `build-packages.sh`, `build-rootfs.sh` | packages and the root image, in aarch64 containers | no |
+| `hw-matrix.py` | what the build has for every enabled device | no |
+| `rootfs-to-tablet.sh` | copy the root image into userdata and record its extents | writes one file in `/data` |
+| `flash-recovery-adb.sh`, `flash-recovery-shell.sh` | write `recovery` from Android, or from the running tablet | writes `recovery` |
+| `sync-modules.sh`, `tablet-deploy.sh` | put modules, overlay and packages on the running Arch | writes `/usr`, `/etc` |
+| `arch-smoke.sh`, `usb-http-proxy.py` | test systemd and `pacman` over the cable | installs one package |
+
+## Build
 
 The kernel is Linux 7.2.13 from [pulpoff/linux-gts4lv](https://github.com/pulpoff/linux-gts4lv)
-at the commit in `sources.lock`, configured with `defconfig` plus
-`arch/arm64/configs/sdm670.config` plus `device/gts4lvwifi/kernel.config`.
+at the commit in `sources.lock`, configured with `defconfig`, then
+`arch/arm64/configs/sdm670.config`, then `device/gts4lvwifi/kernel.config`.
 
 ```sh
 scripts/fetch-sources.sh
-# Pop!_OS / Debian:
 sudo apt-get install -y gcc-aarch64-linux-gnu bc bison flex libssl-dev
-# Arch:
-sudo pacman -S --needed aarch64-linux-gnu-gcc aarch64-linux-gnu-binutils bc bison flex openssl
-scripts/build-kernel.sh
-scripts/build-initramfs.sh
+scripts/build-kernel.sh                  # Image.gz, DTB, modules
+scripts/build-initramfs.sh               # also writes out/recovery.img
+python3 tests/test-pack-recovery.py
+scripts/verify-initramfs.sh && scripts/verify-recovery.py out/recovery.img
 ```
 
-The result is `out/kernel/arch/arm64/boot/Image.gz-dtb`. On a machine with
-less than 12 GB of RAM the script uses `-j2`. Modules land in
-`out/kernel/modules`. `scripts/build-kernel.sh --no-modules` skips them.
+The root image and the packages need Docker with the aarch64 binfmt handler
+(`docker.io`, `qemu-user-static`, `binfmt-support`):
 
-GitHub Actions (workflow **kernel**, started by hand) builds the same
-image without modules. A full modules build does not fit the default
-runner disk. Signing keys never go into Actions.
+```sh
+scripts/fetch-alarm-rootfs.sh
+scripts/build-packages.sh
+scripts/build-rootfs.sh
+```
 
-## Boot, when an image exists
+On a machine with less than 12 GB of RAM the kernel script uses `-j2`. GitHub
+Actions has two workflows: `static` (shellcheck, yamllint, the C tools, the
+packer tests, a guard against tracked photos, images and keys) and `kernel`
+(started by hand, `Image.gz` and the DTB without modules).
 
-The tablet has one slot and eMMC. Linux goes in the `recovery` partition.
-LineageOS stays in `boot`. The bootloader wants boot header v1 and
-Lineage's own `recovery_dtbo`; it rejects an overlay that does not apply.
-The packer for that image is not written yet. See `BRINGUP-M1.md`.
+## Safety
 
-Do not point Omarchy's `tools/install-phone` at this tablet. That tool
-writes a fastboot slot B.
+Flashing and rewriting a partition are for the owner's own tablet, with the
+rollback copy in `out/` and the recovery steps in `docs/RECOVERY-RUNBOOK.md`.
+The bootloader chain, calibration, `efs`, `persist` and the modem's firmware
+are never written. Samsung firmware is read from the tablet's partitions at
+boot and never copied into the image or this repository. Licences and where
+each piece comes from: `docs/LICENSES.md`.

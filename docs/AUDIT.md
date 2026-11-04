@@ -3,6 +3,9 @@
 Branch `feat/gts4lvwifi-mainline-bringup`. `sources.lock` was not moved.
 The tablet is back on LineageOS. This audit does not authorize another flash.
 
+> Superseded. This is the audit of the first day, before the recovery image
+> booted. The current state is in `PROGRESS.md` and the root `README.md`.
+
 ## Host
 
 HP OMEN 16, Pop!_OS 24.04, x86_64, 32 threads, 32 GB RAM, hundreds of GB free.

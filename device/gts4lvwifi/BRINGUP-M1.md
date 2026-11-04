@@ -1,5 +1,9 @@
 # gts4lvwifi first light
 
+> Superseded. This is the first-light plan. The image it plans was built, flashed
+> and booted, and later images added USB networking and an Arch root. What
+> happened is in `PROGRESS.md`; the sections below describe the plan, not the state.
+
 Goal of this stage: a mainline `Image.gz` with `sdm670-samsung-gts4lvwifi.dtb`
 appended, built from the pinned tree, small enough to sit in the recovery
 partition later. No partition is written in this stage.
