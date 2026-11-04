@@ -1,0 +1,7 @@
+# Shared by the static workflow and by anyone running yamllint locally.
+extends: default
+rules:
+  line-length: disable
+  document-start: disable
+  truthy:
+    check-keys: false

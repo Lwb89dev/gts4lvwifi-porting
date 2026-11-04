@@ -8,7 +8,7 @@
 # Override KERNEL_SRC, OUT, CROSS_COMPILE, JOBS.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 kernel=${KERNEL_SRC:-$root/src/linux-gts4lv}
 out=${OUT:-$root/out/kernel}
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}

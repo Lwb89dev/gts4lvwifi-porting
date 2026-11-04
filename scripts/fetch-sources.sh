@@ -2,7 +2,7 @@
 # Check out the trees pinned in sources.lock under src/. Safe to re-run.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 lock=$root/sources.lock
 mkdir -p "$root/src"
 

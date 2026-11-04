@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: MIT
+# Static checks. Needs no kernel, no tablet and no firmware: shell scripts,
+# workflow YAML, the C tools of the initramfs and the recovery packer tests.
+# The kernel build stays in kernel.yml, run by hand.
+name: static
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: ShellCheck, yamllint, C tools, packer tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y shellcheck yamllint gcc-aarch64-linux-gnu
+
+      - name: ShellCheck
+        run: |
+          shellcheck -x -S warning \
+            scripts/*.sh \
+            device/gts4lvwifi/initramfs/boot-android \
+            device/gts4lvwifi/rootfs/*.sh \
+            device/gts4lvwifi/rootfs/overlay/usr/local/sbin/boot-android
+
+      - name: Workflow YAML
+        run: yamllint .github/workflows
+
+      - name: C tools compile without warnings
+        run: |
+          for f in device/gts4lvwifi/initramfs/*.c device/gts4lvwifi/tools/*.c; do
+            aarch64-linux-gnu-gcc -fsyntax-only -Wall -Wextra -Wpedantic -Werror "$f"
+          done
+
+      - name: Recovery packer tests
+        run: python3 tests/test-pack-recovery.py
+
+      - name: No photo, key or image is tracked
+        run: |
+          tracked=$(git ls-files | grep -E '(^photo_.*\.jpg$|\.(img|cpio\.gz|pem)$|_ed25519($|\.pub$))' || true)
+          # the Lineage recovery overlay is a documented, checksummed input
+          tracked=$(echo "$tracked" | grep -v '^device/gts4lvwifi/lineage-recovery-dtbo\.img$' || true)
+          if [ -n "$tracked" ]; then
+            echo "tracked files that must stay local:" >&2
+            echo "$tracked" >&2
+            exit 1
+          fi

@@ -2,7 +2,7 @@
 # Write SHA-256 sums for the bring-up artifacts. Does not flash.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 out=$root/out/MANIFEST.sha256
 cd "$root"
 files="

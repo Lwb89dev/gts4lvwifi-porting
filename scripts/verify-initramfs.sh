@@ -2,7 +2,7 @@
 # Offline check of the first-light initramfs. Does not flash.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 archive=$root/out/initramfs.cpio.gz
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

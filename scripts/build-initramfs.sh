@@ -7,7 +7,7 @@
 # Needs the kernel modules from scripts/build-kernel.sh and aarch64-linux-gnu-gcc.
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 bb=$root/src/busybox
 stage=$root/out/initramfs
@@ -77,8 +77,7 @@ done
 file "$bb/busybox" | grep -q "ARM aarch64"
 file "$bb/busybox" | grep -q "statically linked"
 
-rels=$modroot/*
-set -- $rels
+set -- "$modroot"/*
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
 	echo "kernel modules missing: $modroot" >&2
 	echo "run scripts/build-kernel.sh first" >&2
