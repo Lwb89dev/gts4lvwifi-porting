@@ -876,7 +876,7 @@ variazioni.
   `f4bbee5544b1058cfdb12bb3bb54c13e98161f1f93b00381f002205df6f7357f`): 231
   pacchetti, i cinque nostri, `libssc`, `iio-sensor-proxy`, `iw`,
   `wpa_supplicant`, ALSA, `mesa` e `vulkan-freedreno` di Arch Linux ARM, più
-  overlay: blacklist dei moduli da caricare a mano (i pin LPASS appendono il bus
+  overlay: blacklist dei moduli da caricare a mano (i pin LPASS bloccano il bus
   finché l'ADSP non gira), `gts4lv-firmware` (monta `modem`, `apnhlos` e
   `vendor` in sola lettura e collega i file sotto `/run`, nulla viene copiato),
   `gts4lv-dsp` e un'unità che ferma l'ADSP allo spegnimento (con l'ADSP acceso
