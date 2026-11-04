@@ -697,10 +697,48 @@ dipende da file copiati a mano. In `recovery` c'è l'immagine `4908aecf…`;
 il tablet è su Lineage. Log in `out/third-shell-qcompon.log`,
 `out/heimdall-qcompon-flash.log`, `out/usb-watch-qcompon.log`.
 
+## M6 avviato: analisi e tarball verificato (nessun accesso al tablet)
+
+Piano in `docs/ROOTFS-PLAN.md`. Fatto, sul PC:
+
+- Il build upstream del rootfs (`tools/build-rootfs`) richiede Docker più
+  binfmt aarch64, il keyring [omarchy] di un laptop Omarchy, e ragiona su
+  un'immagine che cresce su tutto `userdata` dopo `install-phone`. Qui non
+  c'è `docker`, `podman`, `qemu-aarch64` né binfmt aarch64, `sudo` chiede la
+  password, e `userdata` non si tocca. I pacchetti apt `docker.io 29.1.3`,
+  `qemu-user-static 8.2.2`, `binfmt-support`, `podman 4.9.3` sono
+  disponibili e non installati.
+- I repository Arch Linux ARM hanno già `mesa` e `vulkan-freedreno 26.2.6`,
+  `hyprland 0.57.1`, `networkmanager`, `pipewire`, `systemd 262.1`,
+  `pacman 7.1`, `linux-firmware-qcom`. Niente da compilare per M6.
+- Kernel: le opzioni di systemd sono tutte presenti. `BLK_DEV_DM=m` e
+  l'initramfs non ha `dm-mod.ko` (il target `linear` è dentro `dm-mod`, non
+  esiste un `DM_LINEAR` separato). **La microSD non è nel DTS**: c'è solo
+  `&sdhc_1`; il DTS Samsung 4.9 ha `&sdhc_2` con `cd-gpios = <&tlmm 3 0x1>`,
+  quindi serve un nodo nuovo e un kernel nuovo.
+- `scripts/fetch-alarm-rootfs.sh` ha scaricato e verificato (MD5, firma con
+  la chiave pinned `68B3537F…`) il tarball `ArchLinuxARM-aarch64-latest`,
+  829367415 byte, sha256 `42a4eeaa…`, fissato in `rootfs.lock`, in
+  `src/alarm/` (gitignored). Contenuto: 2015 MiB decompresso, 165 pacchetti,
+  `systemd 261.2`, `openssh`, il kernel Arch 7.1.6 e 950 MiB di firmware che
+  non servono. **Gli account `root` e `alarm` hanno le password pubbliche di
+  default** (`root`/`root`, `alarm`/`alarm`, verificato calcolando l'hash in
+  locale) e `sshd` accetta la password: vanno bloccati. `systemd-networkd`
+  ha solo `en.network` ed `eth.network`, quindi `usb0` va configurata a
+  parte. GNU tar scarta gli xattr `security.capability`.
+
+Opzioni di storage confrontate nel piano: A microSD, B file in `userdata`
+via dm-linear, C ripartizionamento, D rootfs in RAM scaricato via USB.
+Consiglio D come prima prova (stima di 585–715 MiB contro 3,47 GiB di RAM,
+non misurata) e poi A o B.
+
 ## Prossimo passo
 
-M6, rootfs Arch Linux ARM. Analisi e piano in `docs/ROOTFS-PLAN.md`. Nessun
-nuovo flash serve prima di avere un rootfs da provare. Se `18d1:d001`
+Tre decisioni del proprietario (in fondo a `docs/ROOTFS-PLAN.md`): c'è una
+microSD e va bene toccare DT e kernel per lo slot? Si può scrivere un file in
+`/data` di Lineage? Si possono installare con `sudo apt` i prerequisiti di
+M6.3? Per M6.1 (opzione D) non serve nessuna delle tre, ma serve un nuovo
+`recovery.img` e quindi un nuovo sì al flash. Se `18d1:d001`
 non compare, la foto della console dice se `muic usb on i2c-N` è stato
 stampato; non si cambia nient'altro nello stesso passo (`dr_mode`, cmdline,
 pannello).

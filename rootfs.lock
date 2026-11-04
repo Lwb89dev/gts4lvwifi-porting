@@ -1,0 +1,5 @@
+# Pinned 2026-11-04. scripts/fetch-alarm-rootfs.sh downloads this under src/alarm/
+# and checks the MD5 file and the detached signature against the build key below.
+# "latest" moves: a different tarball has a different sha256 and is not this one.
+# name url sha256 bytes signing-key
+ArchLinuxARM-aarch64-latest.tar.gz http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz 42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319 829367415 68B3537F39A313B3E574D06777193F152BDBE6A6
