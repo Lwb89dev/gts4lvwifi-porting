@@ -1,0 +1,34 @@
+#!/bin/bash
+# Restart the tablet into LineageOS (the boot partition), once. A key reset
+# from this system re-enters the recovery partition where Arch lives, so the
+# PMIC restart reason has to say "android" (NORMALBOOT, 0x14 in the DTS).
+# That needs the qcom-pon module, which the initramfs loads. misc may still
+# carry the "boot-recovery" request that adb reboot recovery wrote; that
+# request is cleared here, anything else in misc is left alone and refused.
+set -euo pipefail
+
+die() { echo "boot-android: $*" >&2; exit 1; }
+
+[ -e /sys/class/reboot-mode/qcom-pon ] ||
+	die "qcom-pon is not loaded, a restart would not reach Android"
+
+misc=
+for uevent in /sys/class/block/mmcblk0p*/uevent; do
+	grep -q '^PARTNAME=misc$' "$uevent" || continue
+	misc=/dev/$(basename "$(dirname "$uevent")")
+	break
+done
+[ -b "$misc" ] || die "misc partition not found"
+
+command=$(dd if="$misc" bs=32 count=1 status=none | tr -d '\000')
+case $command in
+'') ;;
+boot-recovery)
+	echo "boot-android: clearing the boot-recovery request in $misc"
+	dd if=/dev/zero of="$misc" bs=2048 count=1 conv=fsync status=none
+	;;
+*) die "$misc holds the command '$command', not touching it" ;;
+esac
+
+echo "boot-android: restarting into LineageOS"
+exec systemctl reboot --reboot-argument=android
