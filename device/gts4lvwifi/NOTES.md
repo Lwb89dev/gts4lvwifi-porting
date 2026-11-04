@@ -2,6 +2,21 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — gadget bound, MUIC did not switch
+
+`photo_2026-11-04_21-00-39.jpg` is the second console. Lines read from it:
+
+- `gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087`
+- `gts4lv-init: gadget bound to a600000.usb`
+- `gts4lv-init: muic not switched`
+- `gts4lv-init: usb0 172.16.42.1`
+- `gts4lv-init: telnet 172.16.42.1`
+
+The host still did not see `18d1:d001`. `CONFIG_I2C_GPIO` is not set, so
+the bit-banged `i2c-charger` bus in the DTS does not exist and
+`muic-usb` has nowhere to write `MANSW1=0x24`. The D+/D- pair stays off
+the SoC. The USB PHY module did remove the earlier `dwc3` deferral.
+
 ## 2026-11-04 — USB PHY module packed and written, not booted
 
 `CONFIG_PHY_QCOM_QUSB2=m` and the module has no dependencies. The

@@ -123,6 +123,13 @@ card. `platform a600000.usb` was still deferred at 11.26 s with
 `18d1:d001`. The frame has no panic. `random: crng init done` is at
 about 23.4 s, so the kernel was still alive then.
 
+The next photograph, `photo_2026-11-04_21-00-39.jpg`, shows the PHY
+module was enough for the controller: `gadget bound to a600000.usb`,
+then `usb0 172.16.42.1` and `telnet 172.16.42.1`. The following line is
+`muic not switched`. `CONFIG_I2C_GPIO` is not set, so `i2c-charger` is
+not created and the SM5705 write does not run. The host still saw no
+`18d1:d001`.
+
 ## Milestone status
 
 | Milestone | Status |
