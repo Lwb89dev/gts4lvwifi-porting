@@ -656,13 +656,51 @@ Limiti: il ritorno è stato provato solo con il modulo `qcom-pon` copiato a
 mano in RAM, perché l'init attuale non lo carica; e in `recovery` c'è
 ancora la nostra immagine, non quella di Lineage.
 
+## Sesto flash: qcom-pon e boot-android nell'initramfs, passato
+
+Autorizzato dal proprietario («hai il mio sì a procedere» sui quattro passi
+proposti: init permanente, ricostruzione e verifiche, scrittura, avvio di
+M6). Commit `c198b9c`. Cambia solo l'initramfs, il kernel e il DTB sono
+quelli dell'immagine I2C_GPIO (`54628c69…`, `e496d213…`). Differenze
+rispetto all'initramfs precedente, verificate estraendolo: `init` (blocco
+`insmod qcom-pon.ko` dopo `log "telnet …"`, così il percorso USB già
+dimostrato non cambia), `lib/modules/qcom-pon.ko`, `usr/sbin/rebootmode`
+(da `rebootmode.c`, compilato con `-Wall -Wextra`, stesso binario
+`20e4832e…` già provato) e `usr/sbin/boot-android` (rifiuta se
+`/sys/class/reboot-mode/qcom-pon` manca o se `misc` non è vuoto, poi
+`rebootmode android`).
+
+| File | Byte | sha256 |
+| --- | --- | --- |
+| initramfs.cpio.gz | 2129613 | `1143385f1f46b58848bd79f23b63b68e024a00d1fb53019d6927784464a138b4` |
+| recovery.img | 17006592 | `4908aecf34eaec7a5f3374f8b3f6e91d4125b101ecd425c5d52a97dc4930d4a5` |
+
+Offline: `tests/test-pack-recovery.py`, `scripts/verify-initramfs.sh`
+(esteso: nuovi file, `qcom-pon` dopo il telnet) e `scripts/verify-recovery.py`
+passano. Conteggio `dd`: `17006592 / 4096 = 4152`.
+
+Sul tablet: identità verificata da Lineage (SM-T720, `gts4lvwifi`, seriale
+giusto, unico device di `adb`, batteria 68% in carica), `adb reboot download`
+(unico id `04e8:685d`, `SDM710`, `bcdDevice 2.1b`), Heimdall
+`flash --RECOVERY out/recovery.img --no-reboot`, 21:41:55–21:42:00,
+`upload successful`. Avvio manuale del proprietario. Alle 21:43:03 l'host
+ha visto il gadget. Dalla shell: `qcom-pon loaded, reboot-mode ready` a
+1,281 s (anche nella foto `photo_2026-11-04_21-43-44.jpg`), nessun
+`insmod` manuale; `/sys/class/reboot-mode/qcom-pon` presente; input
+`pm8941_pwrkey` e `pm8941_resin`; `misc` a zero; rilettura di
+`/dev/mmcblk0p49` (4152 pagine) con sha256 `4908aecf…`, uguale all'immagine
+scritta. Poi `boot-android` dalla shell (21:43:41): `restarting into
+LineageOS`, l'host ha visto `04e8:6860` alle 21:44:17, e con
+`adb -s R52M410RCVR` `sys.boot_completed=1`, `4.9.337-ga30605a54f3b`,
+`ro.boot.boot_recovery=0`, adbd `uid 2000`. Il ritorno ad Android ora non
+dipende da file copiati a mano. In `recovery` c'è l'immagine `4908aecf…`;
+il tablet è su Lineage. Log in `out/third-shell-qcompon.log`,
+`out/heimdall-qcompon-flash.log`, `out/usb-watch-qcompon.log`.
+
 ## Prossimo passo
 
-Non iniziato e da decidere con il proprietario. Prima di ogni nuovo flash,
-rendere permanente quello che è servito: far caricare `qcom-pon.ko` dall'init
-(dopo `phy-qcom-qusb2`, prima di qualsiasi restart) e includere
-`rebootmode` nell'initramfs, così il ritorno ad Android non dipende da file
-copiati a mano. Poi M6 (rootfs Arch). Un nuovo flash richiede un sì nuovo. Se `18d1:d001`
+M6, rootfs Arch Linux ARM. Analisi e piano in `docs/ROOTFS-PLAN.md`. Nessun
+nuovo flash serve prima di avere un rootfs da provare. Se `18d1:d001`
 non compare, la foto della console dice se `muic usb on i2c-N` è stato
 stampato; non si cambia nient'altro nello stesso passo (`dr_mode`, cmdline,
 pannello).

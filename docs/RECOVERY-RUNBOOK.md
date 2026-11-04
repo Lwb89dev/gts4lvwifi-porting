@@ -112,10 +112,22 @@ Down reset from the running initramfs came back into the same recovery
 worked is a software restart that asks the PMIC for Samsung's NORMALBOOT
 (0x14, `mode-android` in the DTS), which starts the `boot` partition.
 
-It needs the `qcom-pon` module, which is `=m` and which the initramfs init
-does not load yet. Without it nothing writes `PON_SOFT_RB_SPARE`, and the
-restart is a warm reset, which this tablet's ABL can hang on. Until the init
-loads it, copy it into RAM from the PC (nothing touches the eMMC):
+From the image of 2026-11-04 21:41 on (sha256 `4908aecf…`), init loads
+`qcom-pon` and ships the command. Over telnet to `172.16.42.1`:
+
+```sh
+boot-android
+```
+
+It refuses unless `/sys/class/reboot-mode/qcom-pon` exists and `misc` is
+empty, then restarts with the PMIC reason NORMALBOOT. Tested at 21:43:41:
+the host saw `04e8:6860` at 21:44:17 and Lineage reported
+`sys.boot_completed=1`, `ro.boot.boot_recovery=0`.
+
+The rest of this section is the manual path for images built before that.
+`qcom-pon` is `=m`; without it nothing writes `PON_SOFT_RB_SPARE`, and the
+restart is a warm reset, which this tablet's ABL can hang on. Copy it into
+RAM from the PC (nothing touches the eMMC):
 
 ```sh
 KO=out/kernel/modules/lib/modules/*/kernel/drivers/power/reset/qcom-pon.ko
