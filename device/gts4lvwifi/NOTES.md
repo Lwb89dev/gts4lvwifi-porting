@@ -2,6 +2,27 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-04 — recovery is 72744960 bytes, not 64 MiB
+
+With adb root, `blockdev --getsize64` on this tablet:
+
+| Partition | Bytes |
+| --- | --- |
+| boot | 67108864 |
+| recovery | 72744960 |
+| dtbo | 8388608 |
+| system | 4932501504 |
+| vendor | 939524096 |
+| product | 629145600 |
+| cache | 419430400 |
+| userdata | 54951656960 |
+
+`recovery` is the size pulpoff's image script already checks. The Lineage BoardConfig value of 67108864 is the `boot` partition. An image for `recovery` must be at most 72744960 bytes.
+
+Both `boot` and `recovery` are Android boot header v1, page size 4096, kernel address `0x8000`, ramdisk `0x2000000`, tags `0x1e00000`, name `SRPSA14B001`. The cmdline is the Lineage one, including `androidboot.boot_devices=soc/7c4000.sdhci`. `boot` has no recovery dtbo. `recovery` carries a dtbo of 1305887 bytes at offset 29597696. That blob is byte-identical to the first 1305887 bytes of the `dtbo` partition (sha256 `bca502bdea00d1e629fb3b04f8a0734d0e4bb47b5ff220e6539f7abc33efe3f4`) and is saved as `lineage-recovery-dtbo.img`. The current recovery image occupies 30904320 bytes, so about 40 MiB of the partition is unused.
+
+The system ext4 filesystem inside the 4932501504-byte partition has 1068292 blocks of 4096 bytes. adbd was returned to the shell user afterwards.
+
 ## 2026-11-04 — the connected tablet matches the port
 
 Read over adb, nothing written. The device is an SM-T720, `ro.product.device=gts4lvwifi`, product `gts4lvwifixx`. LineageOS `22.2-20260909-NIGHTLY-gts4lvwifi`, Android 15, `userdebug`. The running kernel is `4.9.337-ga30605a54f3b`, the same commit as the pinned Lineage tree in `sources.lock`. `/proc/cpuinfo` reports `Qualcomm Technologies, Inc SDM670`. `MemTotal` is 3735364 kB, so this unit is the 4 GB model.

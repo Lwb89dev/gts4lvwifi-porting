@@ -24,7 +24,7 @@ DTS:
 | Slots | one |
 | Boot header | v1, page 4096, kernel offset `0x8000`, ramdisk `0x2000000`, tags `0x1e00000` |
 | Kernel image | `Image.gz` with the DTB concatenated |
-| Recovery size | 64 MiB (`67108864`) |
+| Recovery size | 72744960 bytes, measured on this tablet. `boot` is 64 MiB |
 | Panel | 2560×1600, command mode, dual DSI through the ANA38401 bridge |
 | Early console | `simple-framebuffer` at the bootloader splash |
 | Required cmdline | `fw_devlink.sync_state=timeout` |
@@ -34,15 +34,12 @@ DTS:
 1. On the build machine, `scripts/fetch-sources.sh` then `scripts/build-kernel.sh`.
    Done when `out/kernel/arch/arm64/boot/Image.gz-dtb` exists and `uname` is
    not involved yet: this step never touches the tablet.
-2. Read the live partition table from a running LineageOS (`ls -l /dev/block/by-name`)
-   and confirm `recovery` is at least 64 MiB. The names are confirmed on this
-   tablet (2026-11-04, see NOTES). The byte size still needs root: Developer
-   options, Rooted debugging, then `adb root`. Until that read, the BoardConfig
-   size of 64 MiB is what an image must fit in.
-3. Pack a header-v1 recovery image that reuses Lineage's `recovery_dtbo`
-   byte for byte, with an initramfs that brings up USB networking and a shell.
-   The packer is not written yet. It must refuse an image larger than the
-   recovery partition.
+2. Done on 2026-11-04. Names and byte sizes are in NOTES. `recovery` is
+   72744960 bytes. The dtbo the bootloader already accepts is
+   `lineage-recovery-dtbo.img`.
+3. Pack a header-v1 recovery image that reuses that dtbo byte for byte, with
+   an initramfs that brings up USB networking and a shell. The packer is not
+   written yet. It must refuse an image larger than 72744960 bytes.
 4. Boot that image once, from recovery, with Lineage still in `boot`.
    First success is a shell over USB, then the splash framebuffer on
    `/dev/dri/card0` from simpledrm. Display, GPU and touch come after that
