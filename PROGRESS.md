@@ -40,8 +40,16 @@ Arch e Omarchy non partono prima di quella shell.
   toccati. `/data` è ext4 con cifratura file-based (`fileencryption=ice`)
   e non è stato riformattato.
 - Un flash o un riavvio sul tablet è avvenuto solo dopo un sì esplicito
-  per quell'azione. Il firmware stock non è su questo disco. Il
-  rollback noto è la copia di `recovery` presa prima del primo flash.
+  per quell'azione, fino al 2026-11-04. Da allora vale un'autorizzazione
+  permanente del proprietario: «il tablet è throwaway, puoi scrivere
+  tranquillamente». Vale per le scritture di prova (`recovery`, file in
+  `/data`, flash con Heimdall). Per scelta di cautela restano fuori
+  bootloader, calibrazioni, `efs`, `persist` e firmware del modem: non si
+  recuperano e fermerebbero il progetto. Si continuano a fare il controllo
+  d'identità prima di ogni scrittura (sullo stesso host può esserci anche il
+  Galaxy S24, che non è di questo progetto) e la copia di rollback. Il
+  firmware stock non è su questo disco. Il rollback noto è la copia di `recovery` presa prima del primo
+  flash.
 - Una modifica di sottosistema per tentativo. `sources.lock` non è
   stato spostato.
 - Sull'host c'è anche un Galaxy S24 (SM-S921B, prodotto `e1s`; seriale
@@ -478,14 +486,15 @@ il log perso nello spegnimento.
 | `98fa3ab` | PHY USB2 caricato prima del gadget |
 | `875c90e` | Seconda foto: gadget legato, bus MUIC assente |
 
-Non sono in git, e non vanno committati senza una richiesta: le tre
-foto nel root (`photo_2026-11-04_20-40-21.jpg`,
-`photo_2026-11-04_21-00-39.jpg`, `photo_2026-11-04_21-19-18.jpg`; si vede
-anche la stanza),
-`PROMPT.md`, `src/`, `out/`, e questo `PROGRESS.md` finché non viene
-chiesto un commit. `.gitignore` copre `src/`, `out/` e `__pycache__`.
-Le foto non sono ignorate: sono solo non tracciate. Non si committano
-dump di partizioni, firmware, dump di seriali.
+`PROMPT.md` e questo `PROGRESS.md` sono in git dal 2026-11-04 (su richiesta
+del proprietario). Le foto della console (`photo_*.jpg` nel root: si vede
+anche la stanza e una mano) sono ignorate da `.gitignore` dal 2026-11-04 e il
+loro testo è trascritto e datato in `docs/CONSOLE-LOG.txt`. Due commit locali
+non pushati le contengono ancora nella storia (`236e748` per le prime tre,
+`b6c343b` per la quarta): prima di un push vanno tolti dalla storia, e
+riscrivere la storia richiede un sì del proprietario. `.gitignore` copre
+anche `src/`, `out/` e `__pycache__`. Non si committano dump di partizioni,
+firmware, dump di seriali, MAC.
 
 ## Immagine I2C_GPIO, costruita e non flashata
 
@@ -538,7 +547,8 @@ poi i `Timed out. Forcing sync_state()` attesi a 11,77 s. Nessun panic.
 volta che `muic not switched` non compare: la causa era
 `CONFIG_I2C_GPIO`, come previsto.
 
-Sull'host `enx52b9adc0073f` ha preso `172.16.42.2/24` dal nostro udhcpd.
+Sull'host l'interfaccia USB `enx…` (nome derivato dal MAC casuale del gadget, omesso) ha preso
+`172.16.42.2/24` dal nostro udhcpd.
 `ping 172.16.42.1`: 3 su 3, 2,4–4,0 ms. La prima connessione alla porta 23
 è andata in timeout, le successive (nc e telnet) sono riuscite. Shell via
 telnet, solo comandi di lettura, log in `out/first-shell-*.log`:

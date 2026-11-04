@@ -1,0 +1,282 @@
+CONSOLE LOG - gts4lvwifi (Samsung Galaxy Tab S5e Wi-Fi, SM-T720)
+
+Trascrizione a mano delle foto della console del tablet (il testo che il kernel
+scrive sul framebuffer di simpledrm). Le foto stesse non stanno in git: sono
+ignorate da .gitignore (photo_*.jpg) e restano nella root del repo.
+
+Regole di questo file
+- Ogni foto e' una sessione e ha un'intestazione con data e ora. Data e ora
+  vengono dal nome del file (photo_AAAA-MM-GG_HH-MM-SS.jpg), cioe' dall'orologio
+  del PC del proprietario, non dal tablet.
+- Per ogni foto: quale immagine recovery girava, come e' stato avviato, il testo
+  trascritto, cosa si legge. Le nuove foto si aggiungono in fondo, in ordine di
+  tempo, con la stessa intestazione.
+- Il testo e' trascritto cosi' come si legge. Una cifra poco leggibile e' un "?".
+  Una riga che non si legge e' "[illeggibile]". Niente e' stato completato a
+  memoria. Le righe sono riformattate (la console va a capo a 80 colonne).
+- Omessi, per la regola del progetto di non distribuire seriali e indirizzi MAC:
+  gli indirizzi MAC delle funzioni gadget (casuali a ogni avvio), sostituiti da
+  <MAC omesso>. Nessun seriale compare nelle foto.
+- Tutti i tempi tra parentesi quadre sono secondi dall'avvio del kernel.
+
+Le quattro foto, in sintesi
+
+  20:40:21  recovery ramoops built-in   init parte, dwc3 resta in deferred probe
+  21:00:39  recovery con PHY USB2       gadget legato, "muic not switched"
+  21:19:18  recovery con I2C_GPIO       "muic usb on i2c-1", il host vede 18d1:d001
+  21:43:44  recovery con qcom-pon       "qcom-pon loaded, reboot-mode ready"
+
+
+================================================================================
+2026-11-04 20:40:21   photo_2026-11-04_20-40-21.jpg
+================================================================================
+Immagine: recovery.img "ramoops built-in", 16728064 byte, sha256
+d57f386497b67aec1de7a4386a5cd9a84e89d737763a3d9bd14ab77709fccb11, riscritta con
+Heimdall da Download mode. Kernel 7.2.13-gts4lvwifi-g36f309c07087.
+Avvio: dopo la riscrittura da Download mode; il modo preciso in cui e' stato
+avviato non e' registrato. Initramfs senza il modulo phy-qcom-qusb2.
+Foto: ruotata di 90 gradi, testo piccolo. Le righe piu' vecchie sono a destra
+nell'immagine originale; qui sono rimesse in ordine di tempo.
+
+[    1.012270] 898000.serial: ttyHS1 at MMIO 0x898000 (irq = 104, base_baud = 0) is a MSM
+[    1.012472?] serial serial0: tty port ttyHS1 registered
+[    1.023562] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    1.024280] clk: Not disabling unused clocks
+[    1.024307] PM: genpd: Not disabling unused power domains
+[    1.036529] mmc0: SDHCI controller on 7c4000.mmc [7c4000.mmc] using ADMA 64-bit
+[    1.0366??] sdhci_msm 7c4000.mmc: mmc0: CQE init: success
+[    1.041216] Freeing unused kernel memory: 9920K
+[    1.0412??] Run /init as init process
+[    1.06????] gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087
+[    1.0?????] mmc0: Command Queue Engine enabled
+[    1.0?????] mmc0: new HS400 MMC card at address 0001
+[    1.1?????] mmcblk0: mmc0:0001 DH6DAB 58.2 GiB
+[    1.1?????]  mmcblk0: p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16
+                p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31 p32 p33 p34 p35 p36
+                p37 p38 p39 p40 p41 p42 p43 p44 p45 p46 p47 p48 p49 p50 p51 p52 p53 p54 p55 p56
+                p57
+[    1.114550] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer@9c000000 on minor 0
+[    1.1205??] mmcblk0boot0: mmc0:0001 DH6DAB 4.00 MiB
+[    1.1222??] mmcblk0boot1: mmc0:0001 DH6DAB 4.00 MiB
+[    1.1240??] mmcblk0rpmb: mmc0:0001 DH6DAB 16.0 MiB, chardev (234:0)
+[    1.1716??] Console: switching to colour frame buffer device 320x100
+[    1.205182] simple-framebuffer chosen:framebuffer@9c000000: [drm] fb0: simpledrmdrmfb frame buffer device
+/init: line 40: can't open /proc/device-tree/serial-number: no such file
+[   11.261093?] platform a600000.usb: deferred probe pending: dwc3: failed to initialize core
+[   11.26????] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   11.26????] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   11.26????] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   11.26????] sdm845-camcc ad00000.clock-controller: Timed out. Forcing sync_state()
+[   11.26????] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   11.26????] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 16e0000.interconnect: Timed out. Forcing sync_state()
+[   11.26????] qnoc-sdm670 1700000.interconnect: Timed out. Forcing sync_state()
+[   23.411770?] random: crng init done
+
+Cosa si legge: l'init del tablet gira (kernel 7.2.13), l'eMMC da 58.2 GiB e le
+57 partizioni sono viste, simpledrm prende il framebuffer del bootloader. Il
+controller USB non parte: "deferred probe pending: dwc3: failed to initialize
+core", perche' il PHY USB2 (modulo phy-qcom-qusb2) non e' caricato. Nessun
+panic. Il kernel e' vivo a 23 s. Non compare nessuna riga "gadget bound".
+L'ordine delle ultime righe "Timed out. Forcing sync_state()" e' quello delle
+foto leggibili piu' sotto; i timestamp esatti non si leggono in questa foto.
+
+
+================================================================================
+2026-11-04 21:00:39   photo_2026-11-04_21-00-39.jpg
+================================================================================
+Immagine: recovery.img "PHY", 16736256 byte, sha256
+cf1703154e13732b5040714980438527632ea75f7ec09106bd7c84d753c0d864 (initramfs
+con phy-qcom-qusb2, kernel con ramoops built-in), scritta con Heimdall da Download
+mode. Kernel 7.2.13-gts4lvwifi-g36f309c07087.
+Avvio: dopo l'uscita dalla Download mode, alle 20:58:15 secondo il registro di
+PROGRESS.md; il modo preciso in cui e' stato avviato non e' registrato.
+Foto: leggibile, leggermente inclinata.
+
+[    1.000371] 898000.serial: ttyHS1 at MMIO 0x898000 (irq = 104, base_baud = 0) is a MSM
+[    1.000546] serial serial0: tty port ttyHS1 registered
+[    1.007624] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    1.008422] clk: Not disabling unused clocks
+[    1.008441] PM: genpd: Not disabling unused power domains
+[    1.021827] mmc0: SDHCI controller on 7c4000.mmc [7c4000.mmc] using ADMA 64-bit
+[    1.021869] sdhci_msm 7c4000.mmc: mmc0: CQE init: success
+[    1.024284] Freeing unused kernel memory: 9920K
+[    1.024397] Run /init as init process
+[    1.053465] gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087
+[    1.104429] mmc0: Command Queue Engine enabled
+[    1.104476] mmc0: new HS400 MMC card at address 0001
+[    1.105260] mmcblk0: mmc0:0001 DH6DAB 58.2 GiB
+[    1.109310]  mmcblk0: p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16
+                p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31 p32 p33 p34 p35 p36
+                p37 p38 p39 p40 p41 p42 p43 p44 p45 p46 p47 p48 p49 p50 p51 p52 p53 p54 p55 p56
+                p57
+[    1.112801] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer@9c000000 on minor 0
+[    1.116030] mmcblk0boot0: mmc0:0001 DH6DAB 4.00 MiB
+[    1.118783] mmcblk0boot1: mmc0:0001 DH6DAB 4.00 MiB
+[    1.121584] mmcblk0rpmb: mmc0:0001 DH6DAB 16.0 MiB, chardev (234:0)
+[    1.153774] Console: switching to colour frame buffer device 320x100
+[    1.183228] simple-framebuffer chosen:framebuffer@9c000000: [drm] fb0: simpledrmdrmfb frame buffer device
+/init: line 43: can't open /proc/device-tree/serial-number: no such file
+[    1.249406] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.249632] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.250115] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.250162] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.253050] gts4lv-init: gadget bound to a600000.usb
+[    1.256244] gts4lv-init: muic not switched
+[    1.266482] gts4lv-init: usb0 172.16.42.1
+[    1.275538] gts4lv-init: telnet 172.16.42.1
+[   11.258023] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   11.258125] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   11.258194] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   11.258271] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   11.258337] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   11.258403] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   11.258476] sdm845-camcc ad00000.clock-controller: Timed out. Forcing sync_state()
+[   11.258549] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   11.258624] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   11.258699] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   11.258868] qnoc-sdm670 16e0000.interconnect: Timed out. Forcing sync_state()
+[   11.258949] qnoc-sdm670 1700000.interconnect: Timed out. Forcing sync_state()
+
+Cosa si legge: con phy-qcom-qusb2 il controller USB sale e il gadget si lega a
+a600000.usb. Ma "gts4lv-init: muic not switched": il bus i2c-charger non esiste,
+perche' CONFIG_I2C_GPIO era spento, e MANSW1=0x24 non e' stato scritto. Il host
+non ha visto 18d1:d001. Il numero di riga dell'errore del seriale e' 43 (era 40
+prima dell'aggiunta del modulo PHY). Nessun panic.
+
+
+================================================================================
+2026-11-04 21:19:18   photo_2026-11-04_21-19-18.jpg
+================================================================================
+Immagine: recovery.img "I2C_GPIO", 16740352 byte, sha256
+63028e49dcf8c2f414223f961ac0d6f8b1e488bef28aa11544da336fca61e18e (kernel con
+CONFIG_I2C_GPIO=y, Image.gz sha256 54628c69...), scritta con Heimdall alle
+21:15:55. Kernel 7.2.13-gts4lvwifi-g36f309c07087.
+Avvio: manuale (Volume su + Power) dopo l'uscita dalla Download mode (21:18:18).
+L'host ha visto 18d1:d001 "gts4lvwifi first light" alle 21:18:37.
+Foto: leggibile. Le righe prima di 1.058621 sono uscite dalla parte alta dello
+schermo.
+
+[    1.058621] 898000.serial: ttyHS1 at MMIO 0x898000 (irq = 104, base_baud = 0) is a MSM
+[    1.058731] serial serial0: tty port ttyHS1 registered
+[    1.064738] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    1.065600] clk: Not disabling unused clocks
+[    1.065621] PM: genpd: Not disabling unused power domains
+[    1.074411] mmc0: SDHCI controller on 7c4000.mmc [7c4000.mmc] using ADMA 64-bit
+[    1.074461] sdhci_msm 7c4000.mmc: mmc0: CQE init: success
+[    1.077169] Freeing unused kernel memory: 9920K
+[    1.077275] Run /init as init process
+[    1.112706] gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087
+[    1.149841] mmc0: Command Queue Engine enabled
+[    1.149910] mmc0: new HS400 MMC card at address 0001
+[    1.152196] mmcblk0: mmc0:0001 DH6DAB 58.2 GiB
+[    1.158643]  mmcblk0: p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16
+                p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31 p32 p33 p34 p35 p36
+                p37 p38 p39 p40 p41 p42 p43 p44 p45 p46 p47 p48 p49 p50 p51 p52 p53 p54 p55 p56
+                p57
+[    1.169246] mmcblk0boot0: mmc0:0001 DH6DAB 4.00 MiB
+[    1.171869] mmcblk0boot1: mmc0:0001 DH6DAB 4.00 MiB
+[    1.174298] mmcblk0rpmb: mmc0:0001 DH6DAB 16.0 MiB, chardev (234:0)
+[    1.180337] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer@9c000000 on minor 0
+[    1.226053] Console: switching to colour frame buffer device 320x100
+[    1.254467] simple-framebuffer chosen:framebuffer@9c000000: [drm] fb0: simpledrmdrmfb frame buffer device
+/init: line 43: can't open /proc/device-tree/serial-number: no such file
+[    1.331148] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.331374] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.331916] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.332093] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.334245] gts4lv-init: gadget bound to a600000.usb
+[    1.343071] gts4lv-init: muic usb on i2c-1
+[    1.350523] gts4lv-init: usb0 172.16.42.1
+[    1.359152] gts4lv-init: telnet 172.16.42.1
+[   11.769282] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   11.769388] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   11.769458] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   11.769536] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   11.769605] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   11.769673] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   11.769748] sdm845-camcc ad00000.clock-controller: Timed out. Forcing sync_state()
+[   11.769823] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   11.769900] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   11.769980] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   11.770149] qnoc-sdm670 16e0000.interconnect: Timed out. Forcing sync_state()
+[   11.770228] qnoc-sdm670 1700000.interconnect: Timed out. Forcing sync_state()
+
+Cosa si legge: "gts4lv-init: muic usb on i2c-1" a 1.343 s. E' la prima volta che
+compare al posto di "muic not switched": CONFIG_I2C_GPIO=y ha creato il bus
+i2c-charger e MANSW1=0x24 e' stato scritto. Da qui il host vede 18d1:d001 e
+risponde il ping a 172.16.42.1. Nessun panic.
+
+
+================================================================================
+2026-11-04 21:43:44   photo_2026-11-04_21-43-44.jpg
+================================================================================
+Immagine: recovery.img "qcom-pon", 17006592 byte, sha256
+4908aecf34eaec7a5f3374f8b3f6e91d4125b101ecd425c5d52a97dc4930d4a5 (stesso kernel
+e DTB della precedente; l'initramfs carica qcom-pon e porta rebootmode e
+boot-android), scritta con Heimdall alle 21:41:55. Kernel
+7.2.13-gts4lvwifi-g36f309c07087.
+Avvio: manuale dopo l'uscita dalla Download mode. L'host ha visto il gadget alle
+21:43:03. Foto scattata circa 24 s dopo l'avvio del kernel.
+Foto: leggibile, con il riflesso di una mano sullo schermo.
+
+[    0.988414] mmc0: CQHCI version 5.10
+[    0.988456] cpu cpu0: EM: created perf domain
+[    0.993319] cpu cpu6: EM: created perf domain
+[    1.003776] 898000.serial: ttyHS1 at MMIO 0x898000 (irq = 104, base_baud = 0) is a MSM
+[    1.003972] serial serial0: tty port ttyHS1 registered
+[    1.013594] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    1.014438] clk: Not disabling unused clocks
+[    1.014457] PM: genpd: Not disabling unused power domains
+[    1.022649] mmc0: SDHCI controller on 7c4000.mmc [7c4000.mmc] using ADMA 64-bit
+[    1.022680] sdhci_msm 7c4000.mmc: mmc0: CQE init: success
+[    1.024966] Freeing unused kernel memory: 9920K
+[    1.025082] Run /init as init process
+[    1.047548] gts4lv-init: up, kernel 7.2.13-gts4lvwifi-g36f309c07087
+[    1.093280] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer@9c000000 on minor 0
+[    1.103687] mmc0: Command Queue Engine enabled
+[    1.103761] mmc0: new HS400 MMC card at address 0001
+[    1.105028] mmcblk0: mmc0:0001 DH6DAB 58.2 GiB
+[    1.113322]  mmcblk0: p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16
+                p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31 p32 p33 p34 p35 p36
+                p37 p38 p39 p40 p41 p42 p43 p44 p45 p46 p47 p48 p49 p50 p51 p52 p53 p54 p55 p56
+                p57
+[    1.124566] mmcblk0boot0: mmc0:0001 DH6DAB 4.00 MiB
+[    1.127477] mmcblk0boot1: mmc0:0001 DH6DAB 4.00 MiB
+[    1.130419] mmcblk0rpmb: mmc0:0001 DH6DAB 16.0 MiB, chardev (234:0)
+[    1.132652] Console: switching to colour frame buffer device 320x100
+[    1.156723] simple-framebuffer chosen:framebuffer@9c000000: [drm] fb0: simpledrmdrmfb frame buffer device
+/init: line 43: can't open /proc/device-tree/serial-number: no such file
+[    1.227233] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.227302] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.227674] configfs-gadget.g1 gadget.0: HOST MAC <MAC omesso>
+[    1.227713] configfs-gadget.g1 gadget.0: MAC <MAC omesso>
+[    1.230125] gts4lv-init: gadget bound to a600000.usb
+[    1.241218] gts4lv-init: muic usb on i2c-1
+[    1.251617] gts4lv-init: usb0 172.16.42.1
+[    1.262762] gts4lv-init: telnet 172.16.42.1
+[    1.273267] input: pm8941_pwrkey as /devices/platform/soc@0/c440000.spmi/spmi-0/0-00/c440000.spmi:pmic@0:pon@800/c440000.spmi:pmic@0:pon@800:pwrkey/input/input1
+[    1.278598] input: pm8941_resin as /devices/platform/soc@0/c440000.spmi/spmi-0/0-00/c440000.spmi:pmic@0:pon@800/c440000.spmi:pmic@0:pon@800:resin/input/input2
+[    1.281023] gts4lv-init: qcom-pon loaded, reboot-mode ready
+[   11.771405] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   11.771598] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   11.771668] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   11.771745] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   11.771812] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   11.771879] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   11.771953] sdm845-camcc ad00000.clock-controller: Timed out. Forcing sync_state()
+[   11.772059] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   11.772136] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   11.772218] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   11.772360] qnoc-sdm670 16e0000.interconnect: Timed out. Forcing sync_state()
+[   11.772432] qnoc-sdm670 1700000.interconnect: Timed out. Forcing sync_state()
+[   24.020071] random: crng init done
+
+Cosa si legge: "gts4lv-init: qcom-pon loaded, reboot-mode ready" a 1.281 s, subito
+dopo il telnet e gli input pm8941_pwrkey e pm8941_resin che il driver crea. Nessun
+insmod fatto a mano. Nessun panic. Dopo questa foto, alle 21:43:41, dalla shell e'
+stato lanciato boot-android: il tablet e' tornato a Lineage alle 21:44:17.
