@@ -53,6 +53,9 @@ and both 10 nm DSI PHYs.
 
    `/sys/class/graphics/fb0/blank` reads 4 both with the panel off and with it
    powered, so it says nothing about the panel.
+Status 2026-11-05 afternoon (steps 2 to 4 tried, over ssh, the owner nearby but no
+report from the screen yet): see "Result of attempts 2 to 4" at the end.
+
 2. **Panel module alone.** With a person at the screen and the module blacklist
    in place: `modprobe panel_samsung_ana38401`. Pass: it registers, the screen
    does not change. No `msm` yet.
@@ -72,3 +75,37 @@ and both 10 nm DSI PHYs.
 `ls /sys/class/drm`, `modetest -M msm`, `dmesg | grep -i -E "dsi|panel|msm"`,
 the connector's `status` and `modes`, the backlight class device. None of them
 says the panel looks right: that needs a person.
+
+## Result of attempts 2 to 4 (2026-11-05 14:08 to 14:12, kernel `7.2.13-gts4lvwifi-g36f309c07087-dirty`)
+
+Logs in `out/display-panel`, `out/display-msm`, `out/display-pattern2` (not in git).
+
+- **Attempt 2.** `modprobe panel_samsung_ana38401`: `rc=0`, no new kernel message (the
+  panel binds when the DSI host appears), `octa-vdd` still `enabled`, no change expected
+  on the screen. Passed.
+- **Attempt 3.** `modprobe msm`: `rc=0`, the tablet stayed up (no reset, ssh and the
+  modem unaffected). What the kernel reported:
+  - `msm_dsi_phy ae94400.phy: DSI PLL(0) lock failed, status=0x00000000`, twice, each
+    followed by two clk warnings (`dsi0_phy_pll_out_dsiclk already disabled` and
+    `already unprepared`, with backtraces from `dsi_phy_driver_probe`). They happen in
+    probe, before the panel is touched; whether they matter was not tested.
+  - `panel-samsung-ana38401 ae94000.dsi.0: panel re-initialised`, `reset done, TCON
+    ready=1`, `display on (227 ms after reset): 0`.
+  - `msm_dpu ae01000.display-controller: bound ae94000.dsi`, `bound ae96000.dsi`, `bound
+    5000000.gpu`; `dpu hardware revision:0x40010000`; `Initialized msm 1.13.0`; the
+    Adreno `a630_sqe.fw` and `a630_gmu.bin` loaded; `qcom-llcc: Failed to get slice desc
+    for uid: 11`; `adreno 5000000.gpu: supply vdd not found, using dummy regulator`.
+  - `Console: switching to colour frame buffer device 320x100`, then `fb0:
+    sys_imageblit: framebuffer is not in virtual address space.` and `fb0: msmdrmfb frame
+    buffer device`. The second message is from fbcon drawing into the new framebuffer;
+    whether the text console is visible is for the person at the screen.
+  - After it: `card1`, `card1-DSI-1` (`status connected`, one mode `2560x1600` at 60 Hz,
+    `DPMS On`, `enabled`), `renderD128`, a backlight device `ae94000.dsi.0`, `fb0` named
+    `msmdrmfb` at 2560x1600. `modetest -M msm`: connector 36, encoder 35, CRTC 67.
+- **Attempt 4.** `modetest -M msm -s 36@67:2560x1600` with stdin held open (`sleep 25 |`;
+  without it modetest exits at once and the bars flash for an instant) for 25 s. No
+  DSI, DPU or vblank error in the log during or after; the tablet stayed up. Whether the
+  bars looked right on both halves is not known: nobody has reported.
+- Not done: brightness (the backlight device exists and was not written), display off
+  and on, refresh and tearing, `rmmod msm` (not safe per the notes above). `msm` is
+  still blacklisted in the image; a reboot returns to the simpledrm console.

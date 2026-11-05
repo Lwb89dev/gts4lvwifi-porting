@@ -1,10 +1,139 @@
 # Progresso del port gts4lvwifi
 
-Aggiornato il 2026-11-04, branch `feat/gts4lvwifi-mainline-bringup`,
-commit `875c90e` (allineato a `origin`). Questo file è il racconto unico
-di quello che è stato fatto su questo SM-T720. Le misure riga per riga
-stanno in `device/gts4lvwifi/NOTES.md`. Il runbook di rollback sta in
-`docs/RECOVERY-RUNBOOK.md`.
+Aggiornato il 2026-11-05 sera, branch `feat/gts4lvwifi-mainline-bringup`.
+Questo file è il racconto unico di quello che è stato fatto su questo SM-T720.
+Le misure riga per riga stanno in `device/gts4lvwifi/NOTES.md`. Il runbook di
+rollback sta in `docs/RECOVERY-RUNBOOK.md`.
+
+## Passaggio di consegne: da Claude a Codex (2026-11-05, 19:45)
+
+Il proprietario sta finendo i crediti con Claude (Sonnet 5.5) e passa il lavoro a
+Codex quando arriva al limite. Questa sezione è per chi riprende. Per le regole del
+progetto valgono `PROMPT.md` (milestone M0-M9) e questa sezione; il resto del file è la
+cronaca, in ordine di tempo, e le frasi più vecchie possono essere superate da quelle più
+nuove.
+
+### Regole del proprietario, da rispettare
+
+- **Il tablet è sacrificabile, con limiti.** Si può scrivere `recovery`, `userdata` e i file
+  sotto `/data` (rootfs), e riavviare, senza chiedere ogni volta. **Mai** bootloader,
+  calibrazione, `efs`, `persist`, firmware del modem: non sono recuperabili da questo PC.
+  Prima di scrivere si controlla l'identità del dispositivo (sullo stesso PC può esserci un
+  altro telefono, `adb -s <seriale del tablet>`); si tiene la copia di rollback in `out/`
+  (`out/lineage-recovery-before-mainline.img`, sha256 `81f4d19e…`, e `out/prev/`).
+- **Un sottosistema alla volta**, una variabile per tentativo, e si dice cosa è stato scritto.
+- **Fuori dal progetto non si opera da soli** dentro `/home`, `/etc`, `/root`, `/usr`
+  (ad esempio la cartella personale del proprietario): serve un permesso esplicito, ogni
+  volta. `rm -rf` e simili distruttivi contro quei percorsi mai senza un sì dato in quel
+  momento. Vale anche per i test diagnostici.
+- **Il repository non è coperto da quel permesso:** niente push, niente riscrittura della
+  storia, niente foto o seriali pubblicati senza una richiesta. Le foto della console
+  (`photo_*.jpg` nella root) restano locali, ignorate da git, e il loro testo va trascritto
+  in `docs/CONSOLE-LOG.txt` con data e ora. Credenziali Wi-Fi e chiavi mai nel repository.
+- **Codice:** non più di tre livelli di indentazione (early return, funzioni più piccole).
+  Niente codice copiato da `pulpoff` (licenza non dichiarata, `docs/LICENSES.md`): è
+  consultabile per ordine e parametri, non per testo.
+- **Non leggere il journal di sistema del PC host** (un comando è già stato rifiutato).
+- Il proprietario parla italiano e non è uno strumento di misura: non gli si chiedono
+  frequenze o termini tecnici (se ne è lamentato). Per i suoni si chiede solo «si sente?» e
+  «da dove?», per lo schermo cosa vede.
+
+### Come si lavora sul tablet
+
+- Cavo USB: il tablet è `172.16.42.1`; l'indirizzo del PC lo assegna il DHCP del tablet.
+  `ssh -F /dev/null -i out/keys/gts4lv_ed25519 -o IdentitiesOnly=yes root@172.16.42.1`
+  (la chiave è in `out/`, non in git). Se Arch non risponde, la shell dell'initramfs è su
+  telnet, porta 23. Per tornare ad Android: `boot-android` sul tablet.
+- Il clock parte dal 1977 (l'RTC del PMIC non è scrivibile): `date -u -s @$(date -u +%s)`
+  dal PC prima di `pacman`. `pacman` passa dal proxy `scripts/usb-http-proxy.py`
+  (`scripts/arch-smoke.sh <pacchetto>`).
+- `scripts/run-with-log.sh <dir> '<comando>' [secondi]`: esegue un comando sul tablet con
+  `dmesg -w` in streaming sul PC; è lo strumento per ogni prova che può resettare. Il log
+  che arriva è quello che resta (pstore non serve: il bootloader Samsung azzera la RAM).
+- Kernel: `scripts/build-kernel.sh` (applica prima le patch di
+  `device/gts4lvwifi/kernel/` con `scripts/apply-kernel-patches.sh`), poi
+  `scripts/build-initramfs.sh` (confeziona la recovery), `scripts/verify-recovery.py`, e
+  `scripts/flash-recovery-shell.sh --reboot` dal tablet vivo (scrive solo `recovery`, rilegge
+  e confronta lo sha256). Con il sorgente patchato la release è `…-g36f309c07087-dirty`:
+  prima di riavviare con un kernel di release nuova, `scripts/sync-modules.sh --stage` copia i
+  moduli in `/usr/lib/modules/<release>`.
+- Rootfs: `scripts/build-rootfs.sh` (Docker + qemu-user, circa 4 minuti) e
+  `scripts/verify-rootfs.py`; `scripts/rootfs-to-tablet.sh` la scrive in `/data` da Lineage.
+- Sul tablet (da `device/gts4lvwifi/rootfs/overlay/usr/local/sbin/`): `gts4lv-firmware`
+  (espone `modem`, `apnhlos`, `vendor` in sola lettura sotto `/run/gts4lv-fw`),
+  `gts4lv-modem` (modem e Wi-Fi, con marker anti-ciclo), `gts4lv-dsp` (modem/ADSP **per nome**:
+  la numerazione dei `remoteproc` cambia tra un boot e l'altro), `gts4lv-tone` (tono di
+  prova con i controlli di sicurezza), `boot-android`.
+
+### Stato dei sottosistemi
+
+| Sottosistema | Stato | Come lo so |
+| --- | --- | --- |
+| Avvio Arch dalla recovery, USB, ssh, rete | funziona | da giorni, molti riavvii |
+| Wi-Fi (WCN3990) | `wlan0`, scansione 2,4 e 5 GHz; **associazione non provata** (servono le credenziali del proprietario) | misurato; tenuta 5 ore |
+| Bluetooth | `hci0`, scansione; pairing e audio non provati | misurato |
+| Modem DSP | stabile; parte da unit al boot | misurato |
+| Batteria/ricarica (SM5705) | funziona | misurato |
+| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree, 628 eventi con fino a 3 dita | log del driver; **non** via `evtest`, libinput, compositor |
+| Display (`msm` + pannello) | si carica, `card1-DSI-1` 2560x1600, `modetest` mostra barre; **cosa si vede non è stato riferito**; luminosità, off/on non provati | misurato da ssh |
+| GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
+| Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
+| Audio, microfoni | **l'ADSP va in crash** all'apertura della cattura (AHB bus hang in `0x62…`, LPASS del codec digitale) | misurato, 5 crash |
+| ADSP | parte e si ferma pulito | misurato |
+| microSD, sensori, fotocamere, codec video in uso, sospensione | non provati (il canale FastRPC dell'ADSP c'è, `hexagonrpc` è in `packages/`) | — |
+| M8 (Omarchy), M9 (pacchetti/CI) | non iniziati | — |
+
+### Cose che fanno male, imparate qui
+
+- **Audio: mai suonare senza leggere il volume.** Un tono è uscito a 0 dB senza protezione
+  perché `amixer sset … -60dB` ha letto `-60dB` come opzione; l'errore era buttato in
+  `/dev/null`. La scala degli amplificatori: 817 = 0 dB, 497 = -40 dB, 337 = -60 dB
+  (0,125 dB per passo, `cset`, non `sset`). Limite di `gts4lv-tone`: -12 dB (-24 senza DSP).
+  Il proprietario ha chiesto il volume al massimo e non è stato fatto: vedi `docs/AUDIO-PLAN.md`.
+- **L'ADSP non va lasciato acceso a un riavvio** (il bootloader entra in un ciclo fino a
+  Power + Volume giù). `gts4lv-adsp-stop.service` lo ferma allo spegnimento. Dopo un crash
+  il remoteproc lo riavvia da solo: aspettare lo stato `running` prima di fermarlo.
+  Fermare l'ADSP scarica il driver `pinctrl_sdm670_lpass_lpi` (i registri tornano ai default):
+  senza, solo la prima riproduzione di un boot funzionava.
+- **Il Wi-Fi si resetta con il `board-2.bin` di linux-firmware** (`NoExtract` nell'immagine):
+  usa il `bdwlan.bin` di Samsung.
+- **Tocco: leggere la coda eventi a tempo (polling) con la scansione accesa ha resettato
+  il tablet** in 3 prove su 4; con l'interrupt regge. Il modulo è in blacklist nell'immagine
+  (non sul tablet vivo, dove si carica da solo).
+- `msm` non si scarica con `rmmod`; un riavvio riporta alla console `simpledrm`.
+- Se `gts4lv-modem` trova `/var/lib/gts4lv/modem-attempt`, salta l'avvio: il tentativo
+  precedente non è arrivato a `wlan0`. Va tolto a mano dopo aver capito perché.
+
+### Dove siamo, in pratica
+
+- Il tablet esegue un Arch ricavato dalla prima immagine rootfs più correzioni fatte dal
+  vivo (non l'immagine v5); la recovery scritta è `5d9a25f7…` (kernel `-dirty`, con il
+  driver del tocco e le patch). Sul tablet vivo `msm`, il modulo del pannello e il driver dei
+  pin LPI non partono da soli (blacklist nel rootfs): si caricano a mano. Lineage è ancora in
+  `boot`. L'immagine rootfs in `out/rootfs/` (v5) **non è stata copiata** sul tablet e
+  ormai è vecchia (mancano gli ultimi script): va ricostruita prima di usarla.
+- Commit locali non spinti: tutti quelli dopo `37703bd` (`git log 37703bd..HEAD`). Il remoto
+  (`Lwb89dev/gts4lvwifi-porting`, `feat/gts4lvwifi-mainline-bringup`) è fermo a quel commit;
+  il push lo decide il proprietario.
+
+### Prossimi blocchi, in ordine
+
+1. **Microfoni** (M7.6): trovare il clock o l'ordine di accensione che manca al codec
+   interno prima della porta AFE `0x1035` (ipotesi in `docs/AUDIO-PLAN.md`). Un crash
+   dell'ADSP è recuperabile, ma si lavora con `run-with-log.sh` e si ferma l'ADSP a fine prova.
+2. **Altoparlanti:** abbinare FL, FR, RL, RR alle posizioni (4 toni numerati, una risposta
+   semplice dal proprietario); poi i livelli utili con la protezione nel percorso, a gradini.
+3. **Display** (M7.2): farsi dire cosa si vede dopo `modprobe msm` e le barre; poi luminosità
+   (nessuna scrittura al backlight prima che il link DSI sia su), spegnimento/riaccensione.
+4. **Tocco** (M7.4): `evtest` con la persona, angoli, rotazione, ripresa; poi libinput.
+5. **Immagine v6** (rootfs ricostruita con kernel `-dirty` e script attuali), copiata in
+   `/data` da Lineage, extent nuovi nell'initramfs, recovery riscritta, con una persona
+   presente. Sul tablet vivo vale sempre il rollback in `docs/RECOVERY-RUNBOOK.md`.
+6. **Wi-Fi: associazione** con le credenziali del proprietario (`wpa_supplicant@wlan0`), poi
+   riconnessione e persistenza; **microSD** (serve la scheda e un nodo `sdhc_2`).
+7. **Sensori** (`hexagonrpcd`, `libssc`, `iio-sensor-proxy`), **sospensione**, **fotocamere**,
+   **codec video** in uso; poi M8 (Omarchy: da `docs/OMARCHY-PLAN.md`, con `mesa` e
+   `vulkan-freedreno` di ALARM, non quelli di `[omamobile]`, che sono solo Mali) e M9.
 
 Alcune frasi più vecchie sono superate da quello che segue. L'apertura
 di `PROCESS.md` dice ancora che nessuna partizione è stata scritta.
@@ -1167,10 +1296,122 @@ c'era già dall'inizio: `board-2.bin` ha la precedenza, e prima non lo sapevo.
   ~80 s dall'avvio, `regulator: Not disabling unused regulators`, `ath10k: invalid MAC
   address; choosing random`, audio in deferred probe in attesa del pinctrl LPASS.
 
+## 2026-11-05 pomeriggio, 14:08: il display, passi 2-4 del piano (da ssh)
+
+Con il proprietario in zona ma senza ancora un suo resoconto di cosa mostra lo
+schermo. Log in `out/display-*` (non in git). Dettagli e righe di log in
+`docs/DISPLAY-PLAN.md`, in fondo.
+
+- **Passo 2.** `modprobe panel_samsung_ana38401`: `rc=0`, nessun messaggio nuovo,
+  `octa-vdd` resta acceso.
+- **Passo 3.** `modprobe msm`: `rc=0`, il tablet resta su. `card1-DSI-1` connesso,
+  modo 2560x1600 a 60 Hz, `renderD128`, un dispositivo backlight `ae94000.dsi.0`,
+  `fb0` diventa `msmdrmfb`; il pannello riceve «panel re-initialised», «TCON
+  ready=1», «display on (227 ms after reset)». Rumore del kernel: **`DSI PLL(0) lock
+  failed` due volte** con warning del clock (`already disabled` / `already
+  unprepared`), `qcom-llcc: Failed to get slice desc for uid: 11`, e
+  **`fb0: sys_imageblit: framebuffer is not in virtual address space`** quando fbcon
+  passa sul nuovo framebuffer.
+- **Passo 4.** Barre di colore di `modetest` per 25 s: nessun errore DSI/DPU/vblank nel
+  log, tablet su. Una prima prova durò un istante perché `modetest` esce subito senza
+  terminale (`getchar()` vede EOF): la seconda ha tenuto lo stdin aperto con `sleep 25 |`.
+- **Non so cosa si vedeva.** Che la console sia visibile dopo `msm`, e che le barre
+  siano giuste su entrambe le metà, lo può dire solo chi guarda lo schermo.
+- **Rootfs v5** (`3599b353…`) costruito con i moduli del kernel `-dirty` e verificato
+  da `verify-rootfs.py`; non copiato sul tablet.
+
+## 2026-11-05 sera (18:20): audio, M7.6 (da ssh, il proprietario presente e in ascolto)
+
+Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
+
+- **Il tocco, dal proprietario.** Toccando vedeva i parametri del driver aggiornarsi
+  sulla console, e al trascinamento ne comparivano di più perché arrivavano più
+  eventi: coerente con i 628 eventi decodificati. (Quelle righe sono il `debug=1` del
+  driver, che stampa sulla console; ora è a 0.)
+- **ADSP.** `echo start > remoteproc0/state`: su in 0,4 s, servizi APR (q6core, q6afe,
+  q6asm, q6adm, q6routing) e canale FastRPC. Poi `modprobe pinctrl_sdm670_lpass_lpi`:
+  compare `card 0: S5e [Galaxy Tab S5e]` con MultiMedia1-3, `Speaker Playback`,
+  `Headphone Playback`, `Mic Capture`; i codec PM8916, il jack delle cuffie come input.
+  Lo stop (`gts4lv-dsp stop adsp`) è pulito: scheda sparita, tablet su.
+- **Un mio errore.** Alle 18:24 ho riprodotto un tono con i quattro amplificatori a
+  **0,00 dB e senza protezione DSP**, credendo di averli messi a -60 dB. `amixer sset
+  "FL Digital PCM" -60dB` non funziona (`-60dB` è letto come l'opzione `-B`), l'errore era
+  buttato in `/dev/null`, il riepilogo stampato mostrava `817 [0.00dB]` e lo stesso
+  script ha continuato a suonare. Circa 5 s di 440 Hz da `speaker-test`; il proprietario
+  ha «sentito un tono». Nel log del kernel non c'è nessuna riga in quell'intervallo. Se gli
+  altoparlanti ne abbiano risentito non lo so. Regola adottata (in `AUDIO-PLAN.md`): ogni
+  riproduzione imposta il volume, lo rilegge e si ferma se è sopra il limite, nello stesso
+  comando.
+- **Scala del volume.** `Digital PCM Volume` 1-913, da -102 a +12 dB, 0,125 dB per
+  passo: 817 = 0 dB, 497 = -40 dB, 337 = -60 dB.
+- **Protezione DSP.** Con i file Samsung visibili come `cirrus/cs35l41-dsp1-spk-prot.wmfw`
+  e `.bin` e `DSP1 Preload Switch` acceso, su tutti e quattro gli amplificatori il
+  firmware si carica («Firmware: 400a4 vendor: 0x2 v0.0.1, 1 algorithms», taratura
+  «TAB_LV_S5e_PV2»). Senza il collegamento sotto `cirrus/` il driver avrebbe preso il
+  `cirrus/` di linux-firmware, fatto per altre macchine: `gts4lv-firmware` ora crea i
+  collegamenti a ogni avvio.
+- **Secondo tono**, dopo il gate (volume riletto 497 = -40,00 dB su tutti e quattro,
+  preload acceso): 3 s, nessun errore nel log, volumi riportati a -60 dB. Com'era il
+  suono, non lo so ancora.
+- **`scripts/run-with-log.sh`** (nuovo): esegue un comando sul tablet con il log del
+  kernel in streaming sul PC e lo campiona; lo scratchpad era stato svuotato e con lui lo
+  script con cui avevo fatto le prove di oggi.
+- **Non fatto:** microfoni, i quattro canali separati, UCM, PipeWire, la calibrazione
+  degli altoparlanti (Samsung tiene le resistenze misurate in `/efs`).
+
+## 2026-11-05 sera, 19:00-19:35: l'audio che non usciva, e perché
+
+- **Il silenzio non era il volume.** Dopo la prima riproduzione di un boot, tutte le
+  successive fallivano all'accensione degli amplificatori (`Enable(1) failed: -110`, uno
+  per amplificatore). Prima lo avevo letto come un problema del DSP di protezione: non
+  lo era (succedeva anche senza DSP, e riagganciare i quattro driver non cambiava nulla).
+- **La causa: i pin LPI.** I pin del TDM degli altoparlanti sono del controller LPASS
+  LPI, i cui registri stanno nel dominio dell'ADSP e tornano ai default quando riparte.
+  Il driver restava caricato e riteneva i pin ancora configurati: la scheda successiva non
+  li riprogrammava, niente clock sul TDM, niente accensione. Per questo l'unico tono mai
+  udito era il primo (0 dB, senza DSP). Prova: con l'ADSP spento, `modprobe -r
+  pinctrl_sdm670_lpass_lpi` e un tono: nessun errore nuovo.
+- **Correzione:** `gts4lv-dsp stop adsp` scarica il driver dei pin dopo aver fermato
+  l'ADSP, e lo start lo ricarica (era già così). Tre toni di fila in modalità `dsp` a
+  -24, -18, -12 dB: errori solo nel primo (l'accensione dopo un firmware appena caricato
+  dura più di 100 ms: il DSP parte col primo flusso), nessuno nei due successivi.
+- **Il proprietario ha sentito 2 di quei 3** (quali due, da confermare: il primo è quello
+  con l'errore). Con la protezione caricata e nel percorso (`PCM Source` = DSP) il
+  suono esce. Prima di ogni tono con DSP, `gts4lv-tone` ora riproduce un secondo di
+  silenzio per far partire il DSP, e avvisa se un amplificatore non si accende.
+- **Un altro mio errore, piccolo:** dopo il riavvio la numerazione dei remoteproc si è
+  scambiata (`remoteproc0` modem, `remoteproc1` ADSP); lo script guardava `remoteproc0`,
+  ha creduto l'ADSP già acceso e non l'ha fermato. Fermato a mano e script corretti
+  (chiedono per nome tramite `gts4lv-dsp`). L'ADSP non parte da solo al boot: il mio
+  «adsp=running» di quel boot era il modem.
+- **Il volume al massimo, chiesto dal proprietario:** non l'ho fatto, per due motivi
+  spiegati in `docs/AUDIO-PLAN.md`: il silenzio non dipendeva dal livello, e il massimo
+  (+12 dB digitali, +20 dB analogici) su un'onda a piena scala è una forma d'onda tagliata a
+  piena potenza, con la protezione per default fuori dal percorso.
+- **Prova per altoparlante** (19:33, -12 dB, 1000 Hz, 3 s, DSP nel percorso, uno alla
+  volta): FL 19:33:06, FR 19:33:23, RL 19:33:39, RR 19:33:55; nessun errore di
+  accensione. Dove si sentiva ciascuno: da riferire.
+
+## 2026-11-05 sera, 19:35-19:41: i microfoni fanno cadere l'ADSP
+
+- **Risultato del proprietario sugli altoparlanti:** ha sentito il suono dall'altoparlante
+  in alto e da quello in basso (e ha ricordato, giustamente, che non può sapere a che
+  frequenza fossero i toni: 1000 Hz l'avevo scelta io). L'abbinamento dei quattro
+  amplificatori FL, FR, RL, RR alle posizioni non è ancora noto.
+- **Microfoni.** Cinque tentativi in quattro varianti (MultiMedia1 e MultiMedia3, `INP2` e
+  `INP3`, con e senza la rotta delle cuffie, stereo 48 kHz e mono 16 kHz): a ogni apertura
+  del flusso di cattura l'ADSP va in errore fatale e il remoteproc lo recupera (5 crash in
+  tutto, il tablet non si è mai resettato). Il motivo, quando il kernel lo stampa:
+  `fatal error received: ABT_dal.c:269:ABTimeout: AHB Bus hang is detected … addr0 =
+  0x62…`. È un timeout del bus nella zona LPASS del codec digitale (`62ec0000`), all'avvio
+  della porta AFE `0x1035` (MI2S TX interno). Gli altoparlanti non sono toccati (usano il
+  TDM secondario). Cosa resta da provare è in `docs/AUDIO-PLAN.md`.
+- **Coredump dell'ADSP:** con `coredump` su `enabled` il kernel tiene un ELF da 44 MB per
+  cinque minuti; le stringhe sono del firmware e non nominano la causa. Il file è in
+  `out/audio-mic/` (non in git), ma `coredump` è tornato su `disabled`.
+- **Errore mio, ancora:** la scheda stavolta ha impiegato 16 s a comparire e il mio script
+  aspettava 10 s: attesa portata a 30 s.
+
 ## Prossimo passo
 
-Con una persona davanti allo schermo: tocco (tap, multitouch, scorrimento) con
-`evtest`, poi spegnimento e ripresa. Subito dopo: rootfs v4 sul tablet (va
-ricostruito: il kernel ha una versione nuova, `-dirty`, e le immagini già fatte
-hanno i moduli della vecchia), poi associazione Wi-Fi con le credenziali del
-proprietario, microSD (M7.1), audio (M7.6, ordine dell'ADSP), display (M7.2).
+Vale la sezione «Passaggio di consegne» in cima a questo file.
