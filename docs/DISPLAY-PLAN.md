@@ -170,3 +170,7 @@ VCO 1.88 GHz, pixel clock 156.9 MHz per half = 313.76 MHz / 2, byte clock 117.7 
   something to show.
 - Still open: the text console on the msm framebuffer, turning the screen off and on from a
   compositor, tearing, whether to load the display at boot.
+- **Flicker of `modetest -v`, not of the screen.** The owner saw flicker during the TE and refresh
+  measurement, which ran `modetest -v`. Static bars (15 s) were steady; the alternating
+  page-flip test (8 s) flickered: modetest's `-v` swaps between different frames on every
+  flip by design. Do not judge the panel with `-v`; use `gts4lv-display bars`.

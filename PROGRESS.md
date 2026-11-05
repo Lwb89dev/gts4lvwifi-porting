@@ -1472,6 +1472,9 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
   riletto uguale; il proprietario: «esecuzione perfetta di tutte le luminosità senza artefatti».
 - **Refresh:** TE a circa 29 Hz a riposo, circa 63 Hz con i fotogrammi in arrivo (`modetest -v` 63,3
   flip/s). I 30 Hz misurati prima erano col pannello resettato e nero.
+- **Lo sfarfallio visto durante la misura dei 60 Hz** era del test `modetest -v`, che alterna i
+  fotogrammi per costruzione: provato dal proprietario con barre ferme (stabili) e poi con `-v`
+  (sfarfalla). Il pannello non ha difetti noti; per giudicarlo si usa `gts4lv-display bars`, non `-v`.
 - **Istruzioni al proprietario:** funzionano se sono scritte grandi nel messaggio e se il segnale
   arriva sullo schermo del tablet (le barre); un conto alla rovescia scritto fra i comandi non si legge.
 
