@@ -985,10 +985,59 @@ Il proprietario deve prima tenere Power + Volume giù finché si spegne e ripart
   bring-up: chi ha il cavo ha root) e mascherato la regola udev di `rmtfs`,
   così il modem parte solo per una decisione esplicita. Non sono sul tablet.
 
+## 2026-11-05, dopo lo stallo: la rete non era morta, e lo schermo nero ha una causa
+
+Il proprietario ha riavviato il tablet e ha descritto cosa vedeva: shell,
+kernel, moduli caricati («ok» verdi di `systemd`), schermata di login, poi
+schermo nero.
+
+- **Lo «stallo» era il DHCP.** Dall'host nessuna porta rispondeva e
+  l'interfaccia USB restava senza IPv4, ma con un indirizzo fisso assegnato
+  all'host (`nmcli … save no`, solo in memoria, nulla scritto in `/etc`) il
+  tablet rispondeva al ping e `sshd` era aperto: Arch era sano (`running`, 0
+  unità fallite, `usb0` `routable`). Causa: `10-usb0.network` aveva
+  `PoolSize=1` e `systemd-networkd` conserva i lease su disco. Il lease
+  salvato era per `172.16.42.2` al MAC dell'host del boot precedente, con
+  scadenza `2026-11-04 21:24` (orologio impostato da `arch-smoke`), mentre il
+  tablet riparte ogni volta dal 1977: per il server DHCP il lease scadeva fra
+  quasi 50 anni, il pool era pieno e ogni client nuovo (il gadget ha MAC casuali)
+  non riceveva niente. Corretto: `PoolSize=8`, lease di 300 s, `PersistLeases=no`.
+  L'host ora ottiene l'indirizzo da solo (`.6`, poi `.7`: non è più fisso, e
+  `arch-smoke.sh` e `usb-http-proxy.py` ora lo rilevano dalla rotta).
+- **L'orologio.** `date -s` funziona, `hwclock --systohc` no (`RTC_SET_TIME … No
+  such device`): l'RTC del PMIC non è scrivibile con questo device tree, quindi
+  ogni avvio riparte dal 1977. Non risolto: per ora lo imposta l'host quando
+  serve (`arch-smoke.sh`).
+- **Lo schermo nero: causa misurata.** `octa-vdd` è l'alimentazione del
+  pannello, un regolatore fisso sul GPIO 21 del TLMM con `regulator-boot-on` e
+  nessun consumatore finché il driver del pannello non è caricato. Il codice di
+  pulizia dei regolatori lo spegne a 31,226 s (`octa-vdd: disabling`,
+  `state=disabled`, `num_users=0`). Quindi in ogni avvio lo schermo si spegne a 31
+  secondi; le mie foto erano tutte scattate prima. Il piano del display aveva
+  l'ipotesi opposta, sbagliata: corretto in `docs/DISPLAY-PLAN.md`.
+- **Tentativo con la sola cmdline.** `regulator_ignore_unused` aggiunto a
+  `device.conf` (nient'altro cambiato: kernel e DTB identici byte per byte, i 23
+  file della ramdisk identici, nell'header cambia solo la cmdline). Immagine
+  `b7a12018…`, scritta da SSH con `scripts/flash-recovery-shell.sh --reboot` e
+  riletta. Misurato dopo il riavvio: la cmdline è arrivata, `octa-vdd` è
+  `enabled` a 10 s e a 48 s, `dmesg` non ha più nessuna riga `: disabling`.
+  Che il pannello resti acceso lo conferma chi guarda lo schermo.
+- **Il modem.** Al boot `rmtfs` (avviato dalla regola udev del pacchetto) ha
+  provato ad avviare il DSP a 5,07 s, ma il firmware non era ancora visibile e il
+  caricamento è fallito con `-2`: in quel boot il modem non è partito. Il reset
+  delle 07:20 è seguito all'avvio *manuale*. La regola udev è ora mascherata sul
+  tablet vivo (`/etc/udev/rules.d/rmtfs.rules` → `/dev/null`) e nell'overlay.
+  Ancora da capire: se è il modem a resettare il tablet. Servono la console
+  seriale USB (`gts4lv-debug-console`, nell'immagine v3, non ancora sul tablet)
+  e un avvio manuale con qualcuno ai tasti.
+- **I CS35L41.** I quattro amplificatori sono stati caricati da soli in questo
+  boot (`snd_soc_cs35l41_i2c`) e hanno risposto agli indirizzi `3-0040..0043`
+  con «Subsystem ID not found» e supply `VA`/`VP` sostituiti da regolatori fittizi.
+  Non è ancora stato misurato se il probe riesce.
+
 ## Prossimo passo
 
-Il tablet è fermo (gadget acceso, nessuna rete). Con la foto dello schermo o un
-reset a tasti si riparte. Poi: nuova immagine con il rootfs v3 (ownership
-corretta, console seriale, regola `rmtfs` mascherata, senza `pd-mapper`),
-ricostruita, copiata con `scripts/rootfs-to-tablet.sh`, e il Wi-Fi riprovato con
-il modem avviato a mano e un osservatore sulla seriale.
+Il proprietario conferma se lo schermo resta acceso oltre i 40 s. Poi, nell'ordine:
+mettere sul tablet il rootfs v3 (console seriale, ownership corretta) con una
+nuova immagine che fissa anche i MAC del gadget (evita che l'interfaccia
+dell'host cambi nome a ogni avvio), poi il Wi-Fi con il modem avviato a mano.

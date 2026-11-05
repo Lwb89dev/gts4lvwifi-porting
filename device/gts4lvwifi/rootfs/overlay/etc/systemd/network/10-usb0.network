@@ -1,5 +1,8 @@
 # The USB gadget network (ncm.usb0). The address is the one the initramfs
-# already uses, and the host gets the single lease .2 as it did from udhcpd.
+# already uses. The host is a new client at every boot (the gadget's MAC was
+# random, and a host may rename the interface), and this tablet's clock can be
+# years off, so leases are short and not kept on disk: a stored lease with an
+# expiry in the future of a 1977 clock would hold the whole pool for decades.
 [Match]
 Name=usb0
 
@@ -10,5 +13,8 @@ ConfigureWithoutCarrier=yes
 
 [DHCPServer]
 PoolOffset=2
-PoolSize=1
+PoolSize=8
+DefaultLeaseTimeSec=300
+MaxLeaseTimeSec=600
+PersistLeases=no
 EmitDNS=no

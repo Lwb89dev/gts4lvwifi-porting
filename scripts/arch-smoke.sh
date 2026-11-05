@@ -14,7 +14,9 @@ set -euo pipefail
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 host=${TABLET_IP:-172.16.42.1}
-bind=${HOST_USB_IP:-172.16.42.2}
+# the host's address on the cable is whatever the tablet's DHCP gave it
+bind=${HOST_USB_IP:-$(ip -4 route get "$host" 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1) }')}
+[ -n "$bind" ] || { echo "arch-smoke: no route to $host" >&2; exit 1; }
 pkg=${1:-tree}
 key=out/keys/gts4lv_ed25519
 proxy_pid=
@@ -39,7 +41,7 @@ echo "== system"
 # shellcheck disable=SC2016
 sshc 'echo "state: $(systemctl is-system-running)"; echo "failed: $(systemctl --failed --no-legend | wc -l)"'
 
-echo "== clock (the tablet has no RTC: it boots in 1977 and pacman would reject the signatures)"
+echo "== clock (its RTC cannot be set: it boots in 1977 and pacman would reject the signatures)"
 sshc "date -u -s @$(date -u +%s) >/dev/null && date -u"
 
 echo "== proxy on $bind"

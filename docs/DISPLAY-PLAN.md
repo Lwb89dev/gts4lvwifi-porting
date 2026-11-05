@@ -33,15 +33,26 @@ and both 10 nm DSI PHYs.
 
 ## Attempts, one at a time
 
-1. **Cmdline only.** Add `regulator_ignore_unused` to `device.conf`'s cmdline,
-   rebuild, boot. Pass: Arch comes up, `simpledrm` still shows the console, the
-   panel stays lit. Nothing else changed. If the panel regulators are shut off
-   by the late init today, the simpledrm console would already have gone dark.
-   The kernel log shows a cleanup of unused regulators at about 31 s
-   (`octa-vdd: disabling`), and the photo of 22:16, taken about 90 s after the
-   restart, still shows the console lit. So the panel's supplies are not
-   among the ones switched off, and this attempt is expected to be harmless.
-   It is still a measurement, not a guarantee.
+1. **Cmdline only. Done 2026-11-05.** The first version of this plan said the
+   panel's supply was probably not among the regulators the late cleanup
+   switches off. That was wrong, and it was wrong for a reason worth keeping:
+   every photo of the console had been taken before 31 s, so none could show
+   what happens after. The owner then saw the screen go black after the login
+   prompt, and the tablet showed why. `octa-vdd` is the panel's VDD, a fixed
+   regulator on TLMM GPIO 21 with `regulator-boot-on` and no consumer until the
+   panel driver loads; the kernel logged `octa-vdd: disabling` at 31.226 s and
+   the regulator read `state=disabled`, `num_users=0`. The screen was dark from
+   31 s on, in every boot.
+
+   `regulator_ignore_unused` was added to the cmdline, nothing else (kernel,
+   DTB and the 23 files of the ramdisk are byte-identical to the image before,
+   checked). Measured: the cmdline reaches the kernel, `octa-vdd` reads
+   `enabled` at 10 s and at 48 s, and `dmesg` has no `: disabling` line at all.
+   Whether the panel stays lit is for the person at the screen to confirm; the
+   regulator state is the measurement.
+
+   `/sys/class/graphics/fb0/blank` reads 4 both with the panel off and with it
+   powered, so it says nothing about the panel.
 2. **Panel module alone.** With a person at the screen and the module blacklist
    in place: `modprobe panel_samsung_ana38401`. Pass: it registers, the screen
    does not change. No `msm` yet.

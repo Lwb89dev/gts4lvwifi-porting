@@ -17,6 +17,7 @@ import http.client
 import http.server
 import select
 import socket
+import subprocess
 import urllib.parse
 
 HOP_BY_HOP = {
@@ -99,11 +100,22 @@ class Proxy(http.server.BaseHTTPRequestHandler):
                 (upstream if sock is client else client).sendall(data)
 
 
+def route_source(target):
+    """The address the host uses to reach <target>: the tablet's DHCP gave it."""
+    out = subprocess.run(["ip", "-4", "route", "get", target], capture_output=True,
+                         text=True, check=False).stdout.split()
+    if "src" not in out:
+        raise SystemExit(f"usb-http-proxy: no route to {target}")
+    return out[out.index("src") + 1]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--bind", default="172.16.42.2", help="host USB address")
+    parser.add_argument("--bind", default=None,
+                        help="host USB address (default: the source address of the route to 172.16.42.1)")
     parser.add_argument("--port", type=int, default=3128)
     args = parser.parse_args()
+    args.bind = args.bind or route_source("172.16.42.1")
     server = http.server.ThreadingHTTPServer((args.bind, args.port), Proxy)
     print(f"proxy on {args.bind}:{args.port}", flush=True)
     try:
