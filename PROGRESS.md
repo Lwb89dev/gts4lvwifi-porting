@@ -913,8 +913,82 @@ Il proprietario deve prima tenere Power + Volume giù finché si spegne e ripart
 4. In Arch: `scripts/arch-smoke.sh`, poi i passi di `docs/PORTING-ROADMAP.md`
    nell'ordine del paragrafo 4, uno per volta e annunciati.
 
+## 2026-11-05 mattina: il giro Lineage → Arch è chiuso, batteria e firmware ok, poi uno stallo
+
+- **Pubblicato su GitHub.** `git push` normale (avanzamento rapido) di 25 commit
+  sul ramo `feat/gts4lvwifi-mainline-bringup`; la CI `static` è verde sui due
+  push (`5d2bbf9`, `2846643`). Le foto non sono mai state inviate: le due
+  commit che le aggiungevano erano state scartate dalla storia locale prima
+  del primo push. Controllato sul remoto: nessun commit raggiungibile dai
+  rami remoti tocca un `jpg` o `photo_*`, l'albero su GitHub ha 0 immagini, i
+  due hash delle foto sono assenti. Quindi non è servito un push forzato e non
+  ne è stato fatto uno. Il ramo di backup locale e i `refs/original` di
+  `filter-branch` sono stati cancellati, perché un `git push --all` li avrebbe
+  pubblicati.
+- **La `recovery` veniva riscritta da Android: confermato.** Alle 07:10 la
+  partizione aveva sha256 `81f4d19e…`, cioè esattamente la copia originale di
+  Lineage. Meccanismo letto sul tablet: `/vendor/bin/install-recovery.sh`
+  confronta lo SHA1 dei primi 64 MiB della partizione con quello atteso e, se
+  differisce, riflasha `/vendor/etc/recovery.img`; la regola
+  `vendor_flash_recovery.rc` lo lancia con `on
+  property:persist.vendor.recovery_update=true`, valore che era `true`.
+  Con `setprop persist.vendor.recovery_update false`, la nostra immagine
+  scritta e un riavvio **normale** di Android, la `recovery` coincide ancora con
+  `out/recovery.img` (`MATCH`) e il servizio non è partito. Poi `adb reboot
+  recovery` → Arch in 57 s. `scripts/lineage-recovery-check.sh` è lo
+  strumento di sola lettura che lo ha mostrato. Dopo il riavvio la proprietà
+  risultava vuota, non `false`: non so se il framework la riscrive più avanti.
+- **Batteria (M7.7).** `modprobe sm5705_battery`: compaiono `sm5705-battery` e
+  `sm5705-charger`. Letti: `Charging`, 96%, 4,27–4,29 V, +336…+468 mA, 28,5 °C,
+  `charge_full_design` 7040000 µAh, 27,1 Wh. Il tablet carica sotto Linux.
+- **Firmware (passo 0).** `gts4lv-firmware` ha montato `modem` e `apnhlos`
+  (vfat) e `vendor` (ext4) in sola lettura e collegato 459 file sotto `/run`;
+  esistono tutti e cinque i nomi che il device tree chiede (`mba.mbn`,
+  `modem.mdt`, `adsp.mdt`, `venus.mdt`, `a615_zap.mdt`). Nulla copiato.
+- **Moduli caricati da soli in questa Arch.** 97, tra cui `msm`, `ath10k_snoc`,
+  `qcom_q6v5_mss`, `qcom_q6v5_pas`, `pinctrl_sdm670_lpass_lpi`, `venus_core`,
+  `hci_uart`, e il tablet è rimasto `running`. Nel `dmesg` (`out/arch-dmesg-20261105.log`):
+  `msm_dsi_phy … DSI PLL(0) lock failed` due volte con warning di bilanciamento
+  dei clock (`clk_core_disable`, `clk_core_unprepare`) e call trace, nessun
+  crash; `venus` e l'ADSP senza firmware (il percorso non era ancora
+  impostato); `regulatory.db` assente (`wireless-regdb` è nella v2). Nessun
+  errore di versione dei moduli: quelli della build #6 si sono caricati sul
+  kernel #7. C'è `/dev/watchdog0` con `qcom_wdt` caricato.
+- **Il kernel ha già un pd-mapper** (`qcom_pd_mapper` caricato). Il `pd-mapper`
+  in userspace che avevo pacchettizzato sarebbe un duplicato: tolto.
+- **Modem DSP.** `systemctl start rmtfs` (unità con `-r -P -s`) ha avviato da
+  solo il DSP del modem, perché `-s` significa «sincronizza e avvia il
+  remoteproc»: `Booting fw image qcom/sdm670/gts4lv/mba.mbn, size 238304`,
+  `MBA booted without debug policy, loading mpss`, `remote processor
+  4080000.remoteproc is now up`, circa 1,4 s. Dopo 18 s ancora nessun `wlan0` e
+  nessuna riga di `ath10k`. **Circa 30 s dopo l'avvio del modem l'USB è sparito
+  (07:20:41): il tablet si è resettato.** Non so se il reset è causato dal
+  modem; è l'ipotesi con cui coincide la sequenza, non una prova. È tornato su
+  USB alle 07:21:53 con il nostro gadget, ma da allora né la 22 né la 23
+  rispondono, l'interfaccia dell'host non riceve IPv4 e non risponde nemmeno
+  l'IPv6 link-local, e l'USB resta stabile. Dopo il riavvio la regola udev
+  `rmtfs.rules` (installata dal pacchetto) avvia `rmtfs`, quindi il modem, a
+  ogni boot: è la causa che sospetto, non confermata. Serve la foto dello
+  schermo.
+- **Difetto di sicurezza trovato e corretto.** `cp -a` nello script di build
+  copiava uid 1000 (`alarm` nell'immagine) e modo 775 sulle directory già
+  esistenti: `/etc`, `/etc/systemd`, `/etc/ssh` e tutto l'albero dei moduli del
+  kernel risultavano di `alarm:alarm`; il deploy dal vivo aveva reso `/` e
+  `/usr` `775`. `alarm` è bloccato e nessun servizio gira come lui, ma
+  l'esposizione c'era. Riparato sul tablet (462 directory sbagliate → 5, le
+  directory di gruppo di serie di Arch) e negli script: ora la copia passa da
+  `tar` come root, senza scrittura di gruppo o altri e senza toccare le
+  directory esistenti. `scripts/verify-rootfs.py` legge l'export del
+  container: 2465 errori sulla v2, passa sulla v3.
+- **Rete di sicurezza per il prossimo avvio.** Ho aggiunto all'overlay una
+  console root sulla seriale USB (`gts4lv-debug-console.service`, solo per il
+  bring-up: chi ha il cavo ha root) e mascherato la regola udev di `rmtfs`,
+  così il modem parte solo per una decisione esplicita. Non sono sul tablet.
+
 ## Prossimo passo
 
-Quello della lista qui sopra. Offline resta da fare il demone del touch (vedi
-`docs/LICENSES.md`: da scrivere noi, sulla base del driver GPL di Samsung) e le
-unità di avvio dei DSP.
+Il tablet è fermo (gadget acceso, nessuna rete). Con la foto dello schermo o un
+reset a tasti si riparte. Poi: nuova immagine con il rootfs v3 (ownership
+corretta, console seriale, regola `rmtfs` mascherata, senza `pd-mapper`),
+ricostruita, copiata con `scripts/rootfs-to-tablet.sh`, e il Wi-Fi riprovato con
+il modem avviato a mano e un osservatore sulla seriale.

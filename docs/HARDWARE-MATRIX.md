@@ -30,6 +30,9 @@ states, and "measured" says what was done on the tablet:
 | Power and volume-down keys | Detected by the kernel | `pm8941_pwrkey` and `pm8941_resin` input devices exist; no key event read |
 | Thermal sensors | Detected by the kernel | 21 zones readable, 30.2 to 31.4 C at idle on 2026-11-04 21:20; no load test |
 | Boot framebuffer | Partly working | `simpledrm` on the bootloader's framebuffer shows the text console (photos in `CONSOLE-LOG.txt`); no panel driver, no backlight control, nothing from the GPU |
+| Battery and charger status (SM5705) | Working and tested | `sm5705_battery` loaded by hand: `sm5705-battery` and `sm5705-charger` appear; `Charging`, 96%, 4.27 to 4.29 V, +336 to +468 mA, 28.5 C, `charge_full_design` 7040000 uAh. The tablet charges while running Linux (2026-11-05 07:19) |
+| Firmware access | Working and tested | `modem` and `apnhlos` (vfat) and `vendor` (ext4) mounted read-only, 459 files linked under `/run`, all five names the device tree asks for exist. Nothing copied |
+| Modem DSP (`4080000.remoteproc`) | Partly working | boots: `mba.mbn` then `modem.mdt`, "remote processor is now up" in about 1.4 s. No `wlan0` after 18 s. About 30 s after the start the tablet reset itself; whether the modem caused it is not established |
 | Package manager and clock | Working and tested | `pacman -Sy` and an install with signature check through the host proxy. No RTC: the clock starts in 1977 and is set from the host |
 
 ## 2. Everything else: what the build has
