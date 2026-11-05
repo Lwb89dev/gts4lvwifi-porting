@@ -1035,6 +1035,17 @@ schermo nero.
   con «Subsystem ID not found» e supply `VA`/`VP` sostituiti da regolatori fittizi.
   Non è ancora stato misurato se il probe riesce.
 
+- **Esito del tentativo e MAC fissi.** Il proprietario ha visto la console accesa
+  dopo il riavvio con `regulator_ignore_unused` (`octa-vdd` `enabled` anche a 415 s).
+  Poi, come cambiamento a sé, l'init imposta MAC fissi e *localmente amministrati*
+  al gadget (`02:67:74:73:34:01..04`, nessuno è l'indirizzo di un dispositivo):
+  con MAC casuali l'host rinominava l'interfaccia ad ogni avvio. Immagine
+  `d72aa929…`, scritta da SSH e riletta; dopo il riavvio l'host vede
+  `enx026774733401` (NCM) e `enx026774733403` (RNDIS), con indirizzo da DHCP.
+  Sul tablet sono stati installati, via proxy, gli strumenti di
+  `device/gts4lvwifi/rootfs/packages.txt` (`iw`, `evtest`, `i2c-tools`, ALSA,
+  `mesa-utils`, `vulkan-tools`, `libssc`, `iio-sensor-proxy`…) e tolto `pd-mapper`.
+
 ## Prossimo passo
 
 Il proprietario conferma se lo schermo resta acceso oltre i 40 s. Poi, nell'ordine:

@@ -102,6 +102,14 @@ if mkdir -p "$G" && cd "$G"; then
 	mkdir -p configs/c.1/strings/0x409
 	echo "NCM+RNDIS+ACM" > configs/c.1/strings/0x409/configuration
 	echo 500 > configs/c.1/MaxPower
+	# Fixed MACs, locally administered (the 02: prefix), not any device's own.
+	# Random ones made the host rename the interface and create a new network
+	# profile at every boot, and the tablet's DHCP server saw a new client.
+	mkdir -p functions/ncm.usb0 functions/rndis.usb0
+	echo 02:67:74:73:34:01 > functions/ncm.usb0/host_addr
+	echo 02:67:74:73:34:02 > functions/ncm.usb0/dev_addr
+	echo 02:67:74:73:34:03 > functions/rndis.usb0/host_addr
+	echo 02:67:74:73:34:04 > functions/rndis.usb0/dev_addr
 	for fn in ncm.usb0 rndis.usb0 acm.usb0; do
 		mkdir -p functions/$fn
 		ln -s functions/$fn configs/c.1/

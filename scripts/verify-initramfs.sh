@@ -43,6 +43,10 @@ marker_line=$(grep -n "boot-attempt ]" "$work/init" | head -n 1 | cut -d: -f1)
 [ -n "$kill_line" ] && [ -n "$switch_line" ] && [ -n "$marker_line" ]
 [ "$marker_line" -lt "$kill_line" ] && [ "$kill_line" -lt "$switch_line" ]
 grep -q 'gts4lv.stay' "$work/init"
+# the gadget's MACs are fixed, not random, and are locally administered
+for mac in 02:67:74:73:34:01 02:67:74:73:34:02 02:67:74:73:34:03 02:67:74:73:34:04; do
+	grep -q "$mac" "$work/init"
+done
 [ -x "$work/usr/sbin/boot-android" ]
 head -n 1 "$work/usr/sbin/boot-android" | grep -q '^#!/bin/busybox sh'
 grep -q 'qcom-pon' "$work/init"
