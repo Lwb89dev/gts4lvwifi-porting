@@ -1046,9 +1046,131 @@ schermo nero.
   `device/gts4lvwifi/rootfs/packages.txt` (`iw`, `evtest`, `i2c-tools`, ALSA,
   `mesa-utils`, `vulkan-tools`, `libssc`, `iio-sensor-proxy`…) e tolto `pd-mapper`.
 
+## 2026-11-05, Wi-Fi: la causa dei reset erano i dati di board
+
+Il proprietario era assente (circa mezz'ora, poi di più): tutto fatto da SSH, con
+il tablet che si riavvia da solo quando il test lo resetta (rientra in circa 70 s,
+senza tasti). Ogni prova ha cambiato una sola cosa.
+
+| Prova | Cosa cambia | Esito |
+| --- | --- | --- |
+| 1 (`out/modem-test/`) | modem avviato da `rmtfs`, `ath10k_snoc` caricato | dopo l'handshake QMI (`chip_id 0x140`, `board_id 0xff`, firmware `WLAN.HL.3.2.6.c1-00500`) il tablet si resetta dopo 10-17 s, senza panic né oops |
+| 2 (`out/modem-test-noath/`) | come 1, ma `ath10k_snoc` e `ath10k_core` scaricati | il modem resta `running` per tutti i 167 s misurati: da solo non resetta nulla |
+| 3 (`out/ath10k-debug/`) | `CONFIG_ATH10K_DEBUG=y` (solo moduli), `debug_mask=0xffffffff` | ath10k sceglie **`board-2.bin` di linux-firmware** (`using board api 2`, voce generica `bus=snoc,qmi-board-id=ff`), «qmi bdf download request completed» e «qmi cal report request completed» a +0,02 s, poi silenzio fino al reset. Nessun passo dell'host è sospeso: il firmware sul modem non dichiara mai «fw ready» |
+| 4 (`out/ath10k-board1/`) | `board-2.bin` spostato via (`.gts4lv-off`): ath10k ripiega su `board.bin` = `bdwlan.bin` di Samsung | «using board api 1», «wifi fw ready event received» dopo 2,3 s, «firmware ver … api 5», **`wlan0` compare, nessun reset, 172 s stabili** |
+
+Conclusione: con i dati di board generici di linux-firmware il firmware WLAN
+manda in blocco il SoC; con quelli di Samsung funziona. Non so *perché* i dati
+generici resettino tutto (non ho una console che sopravviva al reset), ma la
+differenza è misurata con una sola variabile. Il vecchio `board.bin` -> `bdwlan.bin`
+c'era già dall'inizio: `board-2.bin` ha la precedenza, e prima non lo sapevo.
+
+- **Scansione.** `ip link set wlan0 up` e `iw dev wlan0 scan`: 4 reti, 2,4 e 5
+  GHz (canale 104, DFS), da -42 a -88 dBm. L'associazione non è provata: servono
+  le credenziali del proprietario, che non entrano nel repository. Il MAC è casuale
+  a ogni avvio (nessun MAC in fabbrica letto: `xo-cal-data return -22` nel log).
+- **Correzione nell'immagine.** `customize.sh` aggiunge a `/etc/pacman.conf`
+  `NoExtract = usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin` (il file è di
+  `linux-firmware-atheros`, quindi resisterebbe a un aggiornamento solo così);
+  `gts4lv-firmware` avvisa nel log se il file torna. Sul tablet vivo il file è
+  stato rinominato e `NoExtract` aggiunto.
+- **`gts4lv-modem`** (script + `gts4lv-modem.service`, abilitata): scrive un
+  marker prima di avviare il modem, scarica e ricarica ath10k (`wlan0` resta
+  registrata anche a modem spento: la sua comparsa è un segnale valido solo se
+  ath10k riparte pulito; il primo giro dell'unit lo ha mostrato: terminava in 0,1 s
+  con il modem ancora `offline`), avvia `tqftpserv` e `rmtfs`, aspetta `wlan0` fino
+  a 60 s e toglie il marker. Se all'avvio trova il marker, il tentativo precedente
+  non è arrivato a `wlan0` e non avvia nulla. L'unit parte dopo `gts4lv-boot-ok`:
+  un reset durante l'avvio del modem non blocca l'initramfs nella shell USB. Allo
+  stop ferma `rmtfs` e il modem.
+- **Prova a catena, senza nessuno.** `systemctl reboot` con il modem acceso:
+  chiusura pulita, `ssh` di nuovo raggiungibile, dopo l'avvio `gts4lv-modem`
+  «wlan0 is up after 5 s», `state=running`, 0 unità fallite, scansione di 4 reti.
+- **`qrtr-ns.service` non va abilitato.** Il kernel ha il name service (in
+  `dmesg`/journal: «nameserver already running, going dormant: Address already in
+  use»): tolto da `customize.sh`.
+- **pstore non serve.** `echo c > /proc/sysrq-trigger`: panic, il tablet si
+  riavvia da solo, `/sys/fs/pstore` è vuoto (e `systemd-pstore` è disabilitato, quindi
+  non è stato lui a svuotarlo). Il bootloader Samsung azzera la RAM; il `ramoops`
+  del device tree funziona solo se dopo il reset parte qualcosa che non la
+  cancella (il U-Boot di pulpoff).
+- **`CONFIG_ATH10K_DEBUG=y`** resta nel frammento (solo moduli, `debug_mask` vale 0
+  se non lo si imposta). `scripts/sync-modules.sh` ha copiato i moduli sul tablet;
+  il kernel in esecuzione è quello di prima (`Image.gz` ricollegata, ma non
+  riscritta nella recovery: nessun motivo).
+- **`verify-rootfs.py`** ora segnala `board-2.bin`, `gts4lv-modem` non abilitata,
+  `qrtr-ns` abilitata: sull'immagine v3 costruita ieri notte segnala tutti e tre.
+  Nuova immagine (v4) in costruzione.
+
+## 2026-11-05 pomeriggio: Bluetooth, codec, e il driver del tocco
+
+- **Bluetooth.** `modprobe hci_uart` con il percorso del firmware già impostato:
+  `hci0`, «QCA Downloading qca/crbtfw21.tlv» e `crnv21.bin`, «QCA setup on UART is
+  completed» in 1,4 s. Con `bluez`, `btmgmt info`: controller acceso con l'indirizzo
+  del device tree (`xx:xx:xx:xx:xx:xx`), scansione di 12 s: 6 dispositivi vicini.
+  Nuova unit `gts4lv-bluetooth.service` (carica `hci_uart` dopo `gts4lv-firmware`),
+  `bluetooth.service` abilitata, `bluez` e `bluez-utils` in `packages.txt`.
+  Associazione e audio non provati.
+- **Codec video.** `modprobe venus_core`: `venus_dec` e `venus_enc` si caricano senza
+  errori, compaiono `/dev/video12` e `13`. Nessun flusso decodificato.
+- **Tenuta del Wi-Fi.** Il tablet è rimasto acceso 5,3 ore di fila (stesso boot) con
+  modem, `wlan0` e `hci0` attivi, dopo 13 minuti di scansioni ogni 20 s. Nel log solo
+  `ath10k_snoc: chan info: invalid frequency 0 (idx 41 out of bounds)`, innocuo.
+  L'unico problema era mio: `20-wlan0.network` rendeva `wlan0` un link da attendere
+  e `systemd-networkd-wait-online` andava in timeout (`degraded`); ora
+  `RequiredForOnline=no`.
+- **Il tocco, passi 1 e 2 del piano.** Sul bus `i2c-6` (= `i2c9`), indirizzo 0x49:
+  il comando 0x22 risponde `53 54 39 36`, cioè «ST» e gli `FTS_ID0/ID1` (0x39, 0x36)
+  del sorgente Samsung; 0x24 risponde `00 11 00 06…`; 0x60 restituisce eventi da 8
+  byte (il primo è un evento di stato «ready»: eid 1, stype 2, id 0).
+- **Il driver** `device/gts4lvwifi/kernel/fts1ba90a/fts1ba90a.c` (GPL-2.0, scritto qui:
+  i fatti del protocollo sono dal sorgente GPL di Samsung, lo scheletro da `stmfts.c`).
+  Reset, attesa del «ready», controllo dell'ID, scansione, fino a 10 dita come slot MT
+  sugli assi nativi (x 0-1599, y 0-2559), palmo come `MT_TOOL_PALM`. Parametri `poll_ms`
+  e `debug`. Senza interrupt nel device tree ripiega sul polling.
+- **Il polling uccide il tablet.** Con il client creato a mano (`new_device`, senza
+  interrupt) e il driver in polling, il tablet si è resettato da solo, senza panic né
+  log, in 3 prove su 4 (dopo ~5 s a 100 Hz, ~85 s a 10 Hz; la prima prova, 50 s, è
+  sopravvissuta). Non è la batteria (100%, 4,36 V). Le sole letture non bastano:
+  avviato il controller **senza mai leggere la coda** il tablet regge 150 s
+  (prova A); letture da shell con `i2ctransfer` a ~15 Hz **senza scansione attiva** reggono
+  190 s (prova C). Il sospetto è la combinazione scansione accesa + letture a tempo
+  casuale mentre il controller è occupato; non è dimostrato.
+- **Con l'interrupt regge.** Patch al kernel (nodo `touchscreen@49` su `&i2c9`,
+  GPIO 123 a livello basso, `bias-disable` come in Samsung; Kconfig e Makefile) in
+  `device/gts4lvwifi/kernel/patches/`, applicate da `scripts/apply-kernel-patches.sh`
+  (chiamato da `build-kernel.sh`, idempotente). Con il sorgente modificato la
+  versione diventa `7.2.13-gts4lvwifi-g36f309c07087-dirty` (stabile da build a build:
+  i moduli stanno in `/usr/lib/modules/<release>`, e sono stati copiati prima del
+  flash con `scripts/sync-modules.sh --stage`). Recovery `5d9a25f7…` scritta da SSH e riletta
+  (backup della precedente in `out/prev/recovery-before-touch.img`). Dopo il riavvio:
+  `state=running`, modem, `wlan0` e `hci0` su da soli, il driver si aggancia a 4,5 s con
+  `irq 166`. Osservato 5 minuti, scansione accesa: nessun reset.
+- **I tocchi del proprietario (14:40 circa).** Nei 3 minuti di registrazione che
+  ho fatto io il contatore dell'interrupt è rimasto a 1: nessuno toccava. Poi il
+  proprietario ha provato da solo (con `debug=1` attivo, che registra ogni evento
+  non nullo) e ho ripreso i log dal tablet. Il tablet si era riavviato (arresto
+  pulito, 520 s) e nel boot corrente l'interrupt è a **320**, con 628 eventi: 22
+  press, 584 move, 22 release, tutti `eid` 0; `tid` 0, 1 e 2 (fino a tre dita
+  insieme), x 739..1295 e y 820..1896 (dentro 0..1599 e 0..2559), pressione 3..26,
+  tipo 0 (dito), `left_event` al massimo 2, nessun evento di errore, nessun reset.
+  Press e release sono uguali: nessuno slot rimasto aperto. Quindi la decodifica
+  degli eventi, l'interrupt e il multitouch funzionano a livello di driver.
+  Non è provato: gli angoli (le coordinate osservate sono tutte al centro), i tocchi
+  letti da `evtest` come eventi evdev (il test era sul log del driver), libinput e
+  un compositor, scorrimento e gesture, rotazione, ripresa dopo lo spegnimento.
+- **Errori miei di oggi.** Un file `localversion.config` messo nella cartella di
+  output ha corrotto `kernel.release` (Kbuild legge ogni `localversion*` lì) e ha fatto
+  fallire una compilazione: tolto, nessun danno al tablet. Un `evtest` lanciato senza
+  `timeout` ha bloccato un comando per più di 200 s.
+- **Foto.** La foto delle 13:44 è trascritta in `docs/CONSOLE-LOG.txt`: schermo acceso a
+  ~80 s dall'avvio, `regulator: Not disabling unused regulators`, `ath10k: invalid MAC
+  address; choosing random`, audio in deferred probe in attesa del pinctrl LPASS.
+
 ## Prossimo passo
 
-Il proprietario conferma se lo schermo resta acceso oltre i 40 s. Poi, nell'ordine:
-mettere sul tablet il rootfs v3 (console seriale, ownership corretta) con una
-nuova immagine che fissa anche i MAC del gadget (evita che l'interfaccia
-dell'host cambi nome a ogni avvio), poi il Wi-Fi con il modem avviato a mano.
+Con una persona davanti allo schermo: tocco (tap, multitouch, scorrimento) con
+`evtest`, poi spegnimento e ripresa. Subito dopo: rootfs v4 sul tablet (va
+ricostruito: il kernel ha una versione nuova, `-dirty`, e le immagini già fatte
+hanno i moduli della vecchia), poi associazione Wi-Fi con le credenziali del
+proprietario, microSD (M7.1), audio (M7.6, ordine dell'ADSP), display (M7.2).

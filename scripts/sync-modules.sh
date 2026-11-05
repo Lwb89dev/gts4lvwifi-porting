@@ -6,11 +6,19 @@
 # recovery, or insmod fails with "disagrees about version of symbol".
 # Writes only /usr/lib/modules/<release> on the tablet.
 #
-#   scripts/sync-modules.sh
+#   scripts/sync-modules.sh [--stage]
+#
+# --stage copies the modules of a build whose release differs from the running
+# kernel's, so that they are already in place when a kernel with that release
+# is flashed and booted. Nothing is checked against the running kernel then.
 set -euo pipefail
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
+stage=0
+if [ "${1:-}" = --stage ]; then
+	stage=1
+fi
 host=${TABLET_IP:-172.16.42.1}
 key=out/keys/gts4lv_ed25519
 release=$(cat out/kernel/include/config/kernel.release)
@@ -29,7 +37,11 @@ sshc() {
 
 # the tablet must be the one that runs this release
 running=$(sshc 'uname -r')
-[ "$running" = "$release" ] || die "the tablet runs $running, the build is $release"
+if [ "$stage" = 1 ]; then
+	echo "staging $release; the tablet runs $running"
+else
+	[ "$running" = "$release" ] || die "the tablet runs $running, the build is $release (--stage to copy anyway)"
+fi
 
 # root-owned, no group or world write, existing directories left as they are
 tar -C "$src" --exclude=./build --exclude=./source --owner=0 --group=0 \

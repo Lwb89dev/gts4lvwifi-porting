@@ -55,6 +55,8 @@ userspace.
 
 ## Steps
 
+**Steps 1 and 2 done 2026-11-05** (read from the running tablet, nothing written but the read commands): bus `i2c-6` is `i2c9`; `i2ctransfer -y 6 w1@0x49 0x22 r8` answers `53 54 39 36 03 03 03 03`, `0x24` answers `00 11 00 06 07 06 06 06`, and `0x60` returns 8-byte events (first `49 00 10 00 00 00 00 00`, then zeros). The chip answers and its event FIFO reads as described. What the bytes mean in the chip's own terms is not confirmed.
+
 1. Read-only: with the kernel's i2c-dev (`CONFIG_I2C_CHARDEV=y`, present),
    `i2cdetect -y -r` on the bus of `i2c9` and a read at `0x49`, one register at a
    time, as the upstream rules ask. Expect an answer: the supplies are on.
@@ -67,3 +69,26 @@ userspace.
    with a person touching the glass.
 5. Orientation and calibration are the compositor's business (libinput); the
    driver reports the native portrait axes.
+
+## Status 2026-11-05 (after the first driver)
+
+- Steps 1 to 3 are done: the chip answers, and `device/gts4lvwifi/kernel/fts1ba90a/fts1ba90a.c`
+  exists, with the device tree node and Kconfig/Makefile entries as patches in
+  `device/gts4lvwifi/kernel/patches/`, applied by `scripts/apply-kernel-patches.sh`.
+- The event layout in the driver is Samsung's `struct fts_event_coordinate`:
+  byte 0 `eid:2 tid:4 action:2`, bytes 1 and 2 the high bits of x and y, byte 3 the low
+  nibbles (x high, y low), bytes 4 and 5 major and minor, byte 6 `z:6 ttype:2`, byte 7
+  `left_event:6 ttype:2`. A status event has `eid` 1, `stype` in bits 2 to 5 of byte 0
+  and the id in byte 1.
+- **Do not poll the FIFO.** With scanning on, reading the FIFO on a timer reset the
+  tablet in 3 of 4 runs (no log, no panic); the same driver reading only after the
+  interrupt, scanning on, was stable for 5 minutes. The `poll_ms` fallback stays for
+  bring-up but is not safe to leave running.
+- Step 4, first result (the owner, 2026-11-05 ~14:45): the driver's debug log has 628
+  events, all coordinate events, 22 presses, 584 moves, 22 releases, up to 3 fingers
+  (`tid` 0 to 2), x 739..1295 and y 820..1896, pressure 3 to 26, touch type 0, no error
+  event. Press and release counts match. Not tried: the corners of the 1600x2560 area,
+  the events as evdev reports them (`evtest`), libinput and a compositor, scrolling and
+  gestures, rotation, resume after the display is off.
+- The module is on the blacklist in the image (`gts4lv-blacklist.conf`) until it has
+  been tried in a full session.

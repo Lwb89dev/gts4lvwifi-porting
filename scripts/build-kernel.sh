@@ -60,6 +60,11 @@ echo "cross   $cross"
 echo "jobs    $JOBS"
 mkdir -p "$out"
 
+# the driver and the patches of device/gts4lvwifi/kernel
+"$root/scripts/apply-kernel-patches.sh"
+
+# With the patches applied the tree is not the pinned commit any more, and Kbuild
+# says so: the release ends in "-dirty". It stays the same from build to build.
 make -C "$kernel" O="$out" ARCH=arm64 CROSS_COMPILE="$cross" defconfig
 "$kernel/scripts/kconfig/merge_config.sh" -O "$out" -m "$out/.config" \
 	"$kernel/arch/arm64/configs/sdm670.config" \
