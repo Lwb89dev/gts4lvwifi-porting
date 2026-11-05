@@ -489,11 +489,14 @@ il log perso nello spegnimento.
 `PROMPT.md` e questo `PROGRESS.md` sono in git dal 2026-11-04 (su richiesta
 del proprietario). Le foto della console (`photo_*.jpg` nel root: si vede
 anche la stanza e una mano) sono ignorate da `.gitignore` dal 2026-11-04 e il
-loro testo è trascritto e datato in `docs/CONSOLE-LOG.txt`. Due commit locali
-non pushati le contengono ancora nella storia (`236e748` per le prime tre,
-`b6c343b` per la quarta): prima di un push vanno tolti dalla storia, e
-riscrivere la storia richiede un sì del proprietario. `.gitignore` copre
-anche `src/`, `out/` e `__pycache__`. Non si committano dump di partizioni,
+loro testo è trascritto e datato in `docs/CONSOLE-LOG.txt`. Per un periodo due
+commit locali le contenevano nella storia; il 2026-11-05, prima del primo push
+e su richiesta di pubblicare, sono stati tolti dalla storia **locale non
+pubblicata** con `git filter-branch` (nessun push forzato, nulla di già
+pubblico toccato). Gli hash dei commit da quel punto in poi sono cambiati; il
+ramo `backup/pre-push-2026-11-05` conserva la versione precedente, solo in
+locale. Le foto non sono mai state su GitHub. `.gitignore` copre anche `src/`,
+`out/` e `__pycache__`. Non si committano dump di partizioni,
 firmware, dump di seriali, MAC.
 
 ## Immagine I2C_GPIO, costruita e non flashata
@@ -670,7 +673,7 @@ ancora la nostra immagine, non quella di Lineage.
 
 Autorizzato dal proprietario («hai il mio sì a procedere» sui quattro passi
 proposti: init permanente, ricostruzione e verifiche, scrittura, avvio di
-M6). Commit `c198b9c`. Cambia solo l'initramfs, il kernel e il DTB sono
+M6). Commit `307cd5a`. Cambia solo l'initramfs, il kernel e il DTB sono
 quelli dell'immagine I2C_GPIO (`54628c69…`, `e496d213…`). Differenze
 rispetto all'initramfs precedente, verificate estraendolo: `init` (blocco
 `insmod qcom-pon.ko` dopo `log "telnet …"`, così il percorso USB già
@@ -777,7 +780,7 @@ Con l'autorizzazione permanente del proprietario («il tablet è throwaway»).
   della shell. Il tablet è rimasto senza telnet. Dopo un reset a tasti il
   marker ha fatto restare l'init nella shell (`arch: the last attempt never
   finished, staying`), come progettato. Correzione `exec switch_root`
-  (commit `35f1598`).
+  (commit `df598d7`).
 - **Secondo tentativo, 22:34.** `sshd` (porta 22) aperta, telnet (23) chiuso.
   `systemctl is-system-running`: `running`, 0 servizi falliti, root su
   `/dev/dm-0` (il file in `/data`), `usb0` `172.16.42.1/24`, 3550 MB di RAM
