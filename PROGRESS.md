@@ -44,9 +44,15 @@ nuove.
   `ssh -F /dev/null -i out/keys/gts4lv_ed25519 -o IdentitiesOnly=yes root@172.16.42.1`
   (la chiave è in `out/`, non in git). Se Arch non risponde, la shell dell'initramfs è su
   telnet, porta 23. Per tornare ad Android: `boot-android` sul tablet.
-- Il clock parte dal 1977 (l'RTC del PMIC non è scrivibile): `date -u -s @$(date -u +%s)`
-  dal PC prima di `pacman`. `pacman` passa dal proxy `scripts/usb-http-proxy.py`
-  (`scripts/arch-smoke.sh <pacchetto>`).
+- Il clock parte dal 1977 (l'RTC del PMIC non è scrivibile) ma, con il Wi-Fi connesso,
+  `systemd-timesyncd` lo imposta da NTP in una decina di secondi. Senza Wi-Fi:
+  `date -u -s @$(date -u +%s)` dal PC prima di `pacman`, che passa dal proxy
+  `scripts/usb-http-proxy.py` (`scripts/arch-smoke.sh <pacchetto>`); con il Wi-Fi `pacman` va diretto.
+- **Wi-Fi, credenziali:** non stanno nel repository né nell'immagine. Sul tablet vivo sono in
+  `/etc/wpa_supplicant/wpa_supplicant-wlan0.conf` (600, solo hash). Per rifarle su un'immagine
+  nuova: `printf '%s\n' "$PASSWORD" | wpa_passphrase "$SSID" | sed '/#psk=/d'` dopo le righe
+  `ctrl_interface=/run/wpa_supplicant`, `update_config=0`, `country=IT`, in quel file con
+  `chmod 600`. La unit non va abilitata a mano: la avvia udev quando compare `wlan0`.
 - `scripts/run-with-log.sh <dir> '<comando>' [secondi]`: esegue un comando sul tablet con
   `dmesg -w` in streaming sul PC; è lo strumento per ogni prova che può resettare. Il log
   che arriva è quello che resta (pstore non serve: il bootloader Samsung azzera la RAM).
@@ -70,7 +76,7 @@ nuove.
 | Sottosistema | Stato | Come lo so |
 | --- | --- | --- |
 | Avvio Arch dalla recovery, USB, ssh, rete | funziona | da giorni, molti riavvii |
-| Wi-Fi (WCN3990) | `wlan0`, scansione 2,4 e 5 GHz; **associazione non provata** (servono le credenziali del proprietario) | misurato; tenuta 5 ore |
+| Wi-Fi (WCN3990) | **connesso** alla rete di casa del proprietario su 5 GHz, DHCP, internet (HTTPS 200), circa 60 Mbit/s in download, riconnessione ok, **si riconnette da solo dopo il riavvio** (ssh a 7 s, Wi-Fi a 25 s); l'ora si sincronizza via NTP | misurato; tenuta 5 ore |
 | Bluetooth | `hci0`, scansione; pairing e audio non provati | misurato |
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
@@ -134,8 +140,8 @@ nuove.
 5. **Immagine v6** (rootfs ricostruita con kernel `-dirty` e script attuali), copiata in
    `/data` da Lineage, extent nuovi nell'initramfs, recovery riscritta, con una persona
    presente. Sul tablet vivo vale sempre il rollback in `docs/RECOVERY-RUNBOOK.md`.
-6. **Wi-Fi: associazione** con le credenziali del proprietario (`wpa_supplicant@wlan0`), poi
-   riconnessione e persistenza; **microSD** (serve la scheda e un nodo `sdhc_2`).
+6. **Wi-Fi** fatto (associazione, riconnessione, riavvio). **microSD** (serve la scheda e un nodo
+   `sdhc_2`). Bluetooth: pairing e audio ancora da provare con il proprietario.
 7. **Sensori** (`hexagonrpcd`, `libssc`, `iio-sensor-proxy`), **sospensione**, **fotocamere**,
    **codec video** in uso; poi M8 (Omarchy: da `docs/OMARCHY-PLAN.md`, con `mesa` e
    `vulkan-freedreno` di ALARM, non quelli di `[omamobile]`, che sono solo Mali) e M9.
@@ -1492,6 +1498,26 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
 - **Script:** `gts4lv-tone` ha `beeps` e `channel`; il controllo del firmware contava `5-004x` e
   falliva col bus I2C 4 di questo boot (il numero del bus cambia): ora conta gli amplificatori per
   indirizzo. Un test che «rifiuta di suonare» è stato questo, e il rifiuto era corretto.
+
+## 2026-11-05 sera, 21:10-21:25: il Wi-Fi si associa
+
+- **Credenziali** date dal proprietario in chat; scritte **solo sul tablet** come hash
+  (`wpa_passphrase`, riga in chiaro tolta), file 600. Verificato che né la password né il nome
+  della rete compaiono nel repository (`git grep`) né nei file non tracciati.
+- **Esito:** associato in circa 12 s su 5 GHz (canale 104), DHCP, rotta su `wlan0` con metrica 600
+  senza toccare quella del cavo, DNS e HTTPS ok, ping 27 ms, download circa 60 Mbit/s a -72 dBm.
+  `disconnect`/`reconnect` ok. NTP imposta l'ora: **il problema dell'orologio al 1977 è risolto
+  finché c'è il Wi-Fi** (resta l'RTC non scrivibile).
+- **Una regressione mia, trovata e corretta:** abilitando `wpa_supplicant@wlan0` al boot, la unit
+  (ordinata prima di `network.target`, e in attesa di `wlan0`, che compare solo quando parte il
+  modem, cioè dopo `sshd`, che aspetta `network.target`) teneva fermo tutto per 90 secondi: **ssh
+  raggiungibile solo a 91 s** e il Wi-Fi non partiva (dipendenza fallita). Ora la unit non è
+  abilitata, un drop-in toglie il `Before=network.target` e la condizione sulla config, e una regola
+  udev la avvia quando `wlan0` compare. Dopo il riavvio: **ssh a 7 s, Wi-Fi con indirizzo a 25 s**,
+  nessuna unit fallita. Nell'immagine: drop-in, regola udev e `systemd-timesyncd` abilitato
+  (le credenziali no, e la unit non parte senza config).
+- **Come è passata la password:** come stdin a `wpa_passphrase` sul tablet, non nella riga di
+  comando di quel programma; è comunque nella cronologia di questa sessione di lavoro del proprietario.
 
 ## Prossimo passo
 

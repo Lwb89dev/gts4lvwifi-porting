@@ -73,7 +73,7 @@ to the PC, and a hang marker for anything at boot.
 | --- | --- | --- | --- |
 | 0 | Lineage recovery rewrite, firmware access, services | everything below needs them | `dd` of `recovery` equals what was written after a Lineage boot; the three partitions mount read-only |
 | 1 | M7.7 battery | a battery that cannot be read is a risk overnight and for every later test | `power_supply` shows capacity, status, temperature; level falls under load and rises on charge |
-| 2 | M7.5 Wi-Fi | no display, no sound, the most useful result: a network that is not the cable | `iw dev wlan0 scan` lists networks (**passed 2026-11-05**, 4 networks, 2.4 and 5 GHz); association needs the owner's credentials, which are never stored in the repository (not tried) |
+| 2 | M7.5 Wi-Fi | no display, no sound, the most useful result: a network that is not the cable | `iw dev wlan0 scan` lists networks (**passed 2026-11-05**, 4 networks, 2.4 and 5 GHz); association needs the owner's credentials, which are never stored in the repository (**done 2026-11-05 21:20**: associated on 5 GHz, DHCP, internet, reconnect and reconnect after reboot) |
 | 3 | M7.1 microSD | a persistent root that does not live in Android's data | a card reads and writes. Needs a card and a device-tree node for `sdhc_2` |
 | 4 | M7.4 touch | needs `uinput`, no kernel driver | `evtest` shows slots and positions when someone touches the glass |
 | 5 | M7.6 audio | needs the ADSP, the LPI pins in order, the amplifiers | `aplay -l` lists cards; a quiet tone at a low level with the owner present |

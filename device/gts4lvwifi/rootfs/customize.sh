@@ -73,7 +73,7 @@ install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
 	gts4lv-firmware.service gts4lv-adsp-stop.service gts4lv-modem.service \
-	gts4lv-bluetooth.service bluetooth.service
+	gts4lv-bluetooth.service bluetooth.service systemd-timesyncd.service
 # bring-up only: a root shell on the USB serial gadget. Remove before release.
 systemctl enable gts4lv-debug-console.service
 # The qrtr name service is in the kernel (net/qrtr/ns.c). qrtr-ns.service from
