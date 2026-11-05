@@ -153,12 +153,17 @@ nuove.
   hash) e, copiate prima del cambio d'immagine, in `out/wifi-wlan0.conf` (locale, ignorato da git): una
   immagine nuova non le ha e vanno rimesse (ricetta nella sezione «Come si lavora»). Anche le chiavi
   del Bluetooth stavano nella vecchia immagine: **il telefono va riaccoppiato**.
-- Commit locali non spinti: tutti quelli dopo `37703bd` (`git log 37703bd..HEAD`). Il remoto
-  (`Lwb89dev/gts4lvwifi-porting`, `feat/gts4lvwifi-mainline-bringup`) è fermo a quel commit;
-  il push lo decide il proprietario. **Prima del push:** due commit locali più vecchi contengono
-  l'indirizzo Bluetooth del tablet in `PROGRESS.md` e in `docs/HARDWARE-MATRIX.md` (viene dal device
-  tree pubblico di `pulpoff`, ed è tolto dall'albero attuale): il proprietario decide se ripulire la
-  storia locale prima di pubblicarla, che è una riscrittura e non è stata fatta.
+- **Pubblicato** il 2026-11-05 sera, su richiesta del proprietario: il branch
+  `feat/gts4lvwifi-mainline-bringup` su `Lwb89dev/gts4lvwifi-porting` contiene ora tutto fino a `80a01c7` più il
+  commit che aggiorna questa sezione (`main` non è stato toccato). Per non pubblicare l'indirizzo Bluetooth
+  del tablet (dal device tree pubblico di `pulpoff`) e quello del telefono, che stavano in alcuni dei 14
+  commit locali, **quei commit sono stati riscritti prima del push** (`git filter-branch` sul solo intervallo
+  non ancora pubblicato, un segnaposto al posto dei due indirizzi; l'albero finale è identico a quello di
+  prima e la verifica non trova più gli indirizzi in nessun commit). Quindi gli hash locali di prima non
+  esistono più sul remoto. Una copia della storia vecchia resta **solo in locale**, con gli indirizzi dentro:
+  il branch `backup/before-bt-scrub-2026-11-05` e i riferimenti in `refs/original/`. **Non vanno spinti**
+  (si spinge sempre un branch alla volta, `git push origin <branch>`, mai `--all` né `--mirror`); si possono
+  cancellare quando il proprietario vuole.
 
 ### Prossimi blocchi, in ordine
 
