@@ -40,6 +40,15 @@ for dir in "$run/modem/image" "$run/apnhlos/image" "$run/vendor/firmware"; do
 	done
 done
 
+# ath10k asks for board-2.bin first and board.bin only when that is absent.
+# linux-firmware's board-2.bin matches this chip's id (ff) with a generic entry,
+# and with that data the WLAN firmware resets the whole SoC about ten seconds
+# after the QMI handshake. The image is built so that the file is not there
+# (pacman NoExtract); a package that brings it back is reported here.
+if [ -e /usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin ]; then
+	echo "gts4lv-firmware: WARNING: /usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin exists; Wi-Fi will reset the tablet" >&2
+fi
+
 # Names the drivers ask for that differ from the files' own: ath10k wants its
 # board data as board.bin, btqca wants qca/crbtfw21.tlv and crnv21.bin.
 [ ! -e "$fw/bdwlan.bin" ] || ln -sf "$fw/bdwlan.bin" "$fw/ath10k/WCN3990/hw1.0/board.bin"

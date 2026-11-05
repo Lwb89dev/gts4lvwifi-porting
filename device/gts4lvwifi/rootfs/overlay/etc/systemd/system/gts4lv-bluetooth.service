@@ -1,0 +1,17 @@
+# hci_uart is blacklisted (gts4lv-blacklist.conf): in probe it asks for
+# qca/crbtfw21.tlv and qca/crnv21.bin and fails for good when the firmware path
+# is not set yet. gts4lv-firmware sets it, then this loads the driver and the
+# controller (WCN3990 on uart6) comes up as hci0. bluetoothd follows.
+[Unit]
+Description=Load the Bluetooth driver after the firmware is visible
+Requires=gts4lv-firmware.service
+After=gts4lv-firmware.service
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/modprobe hci_uart
+
+[Install]
+WantedBy=multi-user.target

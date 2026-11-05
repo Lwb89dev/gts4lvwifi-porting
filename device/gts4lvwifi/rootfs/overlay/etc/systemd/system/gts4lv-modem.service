@@ -1,0 +1,19 @@
+# Starts the modem DSP, which runs the Wi-Fi firmware, with rmtfs and tqftpserv.
+# After gts4lv-boot-ok on purpose: the initramfs counts a boot as good once that
+# one ran, so a start of the modem that kills the tablet does not lock the next
+# boot into the USB shell. gts4lv-modem keeps its own marker and skips the start
+# after a death.
+[Unit]
+Description=Start the modem DSP (Wi-Fi firmware)
+Requires=gts4lv-firmware.service
+After=gts4lv-firmware.service gts4lv-boot-ok.service systemd-networkd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=120
+ExecStart=/usr/local/sbin/gts4lv-modem start
+ExecStop=/usr/local/sbin/gts4lv-modem stop
+
+[Install]
+WantedBy=multi-user.target

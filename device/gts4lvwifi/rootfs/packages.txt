@@ -3,6 +3,8 @@
 iw
 wpa_supplicant
 wireless-regdb
+bluez
+bluez-utils
 alsa-utils
 alsa-ucm-conf
 evtest

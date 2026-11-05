@@ -26,6 +26,7 @@ Le foto, in sintesi
   21:19:18  recovery con I2C_GPIO       "muic usb on i2c-1", il host vede 18d1:d001
   21:43:44  recovery con qcom-pon       "qcom-pon loaded, reboot-mode ready"
   22:16:53  Arch, primo tentativo       ext4 montato da /data, switch_root senza exec
+  2026-11-05 13:44:02  Arch, MAC fissi    schermo acceso a ~80 s, ath10k e audio in deferred probe
 
 
 ================================================================================
@@ -361,3 +362,52 @@ Cosa si legge: la catena arriva fino al mount dell'ext4 del file in /data
 stampa l'uso di switch_root, cioe' switch_root e' stato lanciato come processo
 figlio della shell e non come PID 1: l'init non usava exec. Il kernel resta
 vivo (timeout di sync_state a 11.77 s, crng init a 16.99 s). Nessun panic.
+
+
+================================================================================
+2026-11-05 13:44:02   photo_2026-11-05_13-44-02.jpg
+================================================================================
+Immagine: recovery con i MAC fissi del gadget (sha256 d72aa929..., il prefisso
+registrato in PROGRESS.md), Arch Linux ARM dal file in /data (rootfs v1 con le
+correzioni fatte dal vivo). Kernel 7.2.13-gts4lvwifi-g36f309c07087.
+Avvio: il tablet si e' resettato da solo alle 13:42:17 circa durante una prova del
+driver del tocco ed e' ripartito; il campionamento da ssh da' "up=68" alle
+13:43:49, quindi l'avvio e' cominciato verso le 13:42:41 e la foto e' di circa 80 s
+dopo. Il modem partiva dall'unita' gts4lv-modem.
+Foto: leggibile, inclinata, con il riflesso di una mano sullo schermo. Le righe
+prima di "Arch Linux ARM ..." sono uscite dalla parte alta. Sul bordo destro due
+righe sono tagliate dall'inclinazione.
+
+Arch Linux ARM 7.2.13-gts4lvwifi-g36f309c07087 (tty1)
+
+gts4lvwifi login: [   12.021264] ath10k_snoc 18800000.wifi: wcn3990 hw1.0 target 0x00000000 chip_id 0x00000000 sub 0000:0000
+[   12.021386] ath10k_snoc 18800000.wifi: kconfig debug 1 debugfs 0 tracing 0 dfs 0 testmode 0
+[   12.021462] ath10k_snoc 18800000.wifi: firmware ver  api 5 features wowlan,mgmt-tx-by-reference,non-bmi crc32 b3d4b790
+[   12.047548] ath10k_snoc 18800000.wifi: htt-ver 3.90 wmi-op 4 htt-op 3 cal file max-sta 32 raw 0 hwcrypto 1
+[   12.136525] ath10k_snoc 18800000.wifi: invalid MAC address; choosing random
+[   19.458558] platform 62ec0000.audio-codec: deferred probe pending: (reason unknown)
+[   19.458632] platform sound: deferred probe pending: platform: wait for supplier /soc@0/pinctrl@62b40000/sec-tdm-default-state
+[   19.458700] qnoc-sdm670 1380000.interconnect: Timed out. Forcing sync_state()
+[   19.458737] gcc-sdm845 100000.clock-controller: Timed out. Forcing sync_state()
+[   19.458773] sdm845-gpucc 5090000.clock-controller: Timed out. Forcing sync_state()
+[   19.458816] qnoc-sdm670 1500000.interconnect: Timed out. Forcing sync_state()
+[   19.458851] qnoc-sdm670 1740000.interconnect: Timed out. Forcing sync_state()
+[   19.458884] sdm845-videocc ab00000.clock-controller: Timed out. Forcing sync_state()
+[   19.458925] disp_cc-sdm845 af00000.clock-controller: Timed out. Forcing sync_state()
+[   19.458965] qnoc-sdm670 17900000.interconnect: Timed out. Forcing sync_state()
+[   19.459007] qcom-rpmhpd 179c0000.rsc:power-controller: Timed out. Forcing sync_state()
+[   31.226561] regulator: Not disabling unused regulators
+
+Cosa si legge:
+- Lo schermo e' acceso circa 80 s dopo l'inizio dell'avvio e mostra una riga stampata
+  a 31.226561 s, cioe' dopo il punto in cui prima il pannello si spegneva (31.2 s).
+  "regulator: Not disabling unused regulators" e' il messaggio che il kernel
+  stampa quando regulator_ignore_unused e' nella cmdline: la correzione e' attiva.
+- Il login di tty1 compare prima delle ultime righe del kernel (il kernel scrive
+  sulla stessa console): il prompt e' a ~12 s e i messaggi che seguono sono suoi.
+- ath10k: "invalid MAC address; choosing random" conferma che i dati di calibrazione
+  non portano un indirizzo MAC: wlan0 ha un MAC casuale a ogni avvio.
+  "kconfig debug 1" e' CONFIG_ATH10K_DEBUG=y della build di oggi.
+- audio: 62ec0000.audio-codec e "sound" restano in deferred probe, in attesa del
+  pinctrl sec-tdm-default-state, che e' del controller LPASS LPI. Il modulo
+  pinctrl_sdm670_lpass_lpi e' volutamente in blacklist finche' l'ADSP non gira.

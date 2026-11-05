@@ -7,18 +7,28 @@
 It looks for mistakes that were once made: files owned by the build user
 (uid 1000, "alarm"), system directories writable by group or world, a
 published default password that survived, private SSH host keys baked into
-the image, a stale boot marker, a missing authorized_keys.
+the image, a stale boot marker, a missing authorized_keys, linux-firmware's
+generic ath10k board data (it resets the tablet), the Wi-Fi unit not enabled.
 """
 import sys
 import tarfile
 
 SYSTEM = ("etc", "usr", "boot", "root", "opt")
 HOME_OK = ("home/alarm",)
+# With this file on the disk ath10k matches the chip's board id (ff) with a
+# generic entry, and the WLAN firmware then resets the whole SoC.
+FORBIDDEN = ("usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin",)
+WANTS = "etc/systemd/system/multi-user.target.wants/"
+# the units the bring-up needs at boot, and the one that must stay off
+ENABLED = ("gts4lv-firmware.service", "gts4lv-modem.service", "gts4lv-boot-ok.service",
+           "gts4lv-bluetooth.service")
+NOT_ENABLED = ("qrtr-ns.service",)
 
 
 def check(path):
     problems = []
     seen = {"root_ssh": False, "authorized": False}
+    wants = set()
     with tarfile.open(path, "r|*") as tar:
         for member in tar:
             name = member.name.lstrip("./")
@@ -32,6 +42,10 @@ def check(path):
                 problems.append(f"private SSH host key in the image: /{name}")
             if name == "boot-attempt":
                 problems.append("stale /boot-attempt marker")
+            if name in FORBIDDEN:
+                problems.append(f"file that resets the tablet: /{name}")
+            if name.startswith(WANTS):
+                wants.add(name[len(WANTS):])
             if name == "root/.ssh" and member.mode & 0o077 == 0:
                 seen["root_ssh"] = True
             if name == "root/.ssh/authorized_keys" and member.mode & 0o077 == 0:
@@ -41,6 +55,12 @@ def check(path):
                     user, _, hashed = line.partition(":")[0], None, line.split(":")[1]
                     if user in ("root", "alarm") and not hashed.startswith(("!", "*")):
                         problems.append(f"{user} has a password hash: the published default is not locked")
+    for unit in ENABLED:
+        if unit not in wants:
+            problems.append(f"unit not enabled: {unit}")
+    for unit in NOT_ENABLED:
+        if unit in wants:
+            problems.append(f"unit enabled that should not be: {unit}")
     if not seen["root_ssh"]:
         problems.append("/root/.ssh missing or not private (700)")
     if not seen["authorized"]:

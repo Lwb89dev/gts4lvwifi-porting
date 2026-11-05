@@ -1,0 +1,64 @@
+#!/bin/bash
+# Start or stop the modem DSP, whose firmware is the Wi-Fi's (WCN3990 runs on it).
+#
+#   gts4lv-modem start|stop|status
+#
+# The firmware must be visible first (gts4lv-firmware). rmtfs starts the modem
+# (rmtfs -s) on RAM copies of the modem's storage, so no Android partition is
+# written; tqftpserv hands it wlanmdsp.mbn. ath10k_snoc then finds the QMI
+# service and wlan0 appears.
+#
+# A start that kills the tablet would kill it again at the next boot. The file
+# below is written (and flushed) before the start and removed once wlan0 exists
+# or the wait is over with the tablet still alive. When it is found at the
+# start, the previous attempt never got there and nothing is started.
+set -euo pipefail
+
+state_dir=/var/lib/gts4lv
+marker=$state_dir/modem-attempt
+wait_s=60
+
+die() { echo "gts4lv-modem: $*" >&2; exit 1; }
+
+start() {
+	[ -d /run/gts4lv-fw ] || die "run gts4lv-firmware first, the modem needs its firmware"
+	if systemctl is-active --quiet rmtfs.service; then
+		echo "gts4lv-modem: already started"
+		return 0
+	fi
+	[ ! -e "$marker" ] || die "the last start never reached wlan0, not starting again (remove $marker to try)"
+	install -d "$state_dir"
+	: > "$marker"
+	sync "$marker" "$state_dir"
+	# ath10k keeps wlan0 after the modem stops. Starting it clean makes the
+	# netdev appear only when the firmware has answered.
+	modprobe -r ath10k_snoc ath10k_core 2> /dev/null || true
+	modprobe ath10k_snoc
+	systemctl start tqftpserv.service rmtfs.service
+	local i
+	for i in $(seq "$wait_s"); do
+		[ -d /sys/class/net/wlan0 ] && break
+		sleep 1
+	done
+	rm -f "$marker"
+	[ -d /sys/class/net/wlan0 ] || die "no wlan0 after $wait_s s"
+	echo "gts4lv-modem: wlan0 is up after $i s"
+}
+
+stop() {
+	# rmtfs stops the modem when it exits; the explicit stop covers a start
+	# that failed halfway
+	systemctl stop rmtfs.service tqftpserv.service
+	/usr/local/sbin/gts4lv-dsp stop modem
+}
+
+case ${1:-} in
+start) start ;;
+stop) stop ;;
+status)
+	/usr/local/sbin/gts4lv-dsp status modem
+	if [ -d /sys/class/net/wlan0 ]; then echo "wlan0: present"; else echo "wlan0: absent"; fi
+	if [ -e "$marker" ]; then echo "marker: $marker present, a start is blocked"; fi
+	;;
+*) die "usage: gts4lv-modem start|stop|status" ;;
+esac

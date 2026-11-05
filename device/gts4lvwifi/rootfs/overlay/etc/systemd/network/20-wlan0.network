@@ -1,0 +1,18 @@
+# Wi-Fi as an ordinary DHCP client. Association is wpa_supplicant's job, with
+# credentials that belong to the owner and never go in this repository:
+#   /etc/wpa_supplicant/wpa_supplicant-wlan0.conf, systemctl enable --now wpa_supplicant@wlan0
+# The cable (usb0, 10-usb0.network) keeps its own address; the route over
+# Wi-Fi gets a higher metric so a Wi-Fi default route never replaces the cable's.
+[Match]
+Name=wlan0
+
+[Link]
+# not associated until the owner gives credentials: boot must not wait for it
+RequiredForOnline=no
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+
+[DHCPv4]
+RouteMetric=600

@@ -19,6 +19,14 @@ install_tree() { # <from> <to>
 		tar -C "$2" --no-overwrite-dir --no-same-owner -xf -
 }
 
+say "pacman settings that stay in the image"
+# linux-firmware's generic ath10k board data for this chip (the entry
+# "bus=snoc,qmi-board-id=ff") makes the WLAN firmware reset the whole SoC about
+# ten seconds after the QMI handshake; Samsung's own bdwlan.bin, which
+# gts4lv-firmware links as board.bin, does not. ath10k asks for board-2.bin
+# first, so that file must never be on the disk.
+sed -i 's|^\[options\]|[options]\nNoExtract = usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin|' /etc/pacman.conf
+
 say "pacman for a container under qemu-user"
 # qemu-user has no landlock and the container has no mount table for
 # CheckSpace. Both are put back before the image is made.
@@ -64,13 +72,12 @@ passwd -l alarm
 install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
-	gts4lv-firmware.service gts4lv-adsp-stop.service
+	gts4lv-firmware.service gts4lv-adsp-stop.service gts4lv-modem.service \
+	gts4lv-bluetooth.service bluetooth.service
 # bring-up only: a root shell on the USB serial gadget. Remove before release.
 systemctl enable gts4lv-debug-console.service
-# qrtr-ns is the name service every Qualcomm remote service needs
-if [ -e /usr/lib/systemd/system/qrtr-ns.service ]; then
-	systemctl enable qrtr-ns.service
-fi
+# The qrtr name service is in the kernel (net/qrtr/ns.c). qrtr-ns.service from
+# the package is left disabled: it only reports "nameserver already running".
 
 say "undo the container-only pacman settings"
 cp /tmp/pacman.conf.orig /etc/pacman.conf
