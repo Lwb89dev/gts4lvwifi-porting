@@ -153,17 +153,19 @@ nuove.
   hash) e, copiate prima del cambio d'immagine, in `out/wifi-wlan0.conf` (locale, ignorato da git): una
   immagine nuova non le ha e vanno rimesse (ricetta nella sezione «Come si lavora»). Anche le chiavi
   del Bluetooth stavano nella vecchia immagine: **il telefono va riaccoppiato**.
-- **Pubblicato** il 2026-11-05 sera, su richiesta del proprietario: il branch
-  `feat/gts4lvwifi-mainline-bringup` su `Lwb89dev/gts4lvwifi-porting` contiene ora tutto fino a `80a01c7` più il
-  commit che aggiorna questa sezione (`main` non è stato toccato). Per non pubblicare l'indirizzo Bluetooth
-  del tablet (dal device tree pubblico di `pulpoff`) e quello del telefono, che stavano in alcuni dei 14
-  commit locali, **quei commit sono stati riscritti prima del push** (`git filter-branch` sul solo intervallo
-  non ancora pubblicato, un segnaposto al posto dei due indirizzi; l'albero finale è identico a quello di
-  prima e la verifica non trova più gli indirizzi in nessun commit). Quindi gli hash locali di prima non
-  esistono più sul remoto. Una copia della storia vecchia resta **solo in locale**, con gli indirizzi dentro:
-  il branch `backup/before-bt-scrub-2026-11-05` e i riferimenti in `refs/original/`. **Non vanno spinti**
-  (si spinge sempre un branch alla volta, `git push origin <branch>`, mai `--all` né `--mirror`); si possono
-  cancellare quando il proprietario vuole.
+- **Published, with the history rewritten twice** (2026-11-05 evening, at the owner's request). The
+  branches `feat/gts4lvwifi-mainline-bringup` and `main` of `Lwb89dev/gts4lvwifi-porting` were taken
+  through two rewrites: (1) the tablet's and the phone's Bluetooth addresses (the tablet's came from
+  pulpoff's public device tree) were replaced by a placeholder in the 14 commits that were not yet public;
+  (2) `PROCESS.md`, which holds semi-private details, was removed from every commit, because the owner
+  asked for it to be off GitHub. The file is now untracked (`.gitignore`) and exists only on the owner's PC.
+  The trees are identical apart from that file. **For whoever continues:** every commit hash on the
+  remote differs from older notes and from older local copies; **never force-push old history back and
+  never push the local backup refs** (`backup/before-bt-scrub-2026-11-05`, `refs/original/*`), which still
+  hold the addresses and `PROCESS.md`; push one branch at a time (`git push origin <branch>`, never
+  `--all` or `--mirror`); if a push is rejected as non-fast-forward, stop and ask the owner. GitHub may keep
+  the old commits reachable by their hash for a while (there are no forks and no pull requests); only
+  GitHub Support can purge them.
 
 ### Prossimi blocchi, in ordine
 
@@ -185,7 +187,7 @@ nuove.
 7. M8 (Omarchy: da `docs/OMARCHY-PLAN.md`, con `mesa` e `vulkan-freedreno` di ALARM, non quelli di
    `[omamobile]`, che sono solo Mali) e M9 (pacchetti, CI).
 
-Alcune frasi più vecchie sono superate da quello che segue. `PROCESS.md`, `README.md`,
+Alcune frasi più vecchie sono superate da quello che segue. `README.md`,
 `docs/HARDWARE-MATRIX.md` e `docs/PORTING-ROADMAP.md` sono stati allineati la sera del 2026-11-05;
 `docs/AUDIT.md` e `device/gts4lvwifi/BRINGUP-M1.md` hanno un avviso di «superato». Vale questo file.
 
@@ -1610,7 +1612,7 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
 ## 2026-11-05 sera: limite raggiunto, passaggio a Codex
 
 - Il proprietario ha detto di fermarsi (98 % del limite settimanale con Claude) e di aggiornare tutti gli
-  `.md`: fatto in questo commit (`PROGRESS.md`, `README.md`, `PROCESS.md`, `device/gts4lvwifi/NOTES.md`,
+  `.md`: fatto in questo commit (`PROGRESS.md`, `README.md`, `device/gts4lvwifi/NOTES.md`,
   `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md`, `docs/AUDIO-PLAN.md`, `docs/TOUCH-PLAN.md`,
   `docs/RECOVERY-RUNBOOK.md`, e un avviso di stato in `docs/ROOTFS-PLAN.md`, `docs/DISPLAY-PLAN.md`,
   `docs/OMARCHY-PLAN.md`).

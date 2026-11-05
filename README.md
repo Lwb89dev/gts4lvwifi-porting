@@ -17,7 +17,7 @@ LTE models (SM-T725) are a different board and are out of scope.
 
 The state in detail, with every measurement and what went wrong, is in
 `PROGRESS.md`; its first section is the handoff (rules, how to work on the tablet, what to do
-next). `PROCESS.md` is the older, shorter handoff. "Working" above means measured on the
+next). "Working" above means measured on the
 tablet, with the owner's eyes and ears where a person is the instrument; the boot-time
 display and audio need `gts4lv-display start` and `gts4lv-audio start` after each boot.
 
@@ -49,7 +49,7 @@ Known: after a LineageOS boot, `recovery` may be rewritten by Android
 | `scripts/` | build, flash, deploy and test scripts, listed below |
 | `docs/` | audit, recovery runbook, hardware matrix, roadmap, plans, licences, console log |
 | `sources.lock`, `rootfs.lock` | pinned git trees and the pinned Arch Linux ARM tarball |
-| `PROGRESS.md`, `PROCESS.md` | the long account and the short handoff |
+| `PROGRESS.md` | the long account, with the handoff section at the top |
 
 `src/` and `out/` are local and gitignored, as are the console photos.
 

@@ -3,3 +3,5 @@
 __pycache__/
 *.pyc
 photo_*.jpg
+# local handoff note with semi-private details (measured serials, bootloader and partition data)
+/PROCESS.md
