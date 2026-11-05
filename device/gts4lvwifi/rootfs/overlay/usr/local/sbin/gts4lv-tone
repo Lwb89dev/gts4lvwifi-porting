@@ -2,8 +2,12 @@
 # Play a short sine tone through the four speaker amplifiers, with the checks
 # that make it safe to try. Meant for bring-up, with a person listening.
 #
-#   gts4lv-tone <dB> [seconds] [hz] [mode] [amps]   dB between -90 and -12, default 3 s, 440 Hz
+#   gts4lv-tone <dB> [seconds] [hz] [mode] [amps] [beeps] [channel]   dB between -90 and -12, default 3 s, 440 Hz
 #
+# beeps how many tones of <seconds> each, 0.7 s apart (1 to 5, default 1): a count tells
+#       a listener which run was which
+# channel 0 both (default), 1 left only, 2 right only: the stereo stream's channel, which the
+#       device tree sends to the left pair (slot 0) or the right pair (slot 1) of amplifiers
 # amps  which amplifiers get the level, e.g. FL or "FL RL"; the others stay at -60 dB.
 #       All four by default. FL FR RL RR are the sound name prefixes of the device tree.
 #
@@ -30,6 +34,12 @@ secs=${2:-3}
 hz=${3:-440}
 mode=${4:-asp}
 play_amps=${5:-$amps}
+beeps=${6:-1}
+channel=${7:-0}
+[[ $channel =~ ^[0-2]$ ]] || die "channel must be 0, 1 or 2"
+chan_args=()
+[ "$channel" = 0 ] || chan_args=(-s "$channel")
+[[ $beeps =~ ^[1-5]$ ]] || die "beeps must be 1 to 5"
 for a in $play_amps; do
 	case " $amps " in *" $a "*) ;; *) die "unknown amplifier $a (FL FR RL RR)" ;; esac
 done
@@ -113,8 +123,9 @@ else
 	# There is no debugfs for cs_dsp here, so this counts the load messages of this
 	# boot: it proves the firmware was loaded on all four, not that it is still
 	# loaded. The -12 dB limit is what bounds the risk if it is not.
-	loaded=$(dmesg | grep -c 'cs35l41 5-004.: DSP1: Protection') || true
-	[ "$loaded" -ge 4 ] || die "the protection firmware is not loaded on all four amplifiers ($loaded of 4 lines)"
+	# the I2C bus number changes from boot to boot (5, then 4): count the amplifiers by address
+	loaded=$(dmesg | grep -oE 'cs35l41 [0-9]+-004[0-3]: DSP1: Protection' | sort -u | wc -l) || true
+	[ "$loaded" -ge 4 ] || die "the protection firmware is not loaded on all four amplifiers ($loaded of 4)"
 	source_name=ASP
 	[ "$mode" = dsp ] && source_name=DSP
 	for a in $amps; do
@@ -137,10 +148,13 @@ before=$(errors)
 echo "gts4lv-tone: $db dB (raw $raw) on $play_amps, mode $mode, ${secs} s at ${hz} Hz"
 
 set +e
-timeout "$((secs + 1))" speaker-test -D hw:0,0 -c 2 -t sine -f "$hz" -l 1 > /dev/null 2>&1
-rc=$?
+for beep in $(seq "$beeps"); do
+	timeout "$((secs + 1))" speaker-test -D hw:0,0 -c 2 -t sine -f "$hz" -l 1 "${chan_args[@]}" > /dev/null 2>&1
+	rc=$?
+	[ "$rc" = 124 ] || [ "$rc" = 0 ] || echo "gts4lv-tone: speaker-test exited with $rc" >&2
+	[ "$beep" = "$beeps" ] || sleep 0.7
+done
 set -e
-[ "$rc" = 124 ] || [ "$rc" = 0 ] || echo "gts4lv-tone: speaker-test exited with $rc" >&2
 after=$(errors)
 if [ "$after" -gt "$before" ]; then
 	echo "gts4lv-tone: WARNING: $((after - before)) amplifier(s) failed to power up during the tone; it was probably silent" >&2
