@@ -5,10 +5,10 @@ Questo file è il racconto unico di quello che è stato fatto su questo SM-T720.
 Le misure riga per riga stanno in `device/gts4lvwifi/NOTES.md`. Il runbook di
 rollback sta in `docs/RECOVERY-RUNBOOK.md`.
 
-## Passaggio di consegne: da Claude a Codex (aggiornato 2026-11-05, 22:25)
+## Passaggio di consegne: da Claude a Codex (aggiornato 2026-11-05, sera)
 
-Il proprietario è al **96 % del limite settimanale** con Claude (Sonnet 5.5) e passa il lavoro a
-Codex quando lo raggiunge: il passaggio è imminente. Questa sezione è per chi riprende. Per le regole del
+Il proprietario ha raggiunto il **98 % del limite settimanale** con Claude (Sonnet 5.5), mi ha chiesto di
+fermarmi e **passa il lavoro a Codex adesso**. Questa sezione è per chi riprende. Per le regole del
 progetto valgono `PROMPT.md` (milestone M0-M9) e questa sezione; il resto del file è la
 cronaca, in ordine di tempo, e le frasi più vecchie possono essere superate da quelle più
 nuove.
@@ -72,7 +72,8 @@ nuove.
   (espone `modem`, `apnhlos`, `vendor` in sola lettura sotto `/run/gts4lv-fw`),
   `gts4lv-modem` (modem e Wi-Fi, con marker anti-ciclo), `gts4lv-dsp` (modem/ADSP **per nome**:
   la numerazione dei `remoteproc` cambia tra un boot e l'altro), `gts4lv-tone` (tono di
-  prova con i controlli di sicurezza), `boot-android`.
+  prova con i controlli di sicurezza), `gts4lv-audio` (`start|stop|status`: ADSP, protezione degli
+  amplificatori, percorso e livello di lavoro), `gts4lv-display` (`start|kick|bars`), `boot-android`.
 
 ### Stato dei sottosistemi
 
@@ -80,13 +81,13 @@ nuove.
 | --- | --- | --- |
 | Avvio Arch dalla recovery, USB, ssh, rete | funziona | da giorni, molti riavvii |
 | Wi-Fi (WCN3990) | **connesso** alla rete di casa del proprietario su 5 GHz, DHCP, internet (HTTPS 200), circa 60 Mbit/s in download, riconnessione ok, **si riconnette da solo dopo il riavvio** (ssh a 7 s, Wi-Fi a 25 s); l'ora si sincronizza via NTP | misurato; tenuta 5 ore |
-| Bluetooth | `hci0`; telefono accoppiato e fidato; **la musica del telefono suona dagli altoparlanti del tablet** (A2DP sink via PipeWire); non provati: riconnessione dopo il riavvio, tablet come sorgente (cuffie) | proprietario |
+| Bluetooth | `hci0`; telefono accoppiato e fidato; **la musica del telefono suona dagli altoparlanti del tablet** (A2DP sink via PipeWire); sulla v6 le chiavi non ci sono più (stavano nella vecchia immagine): **il telefono va riaccoppiato**; non provati: riconnessione dopo il riavvio, tablet come sorgente (cuffie) | proprietario |
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
-| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati | proprietario, `scripts/touch-summary.py` |
+| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati; sulla v6 il modulo si carica da solo al boot | proprietario, `scripts/touch-summary.py` |
 | Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Luminosità (160, 100, 40, 255, 160) senza artefatti; refresh a circa 63 Hz con i fotogrammi in arrivo (29 Hz a riposo). Aperti: la console di testo non scrive su `msmdrmfb`, off/on da compositor, tearing | proprietario |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
-| Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso, via PipeWire; tutti e quattro producono suono; livello di lavoro 0 dB digitale e analogico 0 (scelto dal proprietario fra quattro fasi; più guadagno analogico suonava più piano); l'abbinamento amplificatore-altoparlante e sinistra/destra non sono stabiliti. Servono `gts4lv-audio start` e l'utente `alarm` | proprietario, registri I2C |
+| Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso, via PipeWire; tutti e quattro producono suono; livello di lavoro 0 dB digitale e analogico 0 (scelto dal proprietario fra quattro fasi; più guadagno analogico suonava più piano); l'abbinamento amplificatore-altoparlante e sinistra/destra non sono stabiliti. Servono `gts4lv-audio start` e l'utente `alarm`; sulla v6 l'uscita predefinita di PipeWire è già gli altoparlanti (testato: tono sentito da tutti e quattro) | proprietario, registri I2C |
 | Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
 | ADSP | parte e si ferma pulito | misurato |
 | microSD, sensori, fotocamere, codec video in uso, sospensione | non provati (il canale FastRPC dell'ADSP c'è, `hexagonrpc` è in `packages/`) | — |
@@ -107,8 +108,8 @@ nuove.
 - **Il Wi-Fi si resetta con il `board-2.bin` di linux-firmware** (`NoExtract` nell'immagine):
   usa il `bdwlan.bin` di Samsung.
 - **Tocco: leggere la coda eventi a tempo (polling) con la scansione accesa ha resettato
-  il tablet** in 3 prove su 4; con l'interrupt regge. Il modulo è in blacklist nell'immagine
-  (non sul tablet vivo, dove si carica da solo).
+  il tablet** in 3 prove su 4; con l'interrupt regge. Sulla v6 il modulo non è più in blacklist e
+  si carica da solo al boot.
 - `msm` non si scarica con `rmmod`; un riavvio riporta alla console `simpledrm`.
 - Se `gts4lv-modem` trova `/var/lib/gts4lv/modem-attempt`, salta l'avvio: il tentativo
   precedente non è arrivato a `wlan0`. Va tolto a mano dopo aver capito perché.
@@ -131,16 +132,27 @@ nuove.
 
 ### Dove siamo, in pratica
 
-- Il tablet esegue un Arch ricavato dalla prima immagine rootfs più **molte** correzioni fatte dal
-  vivo (non l'immagine v5, né una nuova): PipeWire e WirePlumber installati, utente `alarm` con sessione
-  permanente, regole di WirePlumber, `gts4lv-display`, `gts4lv-audio`, `gts4lv-tone`, Wi-Fi configurato.
-  Tutto questo è già nelle sorgenti dell'immagine (`device/gts4lvwifi/rootfs/`), ma **nessuna immagine
-  nuova è stata costruita né scritta**: l'ultima in `out/rootfs/` (v5) è vecchia. La recovery scritta è
-  `6afcfc5e…` (kernel `-dirty` e patch del tocco, initramfs ricostruito dopo un esperimento ritirato).
-  Sul tablet vivo `msm`, il pannello e il driver dei pin LPI non partono da soli (blacklist nel rootfs):
-  si caricano a mano (`gts4lv-display start`, `gts4lv-audio start`). Lineage è ancora in `boot`.
+- Il tablet esegue la **v6** (rootfs costruita la sera del 2026-11-05, `sha256 0a5c84c4…`, 80 extent), scritta
+  da Lineage con `rootfs-to-tablet.sh` e verificata; la recovery è `a473ef0a…` (kernel `-dirty` con il
+  driver del tocco; la ramdisk ha gli extent della v6). Dentro ci sono PipeWire, WirePlumber con le sue
+  regole, `gts4lv-display`, `gts4lv-audio`, `gts4lv-tone`, il Wi-Fi con la unit avviata da udev, NTP, e il
+  modulo del tocco non più in blacklist. Il **ritorno**: la vecchia immagine è sul tablet come
+  `/data/lost+found/gts4lv/rootfs-v1.img` (non cancellarla finché serve) e la sua recovery è
+  `out/prev/recovery-6afcfc5e-arch-v1.img` (vedi `docs/RECOVERY-RUNBOOK.md`, «3c»). `msm`, il pannello e
+  il driver dei pin LPI non partono da soli (blacklist): `gts4lv-display start`, `gts4lv-audio start`.
+  Lineage è ancora in `boot`.
+- **Stato vivo del tablet nel momento del passaggio** (da verificare con `gts4lv-audio status`): Arch v6 acceso
+  sul cavo USB, Wi-Fi connesso, e `gts4lv-audio start` già eseguito, quindi l'**ADSP è acceso**, gli
+  amplificatori a 0 dB con la protezione nel percorso, PipeWire attivo per `alarm` con gli altoparlanti
+  come uscita predefinita. Il telefono **non** è accoppiato. Prima di riavviare: un `systemctl reboot`
+  normale fa fermare l'ADSP a `gts4lv-adsp-stop.service`; a mano è `gts4lv-audio stop` (dopo un crash
+  aspettare circa 8 s). **Mai un reset a tasti con l'ADSP acceso**: il bootloader può ciclare fino a
+  Power + Volume giù. Dopo ogni avvio di Arch ADSP, display e audio sono spenti: `gts4lv-display start`,
+  `gts4lv-audio start`.
 - Le credenziali Wi-Fi stanno **solo** sul tablet (`/etc/wpa_supplicant/wpa_supplicant-wlan0.conf`, 600,
-  hash): un'immagine nuova non le ha e vanno rimesse (ricetta nella sezione «Come si lavora»).
+  hash) e, copiate prima del cambio d'immagine, in `out/wifi-wlan0.conf` (locale, ignorato da git): una
+  immagine nuova non le ha e vanno rimesse (ricetta nella sezione «Come si lavora»). Anche le chiavi
+  del Bluetooth stavano nella vecchia immagine: **il telefono va riaccoppiato**.
 - Commit locali non spinti: tutti quelli dopo `37703bd` (`git log 37703bd..HEAD`). Il remoto
   (`Lwb89dev/gts4lvwifi-porting`, `feat/gts4lvwifi-mainline-bringup`) è fermo a quel commit;
   il push lo decide il proprietario. **Prima del push:** due commit locali più vecchi contengono
@@ -150,10 +162,10 @@ nuove.
 
 ### Prossimi blocchi, in ordine
 
-1. **Immagine v6**, il blocco che sblocca gli altri: ricostruire il rootfs (`scripts/build-rootfs.sh`,
-   `verify-rootfs.py`), copiarlo in `/data` da Lineage (`rootfs-to-tablet.sh`), extent nuovi
-   nell'initramfs, riscrivere la recovery, rimettere le credenziali Wi-Fi. **Con il proprietario
-   presente**; rollback in `docs/RECOVERY-RUNBOOK.md`. Prima: decidere se l'audio parte al boot.
+1. **A tablet in mano, per prima cosa:** `gts4lv-audio status`; riaccoppiare il telefono sulla v6 e provare
+   la musica via Bluetooth, poi **riavviare e vedere se si riconnette da solo**; decidere con il
+   proprietario se `gts4lv-audio` parte al boot (oggi no, per il rischio dell'ADSP acceso:
+   `gts4lv-audio.service` esiste ma non è abilitata). L'immagine v6 è fatta (sezione in fondo).
 2. **Microfoni** (M7.6): il codec digitale interno manda in crash l'ADSP a ogni uso (anche in
    riproduzione). Il clock vero è stato provato e rifiutato (`docs/AUDIO-PLAN.md`; idee che restano:
    l'albero di Samsung per capire come sono collegati i microfoni di questo tablet, l'indirizzo
@@ -168,12 +180,9 @@ nuove.
 7. M8 (Omarchy: da `docs/OMARCHY-PLAN.md`, con `mesa` e `vulkan-freedreno` di ALARM, non quelli di
    `[omamobile]`, che sono solo Mali) e M9 (pacchetti, CI).
 
-Alcune frasi più vecchie sono superate da quello che segue. L'apertura
-di `PROCESS.md` dice ancora che nessuna partizione è stata scritta.
-L'intestazione di `docs/AUDIT.md` dice ancora che il tablet è tornato su
-Lineage. `device/gts4lvwifi/BRINGUP-M1.md` dice ancora che l'immagine
-con simpledrm non è stata flashata. `README.md` dice ancora che il
-packer non esiste. Vale questo file.
+Alcune frasi più vecchie sono superate da quello che segue. `PROCESS.md`, `README.md`,
+`docs/HARDWARE-MATRIX.md` e `docs/PORTING-ROADMAP.md` sono stati allineati la sera del 2026-11-05;
+`docs/AUDIT.md` e `device/gts4lvwifi/BRINGUP-M1.md` hanno un avviso di «superato». Vale questo file.
 
 ## Obiettivo
 
@@ -1566,6 +1575,50 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
   confermato il firmware di protezione sui quattro, e mai sopra 0 dB.
 - **Non fatto:** riconnessione del telefono dopo un riavvio del tablet; l'audio non parte al boot
   (`gts4lv-audio.service` esiste ma non è abilitata, per il rischio dell'ADSP acceso); microfoni.
+
+## 2026-11-05 sera: l'immagine v6
+
+- **Costruzione:** `scripts/build-rootfs.sh` in 4 minuti, `verify-rootfs.py` ok (controlla anche che
+  `board-2.bin` non ci sia, che le unit giuste siano abilitate e che `qrtr-ns` no). Un primo tentativo è
+  stato interrotto a metà (comando in primo piano ucciso, codice 137): rifatto in background; il tablet
+  non era stato toccato.
+- **Paracadute prima di sostituire:** copiate in `out/prev/` la recovery attuale (`6afcfc5e…`) e gli extent
+  della v1; la recovery di Lineage originale ha ancora lo sha256 giusto (`81f4d19e…`); la vecchia
+  immagine rinominata sul tablet in `rootfs-v1.img` (c'erano 21,5 GiB liberi). La configurazione Wi-Fi
+  (solo hash) copiata in `out/wifi-wlan0.conf`; l'ADSP fermato prima di lasciare Arch.
+- **Passaggio:** `boot-android` → Lineage in 42 s, adb ok, `rootfs-to-tablet.sh` (1 min 38 s,
+  copia verificata per sha256, 80 extent che coprono i 6.442.450.944 byte), ramdisk ricostruita con gli
+  extent nuovi (verificato che la ramdisk li contenga), `flash-recovery-adb.sh` (scritta e riletta,
+  `a473ef0a…`), `adb reboot recovery`: Arch su e raggiungibile via ssh.
+- **Esito:** `running`, 0 unità fallite, rootfs da 5,9 GB con 2,0 GB usati; credenziali Wi-Fi rimesse e
+  Wi-Fi connesso in 11 s; NTP; modem, `hci0`, tocco (ora caricato al boot) e batteria ok; la unit di
+  `wpa_supplicant` parte da udev e **dopo un riavvio**: ssh a 7 s, Wi-Fi con indirizzo a 20 s, ping 0 %
+  di perdita, nessuna unità fallita. L'ora si sincronizza via NTP a circa 66 s dal boot.
+- **Un difetto trovato sulla v6 e corretto:** su un sistema fresco la scheda audio non aveva un profilo
+  scelto (WirePlumber non ne aveva uno ricordato): PipeWire mostrava solo un sink finto, il «Dummy Output». Ora la regola di WirePlumber avvia la scheda in `pro-audio` e dà priorità agli
+  altoparlanti: senza interventi a mano l'uscita predefinita è `Tab S5e speakers`.
+- **Audio sulla v6:** `gts4lv-audio start`, tono da PipeWire a 40 % di volume: **il proprietario lo sente
+  da tutti e quattro gli altoparlanti**; nessun errore di accensione.
+- **Non fatto sulla v6:** riaccoppiare il telefono (le chiavi stavano nella vecchia immagine) e riprovare
+  la musica via Bluetooth; avviare l'audio al boot.
+
+## 2026-11-05 sera: limite raggiunto, passaggio a Codex
+
+- Il proprietario ha detto di fermarsi (98 % del limite settimanale con Claude) e di aggiornare tutti gli
+  `.md`: fatto in questo commit (`PROGRESS.md`, `README.md`, `PROCESS.md`, `device/gts4lvwifi/NOTES.md`,
+  `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md`, `docs/AUDIO-PLAN.md`, `docs/TOUCH-PLAN.md`,
+  `docs/RECOVERY-RUNBOOK.md`, e un avviso di stato in `docs/ROOTFS-PLAN.md`, `docs/DISPLAY-PLAN.md`,
+  `docs/OMARCHY-PLAN.md`).
+- Nello stesso commit due modifiche all'immagine, già provate sul tablet vivo: la regola di
+  WirePlumber che avvia la scheda audio in `pro-audio` e dà priorità agli altoparlanti, e il modulo del
+  tocco tolto dalla blacklist. L'immagine costruita (`out/rootfs/rootfs.img`, `0a5c84c4…`) le contiene già.
+- Controlli prima del commit: `shellcheck` sugli script, `tests/test-pack-recovery.py` ok, nessuna
+  password, nome di rete, indirizzo o hash di chiave nelle righe aggiunte. `yamllint` in CI gira solo su
+  `.github/workflows`: sull'intero albero fallisce per l'YAML del kernel in `src/`, che non è nostro.
+- **Non è stato spinto niente.** I commit sono tutti locali (`git log 37703bd..HEAD`).
+- Non iniziato: microfoni (ADSP in crash), riconnessione Bluetooth dopo il riavvio, abbinamento
+  amplificatore-altoparlante, microSD, sensori, sospensione, fotocamere, GL/Vulkan, M8 e M9.
+  L'elenco ordinato è nella sezione «Prossimi blocchi» in cima.
 
 ## Prossimo passo
 

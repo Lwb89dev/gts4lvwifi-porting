@@ -152,6 +152,23 @@ may be on the same host.
 
 Stop and use section 3 if no USB id appears within about 90 seconds.
 
+## 3c. Back to the previous Arch image (rootfs v1), after the v6 change
+
+Written 2026-11-05. The v6 root image replaced `/data/lost+found/gts4lv/rootfs.img`, but the
+previous one was kept next to it as `rootfs-v1.img` (renamed, so its blocks did not move). Each
+recovery image carries the block list of the image it was built for, so the old recovery boots the
+old Arch and the new one boots the new:
+
+- old Arch: `out/prev/recovery-6afcfc5e-arch-v1.img` (sha256 `6afcfc5e…`), written with
+  `scripts/flash-recovery-adb.sh out/prev/recovery-6afcfc5e-arch-v1.img` from Lineage, then
+  `adb reboot recovery`. It needs `rootfs-v1.img` to still be there and unmoved.
+- the list of its extents, in case the recovery is rebuilt: `out/prev/rootfs-extents-v1-live.txt`
+  (copy it over `out/rootfs/rootfs-extents.txt` and run `scripts/build-initramfs.sh`).
+- back to Lineage only: section 3b.
+
+Do not delete `rootfs-v1.img` until the v6 system has proved itself; deleting it frees 6 GiB.
+These files are in `out/`, which is not in git.
+
 ## 4. Read ramoops after a failed mainline boot
 
 This applies only to an image built with `CONFIG_PSTORE_RAM=y` and

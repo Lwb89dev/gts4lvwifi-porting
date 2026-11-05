@@ -1,5 +1,7 @@
 # M7.2 plan: display
 
+> Status 2026-11-05 evening: the plan was carried out and the display works (see the status sections at the end and `HARDWARE-MATRIX.md`). The text below is the plan as written; `msm` and the panel are still loaded by hand (`gts4lv-display start`).
+
 Written 2026-11-04 night. Facts come from pulpoff's README (read, not copied),
 the board device tree and the build. Nothing here has been tried on the tablet,
 and the panel driver is not in the build that is in the tablet.

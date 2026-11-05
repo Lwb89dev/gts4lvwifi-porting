@@ -1,5 +1,7 @@
 # M8 plan: Omarchy Mobile on the tablet
 
+> Status 2026-11-05 evening: M8 has not started. Nothing below has been run on the tablet; the hardware it needs (display, touch, speakers, Wi-Fi) works as described in `HARDWARE-MATRIX.md`, the GPU rendering does not have a test yet.
+
 Written 2026-11-04 night. Everything here was read from the repositories'
 published databases and packages, or measured with `pacman` in print-only mode
 in a throw-away container. Nothing was installed on the tablet and no Omarchy

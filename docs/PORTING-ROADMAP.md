@@ -6,6 +6,30 @@ were read for ordering and parameters only (their licence is unstated, see
 `LICENSES.md`, so none of their code is copied). Nothing below has been run
 unless it says so.
 
+## 0. Where this stands (2026-11-05 evening)
+
+Sections 1 to 6 below are the plan as written on 2026-11-04; this table is the result. Details and
+measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
+
+| Step | Subsystem | State |
+| --- | --- | --- |
+| 0 | Lineage rewriting `recovery`, firmware access, services | done: `recovery` is written after the last Android boot (as for the v6 image); firmware is read from the tablet's partitions; `rmtfs` and `tqftpserv` start the modem at boot |
+| 1 | M7.7 battery | done |
+| 2 | M7.5 Wi-Fi | done, reconnects by itself after a reboot |
+| 3 | M7.1 microSD | not started (needs a card and a `sdhc_2` node) |
+| 4 | M7.4 touch | done through evdev (own driver); libinput, compositor, edges open. The module is no longer blacklisted in the image |
+| 5 | M7.6 audio | speakers done (ADSP, LPI pins, protection firmware, PipeWire, WirePlumber rules); microphones and headphones blocked by the ADSP crash in the internal codec |
+| 6 | M7.2 display | done (colour bars, brightness, about 63 Hz); text console on msm and compositor behaviour open |
+| 7 | M7.3 GPU | render node and firmware only; no GL or Vulkan test |
+| 8 | M7.8 sensors | not started |
+| 9 | M7.9 suspend | not started |
+| 10 | M7.10 cameras, video codec | not started; Venus loads |
+| not in the plan | Bluetooth | done: phone music through the speakers; reconnection after a reboot untested, and the phone must be paired again on v6 |
+
+Open hazards still true: the ADSP must not be running at a reset; hardware numbers (`remoteprocN`, I2C
+bus, interfaces) change between boots; the amplifiers are never played without the protection firmware
+loaded and a volume read back (`gts4lv-audio`, `gts4lv-tone`).
+
 ## 1. Rules for the hardware work
 
 - One subsystem per attempt, and the kernel stays bootable: new drivers are

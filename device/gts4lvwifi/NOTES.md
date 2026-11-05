@@ -2,6 +2,21 @@
 
 Newest first. Only facts checked against a tree or a document in this checkout.
 
+## 2026-11-05 — what the day established (the account is in `PROGRESS.md`)
+
+- Wi-Fi: `ath10k_snoc` is stable with Samsung's `bdwlan.bin` as `board.bin`; linux-firmware's
+  `board-2.bin` resets the SoC (the image keeps it off the disk with pacman `NoExtract`).
+- Display: `panel_samsung_ana38401` needs `handover=1`, then one DPMS off/on cycle after `msm` loads.
+- Audio: the LPI pin driver must be unloaded each time the ADSP stops; the ADSP must not be running at a
+  reset; the four CS35L41 amplifiers need Samsung's protection firmware under `cirrus/` and are played
+  at 0 dB digital, analog 0, protection in the path; the internal digital codec crashes the ADSP.
+- Userspace: PipeWire and WirePlumber refuse root and run for `alarm`; WirePlumber rules start the card
+  in Pro Audio and present a stereo FL FR 16-bit sink; Bluetooth A2DP needs WirePlumber's seat monitoring
+  off for the main profile.
+- Hardware numbers (`remoteprocN`, I2C bus of the amplifiers, network interfaces) change between boots:
+  look them up by name or address.
+- Root image v6 `sha256 0a5c84c4…`; recovery `sha256 a473ef0a…`.
+
 ## 2026-11-04 — gadget bound, MUIC did not switch
 
 `photo_2026-11-04_21-00-39.jpg` is the second console. Lines read from it:

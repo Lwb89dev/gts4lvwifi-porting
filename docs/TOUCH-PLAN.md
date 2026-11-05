@@ -90,8 +90,8 @@ userspace.
   event. Press and release counts match. Not tried: the corners of the 1600x2560 area,
   the events as evdev reports them (`evtest`), libinput and a compositor, scrolling and
   gestures, rotation, resume after the display is off.
-- The module is on the blacklist in the image (`gts4lv-blacklist.conf`) until it has
-  been tried in a full session.
+- The module was on the blacklist in the image until it had been tried in a full session; it has
+  been (see below), and the v6 image no longer lists it, so it loads at boot.
 
 ## Status 2026-11-05 20:10: seen through evdev
 
@@ -105,4 +105,4 @@ with no touch at all were wasted because the instructions in the terminal were n
 Open: whether x and y really reach 0 and the maximum (the left and top edges only got to 122
 and 148, with one and zero samples within 130 of the edge; a deliberate edge swipe from the
 owner settles it), libinput and a compositor (calibration and rotation are theirs), resume
-after the display is turned off, and the module still being blacklisted in the image.
+after the display is turned off. (The module's blacklist entry was removed in the v6 image, 2026-11-05.)

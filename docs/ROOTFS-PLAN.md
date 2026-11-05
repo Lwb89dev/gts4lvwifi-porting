@@ -1,5 +1,7 @@
 # M6 plan: Arch Linux ARM rootfs
 
+> Status 2026-11-05 evening: written for M6, which passed. The image is now v6 (PipeWire, WirePlumber rules, display and audio helpers, touch module not blacklisted); how it is built, deployed and rolled back is in `PROGRESS.md` (last sections) and `RECOVERY-RUNBOOK.md`. The text below is the plan, not the current state.
+
 Written 2026-11-04, after M5 passed. Nothing here has been run on the
 tablet. "Checked" means read from a file or a command on this PC today;
 "expected" means not checked.

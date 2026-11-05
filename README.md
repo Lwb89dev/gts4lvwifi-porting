@@ -4,20 +4,22 @@ Mainline Linux, Arch Linux ARM and, next, Omarchy Mobile for the Samsung
 Galaxy Tab S5e Wi-Fi (`gts4lvwifi`, SM-T720 / SM-T720N, Snapdragon 670). The
 LTE models (SM-T725) are a different board and are out of scope.
 
-## Status, 2026-11-04
+## Status, 2026-11-05 (evening)
 
 | Milestone | State |
 | --- | --- |
 | M0 to M3: audit, kernel, initramfs, recovery packer | passed, built and checked offline |
 | M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
-| M6: Arch Linux ARM | passed: systemd, ssh over USB and `pacman` run from a root file inside userdata |
-| M7: hardware | prepared, not started: see `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
-| M8: Omarchy Mobile | planned: `docs/OMARCHY-PLAN.md` |
+| M6: Arch Linux ARM | passed: systemd, ssh over USB, `pacman`; the root image is now v6 |
+| M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch (read through evdev, up to 4 fingers), display (colour bars, brightness), the four speakers through PipeWire. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, sensors, suspend, cameras, GPU rendering, video decode. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
+| M8: Omarchy Mobile | not started: `docs/OMARCHY-PLAN.md` |
 | M9: CI | a static workflow runs on every push; the kernel build stays manual |
 
 The state in detail, with every measurement and what went wrong, is in
-`PROGRESS.md`. `PROCESS.md` is the short handoff. Nothing here is a claim that
-the display, GPU, touch, sound, Wi-Fi or sensors work: they are not measured.
+`PROGRESS.md`; its first section is the handoff (rules, how to work on the tablet, what to do
+next). `PROCESS.md` is the older, shorter handoff. "Working" above means measured on the
+tablet, with the owner's eyes and ears where a person is the instrument; the boot-time
+display and audio need `gts4lv-display start` and `gts4lv-audio start` after each boot.
 
 ## How it boots
 

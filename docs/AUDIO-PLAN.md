@@ -259,3 +259,21 @@ measured values in `/efs`) is worth it was not tried further.
 **Not done:** that the phone reconnects by itself after a tablet reboot (the audio unit is not
 started at boot, so there are no speakers until `gts4lv-audio start`), the microphones, and the
 A2DP source direction (tablet to headphones).
+
+## Image v6 (2026-11-05 evening)
+
+The audio pieces were baked into a fresh root image (v6) and tested from a clean state.
+
+- `gts4lv-audio start` brings the speakers to the working level (0 dB digital, analog 0, protection
+  in the path) with the protection firmware confirmed on all four amplifiers first.
+- On the fresh image PipeWire offered only a dummy sink: WirePlumber had no remembered profile for the
+  card (`alsa_card.platform-sound`, only "off" and "pro-audio"). `51-gts4lv-speakers.conf` now starts
+  the card in `pro-audio` (with `api.acp.auto-profile` and `auto-port` off) and gives the sink
+  `priority.session` and `priority.driver` 2000, so the default output is `Tab S5e speakers` without
+  a manual step.
+- A 3 s, 1 kHz tone through PipeWire at 40 % sink volume (restored to 100 % afterwards), no
+  power-up errors in `dmesg`: the owner heard it from all four speakers.
+- Still the case: the audio is not started at boot (`gts4lv-audio.service` exists and is not enabled),
+  because an ADSP left running across a hard reset can loop the bootloader. The phone has to be paired
+  again on v6 and the reconnection after a reboot tried. Microphones, headphones and the speaker mapping
+  are open.
