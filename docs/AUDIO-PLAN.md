@@ -1,0 +1,151 @@
+# M7.6: audio
+
+Written 2026-11-05 evening, from what was measured the same afternoon. The speaker
+amplifiers are the one place where a mistake can break hardware, so the order and the
+checks below matter more than the rest.
+
+## What exists
+
+| Part | State on the tablet |
+| --- | --- |
+| ADSP (`adsp`; its remoteproc number is 0 or 1, it changed between two boots, so scripts ask by name through `gts4lv-dsp`) | `echo start > .../state`: up in 0.4 s, "remote processor adsp is now up", APR services (`q6core`, `q6afe`, `q6asm`, `q6adm`, `q6routing`) and a FastRPC channel appear |
+| LPASS LPI pins | `modprobe pinctrl_sdm670_lpass_lpi` after the ADSP runs. The sound card appears at once |
+| Card | `card 0: S5e [Galaxy Tab S5e]`, driver `sdm660-sndcard`: three PCMs (MultiMedia1 to 3, playback and capture) and three backend links from the device tree: `Speaker Playback` (secondary TDM to the four amplifiers), `Headphone Playback` and `Mic Capture` (PM660L analog codec) |
+| Amplifiers | four CS35L41 at `5-0040` to `5-0043` (prefixes FR, FL, RR, RL), revision A0, `Subsystem ID not found`, dummy `VA`/`VP` supplies. Controls per amplifier: `Digital PCM Volume`, `Analog PCM Volume`, `DSP1 Firmware`, `DSP1 Preload Switch`, `PCM Soft Ramp`, `Amp Gain ZC Switch` |
+| Protection DSP | loads, on all four, once `DSP1 Preload Switch` is on and the files are visible as `cirrus/cs35l41-dsp1-spk-prot.wmfw`, `.bin` (and `-calib.bin`): "Firmware: 400a4 vendor: 0x2 v0.0.1, 1 algorithms", tuning "Protection: ...TAB_LV_S5e_PV2_..." (Samsung's own, for this tablet) |
+
+## How the volume scale works
+
+`FL Digital PCM Volume` is 1 to 913, `dBminmax` -102 dB to +12 dB, 0.125 dB per step:
+817 is 0.00 dB (the value at boot), 497 is -40 dB, 337 is -60 dB. `amixer sset "FL Digital
+PCM" -60dB` does **not** work: `amixer` reads `-60dB` as an option (`-B`). Use `cset
+name="FL Digital PCM Volume" 337`, or `sset ... -- -60dB`.
+
+## What went wrong, and the rule that follows
+
+At 18:24 a tone was played with the four amplifiers at **0.00 dB and no protection DSP**
+loaded. The command that was meant to lower them failed (the `-60dB` problem above), its
+error was thrown away, the printed summary showed `817 [0.00dB]` and the same script went
+on to play. About five seconds of a 440 Hz sine from `speaker-test`, whose level is below
+full scale but not low. The owner heard it. The kernel log has no line at all for that
+interval (read afterwards, from 15850 s to 15990 s of uptime); whether the speakers were
+stressed is not known.
+
+Rule: every playback command first sets the volume, reads it back, and **stops** if the
+readback is above the limit, in the same command. Nothing that can print its error into
+`/dev/null` stands between the setting and the check. Start at -60 dB, with the protection
+DSP loaded (`DSP1 Preload Switch` on for all four), and go up in steps that a person is
+listening to.
+
+## Order
+
+1. Firmware path set (`gts4lv-firmware`, which also links the amplifier firmware under
+   `cirrus/`).
+2. `gts4lv-dsp start adsp`: starts the ADSP, then loads the LPI pin controller.
+3. Amplifier volumes to -60 dB, read back; `DSP1 Preload Switch` on for FL, FR, RL, RR.
+4. Route: `SEC_TDM_RX_0 Audio Mixer MultiMedia1` on.
+5. Play (`speaker-test -D hw:0,0 -c 2 -t sine -f 440 -l 1`, killed by `timeout`), only
+   after the readback of step 3.
+6. `gts4lv-dsp stop adsp` before any restart (the bootloader loops on the next boot with the
+   ADSP left running; `gts4lv-adsp-stop.service` does it at shutdown).
+
+## `Enable(1) failed: -110`: the cause was stale LPI pins, not the DSP
+
+Symptom: from the second playback of a boot on, every playback logged, for each amplifier,
+`cs35l41 5-004x: Enable(1) failed: -110` and `ASoC: PRE_PMU: <FL|FR|RL|RR> Main AMP event
+failed: -110`, 0.1 s apart, and nothing was heard. `cs35l41_global_enable()` sets
+`GLOBAL_EN` and polls `CS35L41_IRQ1_STATUS1` (0x10010) for `PUP_DONE` for 100 ms.
+Measured over I2C during one of those tones: `PWR_CTRL1` reads 1 (enabled), `IRQ1_STATUS1`
+reads `0x00400000`, never `PUP_DONE`, the firmware mailbox reads 0.
+
+It was first read as a protection-DSP problem. It is not: it also happened with the
+DSP unloaded, and re-probing the four amplifiers did not clear it. What did:
+
+- The speakers' TDM pins belong to the **LPASS LPI pin controller**
+  (`pinctrl@62b40000`, state `sec-tdm-default-state`), whose registers live in the ADSP's
+  power domain and return to their defaults when the ADSP restarts.
+- The LPI driver stayed loaded across the restart and kept believing the pins were
+  configured, so the next card's `pinctrl-0` selection did nothing. No clock on the TDM
+  lines, no power-up. Only the first playback after the first card creation of a boot
+  worked, which is why the very first tone (0 dB, no DSP) was the only one ever heard.
+- Check: with the ADSP off, `modprobe -r pinctrl_sdm670_lpass_lpi` (it unloads without a hang),
+  then a tone: no new error. After the fix in `gts4lv-dsp stop adsp` (it unloads the LPI
+  driver once the ADSP is down), three tones in a row in `dsp` mode at -24, -18 and -12 dB
+  gave 4 errors in the first and none in the next two. That first-run timeout is the
+  amplifier's power-up taking longer than 100 ms while its protection firmware boots after
+  being loaded afresh; not confirmed.
+
+This also settles an earlier guess: the "false negative because the firmware clears the
+flag" hypothesis was not needed.
+
+## Tone ladder (`gts4lv-tone`)
+
+| Run | What | Heard by the owner |
+| --- | --- | --- |
+| 18:24 | 440 Hz, **0 dB, no DSP**, 5 s (the mistake above) | a tone |
+| 18:27 | 440 Hz, -40 dB, DSP loaded (second playback: failed to power up) | nothing |
+| 18:35 to 18:37 | 440 Hz, -30, -24, -18 dB, DSP loaded (all failed to power up) | nothing |
+| 19:23 | the same three, replayed (all failed to power up) | nothing |
+| 19:25 to 19:27 | 440 Hz, -30 dB, no DSP; first playback of the boot: **no error** | nothing |
+| 19:28 | 1000 Hz, -24 dB, no DSP (second playback: failed to power up) | nothing reported |
+| 19:31 | 1000 Hz, -24, -18, -12 dB, DSP loaded **and in the path** (after the fix) | **2 of 3** (which two is to be confirmed; the first run is the one that logged the power-up error) |
+| 19:33 | 1000 Hz, -12 dB, DSP in the path, one amplifier at a time: FL 19:33:06, FR 19:33:23, RL 19:33:39, RR 19:33:55 (no power-up error) | not reported yet |
+
+The only run before the fix that powered up and was quiet enough to be a fair test is 19:25
+(-30 dB, 440 Hz); nothing was heard, 30 dB below the tone that was heard and at a frequency
+where a tablet speaker is weak. The other runs before 19:31 did not reach the speakers.
+After the fix the sound comes out with the protection firmware loaded and in the audio path.
+
+`gts4lv-tone <dB> [seconds] [hz] [mode] [amps]` (in the image, `/usr/local/sbin`) does the setup,
+the checks and the cleanup of the order above. Modes: `asp` (default, protection loaded,
+audio not through the DSP), `dsp` (protection loaded and in the audio path, `PCM Source`
+DSP), `nodsp` (never louder than -24 dB). Nothing louder than -12 dB in any mode.
+
+## Why the volume is not set to maximum
+
+The digital volume reaches +12 dB and the analog gain +20 dB. On a full-scale sine that is
+a clipped wave at full power. With `PCM Source` on `ASP`, which is the default, the
+protection DSP is loaded but not in the audio path, so it protects nothing. Levels for
+hearing the tablet go up in steps, with the DSP in the path (`dsp` mode), by decision of a
+person who is listening.
+
+## Microphones: the ADSP crashes when a capture stream opens
+
+Tried 2026-11-05 evening, five times in four variants, each time with the same result:
+`arecord` on `MultiMedia1` (`MultiMedia1 Mixer LPI_MI2S_TX_3`, `Digital DEC1 MUX` ADC1,
+`Analog ADC2 MUX` INP2, `DEC2` ADC2), then on `MultiMedia3` with the routing the reference
+tree's use-case file uses (ADC2 on INP3, ADC gain 6), then with the headphone route
+(`LPI_MI2S_RX_0 Audio Mixer MultiMedia2`) also on, then mono at 16 kHz with only ADC1. The
+recording ends at once and the **ADSP crashes**; remoteproc recovers it every time (the
+tablet never reset). What the kernel logs:
+
+- `AFE enable for port 0x1035 failed -110` and `fail to start AFE port` /
+  `ASoC error (-110): at snd_soc_dai_prepare() on LPI_MI2S_TX_3` (port 0x1035 is the internal
+  MI2S TX that carries the analog microphones), and in one run `q6asm-dai: Memory_map_regions
+  failed`, `Audio Start: Buffer Allocation failed rc = -5`;
+- the reason, when remoteproc prints it: `qcom_q6v5_pas 62400000.remoteproc: fatal error
+  received: ABT_dal.c:269:ABTimeout: AHB Bus hang is detected, Number of bus hang detected := 1
+  , addr0 = 0x62...` (the message is cut there). An AHB timeout at an address in 0x62xxxxxx:
+  the LPASS block that holds the digital codec (`62ec0000.audio-codec`) did not answer when the
+  AFE started the port.
+
+Playback through the speakers is not affected: it uses the secondary TDM port, which does not
+touch that block. Not yet tried, in this order of likelihood: a clock the codec needs before the
+port starts (`&lpass_codec` takes `LPASS_CLK_ID_INT_MCLK_0` and `int_cdc_bclk` in the device tree;
+whether the ADSP expects another one, or `AHB` for the codec, is not known), the order in which
+the codec's DAPM supplies are powered, and comparing with how the reference tree starts the
+internal codec. With `coredump` set to `enabled` on the ADSP (`echo enabled >
+/sys/class/remoteproc/remoteprocN/coredump`, N by name) the kernel keeps a 44 MB ELF in
+`/sys/class/devcoredump/devcd*/data` for five minutes; the strings in it are the firmware's
+(ADSP.VT.5.0-00513-SDM710) and did not name the cause.
+
+## Done and not done (2026-11-05)
+
+- Done over ssh: ADSP start, LPI pins, card, controls, protection firmware on four amps, a
+  tone at -40 dB (3 s, kernel log clean). Whether the second tone was audible and clean is
+  for the owner.
+- Not done: microphones (see the section above: the ADSP crashes when capture opens), headphones (the tablet has no jack; USB audio is a separate
+  path), routing beyond MultiMedia1, UCM and PipeWire, per-channel check that each of the
+  four speakers plays its own channel (the slots are `<0 1>` and `<1 2>` in the device
+  tree), speaker calibration (Samsung keeps measured resistances in `/efs`; the firmware
+  runs with the tuning's defaults).

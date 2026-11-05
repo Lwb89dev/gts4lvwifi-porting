@@ -5,7 +5,7 @@
 #
 # Start order matters. The firmware path must be set first (gts4lv-firmware).
 # After the ADSP is running the LPASS LPI pin controller is loaded, never
-# before: its registers hang the bus until then. The ADSP must be stopped
+# before: its registers hang the bus until then. Stopping the ADSP unloads it again. The ADSP must be stopped
 # before any restart: left running, the bootloader loops on the next boot
 # until a Power + Volume-down reset. gts4lv-adsp-stop.service does that at
 # shutdown.
@@ -51,6 +51,16 @@ start)
 stop)
 	[ "$state" != running ] || echo stop > "$rproc/state"
 	echo "$which: $(cat "$rproc/state")"
+	if [ "$which" = adsp ]; then
+		# The LPI pin registers live in the ADSP's power domain and go back to
+		# their defaults when it restarts, while this driver keeps believing
+		# the pins are set up. The next card then finds no clock on the
+		# speakers' TDM lines and the amplifiers never finish powering up
+		# ("Enable(1) failed: -110"): only the first playback after a boot
+		# worked. Unloading it here, with the ADSP off and the card gone, makes
+		# the next start load it afresh.
+		modprobe -r pinctrl_sdm670_lpass_lpi 2> /dev/null || echo "gts4lv-dsp: could not unload the LPI pin driver" >&2
+	fi
 	;;
 *)
 	die "usage: gts4lv-dsp start|stop|status modem|adsp"

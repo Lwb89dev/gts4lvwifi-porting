@@ -1,0 +1,148 @@
+#!/bin/bash
+# Play a short sine tone through the four speaker amplifiers, with the checks
+# that make it safe to try. Meant for bring-up, with a person listening.
+#
+#   gts4lv-tone <dB> [seconds] [hz] [mode] [amps]   dB between -90 and -12, default 3 s, 440 Hz
+#
+# amps  which amplifiers get the level, e.g. FL or "FL RL"; the others stay at -60 dB.
+#       All four by default. FL FR RL RR are the sound name prefixes of the device tree.
+#
+# mode asp   (default) protection DSP loaded, audio goes straight through (PCM Source ASP)
+# mode dsp   protection DSP loaded and in the audio path (PCM Source DSP)
+# mode nodsp DSP not loaded: no protection, so never louder than -24 dB
+#
+# The amplifiers' digital volume is set, READ BACK, and the run stops if any
+# readback is above what was asked. The protection DSP firmware must be loaded
+# on all four (DSP1 Preload Switch on, files visible under cirrus/ by
+# gts4lv-firmware). Volumes go back to -60 dB afterwards, and the ADSP is
+# stopped again if this run started it. Nothing here is allowed to be louder
+# than -12 dB: raising that is a decision for a person, not an argument.
+set -euo pipefail
+
+amps="FL FR RL RR"
+floor_db=-12
+rest_raw=337 # -60 dB
+
+die() { echo "gts4lv-tone: $*" >&2; exit 1; }
+
+db=${1:-}
+secs=${2:-3}
+hz=${3:-440}
+mode=${4:-asp}
+play_amps=${5:-$amps}
+for a in $play_amps; do
+	case " $amps " in *" $a "*) ;; *) die "unknown amplifier $a (FL FR RL RR)" ;; esac
+done
+[[ $db =~ ^-[0-9]+$ ]] || die "usage: gts4lv-tone <dB> [seconds] [hz], dB a negative integer"
+[ "$db" -le "$floor_db" ] || die "$db dB is louder than the limit of $floor_db dB"
+[ "$db" -ge -90 ] || die "$db dB is below -90"
+[[ $secs =~ ^[0-9]+$ ]] && [ "$secs" -ge 1 ] && [ "$secs" -le 10 ] || die "seconds must be 1 to 10"
+[[ $hz =~ ^[0-9]+$ ]] && [ "$hz" -ge 100 ] && [ "$hz" -le 4000 ] || die "hz must be 100 to 4000"
+case $mode in
+asp | dsp) ;;
+nodsp) [ "$db" -le -24 ] || die "without the protection DSP nothing louder than -24 dB" ;;
+*) die "mode must be asp, dsp or nodsp" ;;
+esac
+# 0.125 dB per step, 817 is 0 dB
+raw=$((817 + db * 8))
+
+[ -d /run/gts4lv-fw/cirrus ] || die "the amplifier firmware is not visible: run gts4lv-firmware"
+
+volume() { # <amp>: raw volume value
+	amixer -c0 cget name="$1 Digital PCM Volume" | sed -n 's/.*: values=\([0-9]*\).*/\1/p'
+}
+
+set_volume() { # <raw> [amps]: set the level on those, verified; the others rest
+	local a v want list=${2:-$amps}
+	for a in $amps; do
+		case " $list " in *" $a "*) want=$1 ;; *) want=$rest_raw ;; esac
+		amixer -c0 cset name="$a Digital PCM Volume" "$want" > /dev/null || die "could not set $a"
+	done
+	for a in $amps; do
+		case " $list " in *" $a "*) want=$1 ;; *) want=$rest_raw ;; esac
+		v=$(volume "$a")
+		[ -n "$v" ] && [ "$v" -le "$want" ] || die "$a reads $v after setting $want: not playing"
+	done
+}
+
+errors() { dmesg | grep -c 'Enable(1) failed' || true; }
+
+started_adsp=0
+cleanup() {
+	# best effort, and never louder: the amplifiers go back to the rest level
+	for a in $amps; do
+		amixer -c0 cset name="$a Digital PCM Volume" "$rest_raw" > /dev/null 2>&1 || true
+	done
+	if [ "$started_adsp" = 1 ]; then
+		/usr/local/sbin/gts4lv-dsp stop adsp > /dev/null 2>&1 || true
+	fi
+}
+trap cleanup EXIT
+
+# gts4lv-dsp start also loads the LPI pin controller once the ADSP runs, so it is
+# called even when the ADSP is already up (it can start by itself at boot)
+# the remoteproc numbers are not fixed (the ADSP was remoteproc0 and then
+# remoteproc1 after a reboot): ask by name
+if ! /usr/local/sbin/gts4lv-dsp status adsp | grep -q ' running '; then
+	started_adsp=1
+fi
+/usr/local/sbin/gts4lv-dsp start adsp
+# the card can take over ten seconds to appear (deferred probes)
+for _ in $(seq 60); do
+	[ -e /proc/asound/card0 ] && break
+	sleep 0.5
+done
+[ -e /proc/asound/card0 ] || die "no sound card after starting the ADSP"
+
+# lowest level first, then the protection, then the level that was asked for
+set_volume "$rest_raw"
+if [ "$mode" = nodsp ]; then
+	for a in $amps; do
+		amixer -c0 cset name="$a DSP1 Preload Switch" off > /dev/null || die "preload off $a"
+		amixer -c0 cset name="$a PCM Source" ASP > /dev/null || die "pcm source $a"
+	done
+	sleep 2
+else
+	for a in $amps; do
+		amixer -c0 cset name="$a DSP1 Preload Switch" on > /dev/null || die "preload $a"
+	done
+	sleep 3
+	for a in $amps; do
+		amixer -c0 cget name="$a DSP1 Preload Switch" | grep -q ': values=on' || die "preload is not on for $a"
+	done
+	# There is no debugfs for cs_dsp here, so this counts the load messages of this
+	# boot: it proves the firmware was loaded on all four, not that it is still
+	# loaded. The -12 dB limit is what bounds the risk if it is not.
+	loaded=$(dmesg | grep -c 'cs35l41 5-004.: DSP1: Protection') || true
+	[ "$loaded" -ge 4 ] || die "the protection firmware is not loaded on all four amplifiers ($loaded of 4 lines)"
+	source_name=ASP
+	[ "$mode" = dsp ] && source_name=DSP
+	for a in $amps; do
+		amixer -c0 cset name="$a PCM Source" "$source_name" > /dev/null || die "pcm source $a"
+	done
+fi
+
+amixer -c0 cset name="SEC_TDM_RX_0 Audio Mixer MultiMedia1" on > /dev/null || die "routing"
+
+# The first power-up after the firmware is (re)loaded times out: the amplifier
+# waits for its DSP, which only starts with the first stream. One second of
+# silence at the rest level gets it going; the tone that follows then powers up.
+if [ "$mode" != nodsp ]; then
+	timeout 3 aplay -q -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero > /dev/null 2>&1 || true
+	sleep 1
+fi
+
+set_volume "$raw" "$play_amps"
+before=$(errors)
+echo "gts4lv-tone: $db dB (raw $raw) on $play_amps, mode $mode, ${secs} s at ${hz} Hz"
+
+set +e
+timeout "$((secs + 1))" speaker-test -D hw:0,0 -c 2 -t sine -f "$hz" -l 1 > /dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = 124 ] || [ "$rc" = 0 ] || echo "gts4lv-tone: speaker-test exited with $rc" >&2
+after=$(errors)
+if [ "$after" -gt "$before" ]; then
+	echo "gts4lv-tone: WARNING: $((after - before)) amplifier(s) failed to power up during the tone; it was probably silent" >&2
+fi
+echo "gts4lv-tone: done, amplifiers back at -60 dB"

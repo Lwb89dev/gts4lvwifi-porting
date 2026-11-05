@@ -55,5 +55,14 @@ fi
 [ ! -e "$fw/crbtfw21.tlv" ] || ln -sf "$fw/crbtfw21.tlv" "$fw/qca/"
 [ ! -e "$fw/crnv21.bin" ] || ln -sf "$fw/crnv21.bin" "$fw/qca/"
 
+# The speaker amplifiers (CS35L41) load their protection DSP firmware and the
+# tablet's tuning. The driver looks in cirrus/ first and at the top only after
+# that, and linux-firmware has a cirrus/ of its own for other machines: the
+# Samsung wmfw and its tuning must come from here together.
+install -d "$fw/cirrus"
+for f in cs35l41-dsp1-spk-prot.wmfw cs35l41-dsp1-spk-prot.bin cs35l41-dsp1-spk-prot-calib.bin; do
+	[ ! -e "$fw/$f" ] || ln -sf "$fw/$f" "$fw/cirrus/$f"
+done
+
 echo -n "$fw" > /sys/module/firmware_class/parameters/path
 echo "gts4lv-firmware: $(find "$fw/qcom/sdm670/gts4lv" -type l | wc -l) files linked, path $fw"
