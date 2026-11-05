@@ -74,7 +74,7 @@ nuove.
 | Bluetooth | `hci0`, scansione; pairing e audio non provati | misurato |
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
-| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree, 628 eventi con fino a 3 dita | log del driver; **non** via `evtest`, libinput, compositor |
+| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati | proprietario, `scripts/touch-summary.py` |
 | Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Aperti: la console di testo non scrive su `msmdrmfb`, luminosità, refresh, off/on da compositor | proprietario |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
 | Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
@@ -128,7 +128,8 @@ nuove.
 3. **Display** (M7.2): funziona (vedi sopra). Restano la console di testo su `msmdrmfb`,
    luminosità (il link DSI è su: si può provare, a piccoli passi), refresh a 60 Hz e tearing,
    spegnimento/riaccensione da compositor, e se caricarlo al boot. `docs/DISPLAY-PLAN.md`.
-4. **Tocco** (M7.4): `evtest` con la persona, angoli, rotazione, ripresa; poi libinput.
+4. **Tocco** (M7.4): `evtest` fatto (sopra); restano lo strisciamento sui bordi sinistro e alto,
+   la rotazione, la ripresa dopo lo spegnimento dello schermo, poi libinput e il compositor.
 5. **Immagine v6** (rootfs ricostruita con kernel `-dirty` e script attuali), copiata in
    `/data` da Lineage, extent nuovi nell'initramfs, recovery riscritta, con una persona
    presente. Sul tablet vivo vale sempre il rollback in `docs/RECOVERY-RUNBOOK.md`.
@@ -1449,6 +1450,21 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
   cosa mostrava lo schermo in quella corsa non è riferito. Non si carica al boot.
 - **Due errori miei:** un file `modules-load.d` per anticipare `msm` non funziona (rispetta la
   blacklist) e l'ho tolto; lo script usciva con 141 (SIGPIPE da `awk` con `pipefail`), corretto.
+
+## 2026-11-05 sera, 20:05-20:12: il tocco visto da evdev
+
+- **Il proprietario ha toccato** mentre sul tablet erano visibili le barre di colore (il segnale
+  è stato dato sullo schermo, perché le istruzioni scritte fra un comando e l'altro non le legge:
+  due registrazioni precedenti sono andate perse senza nessun tocco). `evtest` su `event3`: 19.153
+  eventi, 173 contatti aperti e 173 chiusi (nessuno bloccato), `BTN_TOUCH` 98/98, slot 0-3, **fino a
+  4 dita insieme**, pressione 2-30, x 122..1530 e y 148..2551.
+- **Bordi:** in basso arriva a 2551 su 2559 e a destra a 1530 su 1599; a sinistra 122 e in alto 148,
+  con quasi nessun campione vicino. Può essere come sono stati toccati gli angoli o un margine del
+  sensore: non lo so. Uno strisciamento deciso sul bordo lo chiarisce.
+- **`scripts/touch-summary.py`** riassume un log di `evtest`.
+- **Come parlare con il proprietario:** istruzioni in grande, nel messaggio finale o sullo schermo
+  del tablet, mai a metà di una serie di comandi; un segnale visibile sul tablet vale più di un
+  conto alla rovescia scritto.
 
 ## Prossimo passo
 

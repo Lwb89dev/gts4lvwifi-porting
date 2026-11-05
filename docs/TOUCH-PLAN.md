@@ -92,3 +92,17 @@ userspace.
   gestures, rotation, resume after the display is off.
 - The module is on the blacklist in the image (`gts4lv-blacklist.conf`) until it has
   been tried in a full session.
+
+## Status 2026-11-05 20:10: seen through evdev
+
+Recorded with `evtest /dev/input/event3` for 45 seconds while the owner touched the corners,
+two fingers and a drag (cue: colour bars on the screen; a first recording and a second one
+with no touch at all were wasted because the instructions in the terminal were not seen).
+`scripts/touch-summary.py` gives: 19,153 events, 173 contacts opened and closed, `BTN_TOUCH`
+98/98, slots 0 to 3, at most 4 fingers down at once (instants with 0, 1, 2, 3, 4 fingers: 100,
+158, 66, 15, 7), x 122..1530 and y 148..2551, pressure 2..30, contact size 1..17.
+
+Open: whether x and y really reach 0 and the maximum (the left and top edges only got to 122
+and 148, with one and zero samples within 130 of the edge; a deliberate edge swipe from the
+owner settles it), libinput and a compositor (calibration and rotation are theirs), resume
+after the display is turned off, and the module still being blacklisted in the image.
