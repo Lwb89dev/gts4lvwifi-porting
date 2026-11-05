@@ -1,0 +1,65 @@
+#!/bin/bash
+# Bring the display up with the msm driver, and test it. Bring-up tool: loading
+# msm takes the screen over from the boot console and, with this kernel's fbdev
+# emulation, the text console no longer draws (fbcon reports "framebuffer is not
+# in virtual address space"). A compositor draws through DRM and is not affected;
+# ssh and the USB console are. A reboot brings the simple console back.
+#
+#   gts4lv-display start        load the panel and msm, then kick the panel
+#   gts4lv-display kick         display power-save off, 1.5 s, on
+#   gts4lv-display bars [secs]  colour bars for <secs> seconds (default 20)
+#
+# The panel is taken over from the bootloader (modprobe.d, handover=1) and then
+# stays dark until it goes through a power-save cycle: that is the kick.
+set -euo pipefail
+
+die() { echo "gts4lv-display: $*" >&2; exit 1; }
+
+connector() { # id of the first connected connector
+	# read all of modetest's output: an early exit would kill it with SIGPIPE
+	modetest -M msm 2> /dev/null | awk '/^Connectors:/ { c = 1 } c && /connected/ && !d { print $1; d = 1 }'
+}
+
+crtc() {
+	modetest -M msm 2> /dev/null | awk '/^CRTCs:/ { c = 1; next } c && /^[0-9]+/ && !d { print $1; d = 1 }'
+}
+
+dpms() { # <0 on | 3 off>
+	local conn
+	conn=$(connector)
+	[ -n "$conn" ] || die "no connected connector"
+	modetest -M msm -w "$conn:DPMS:$1" > /dev/null 2>&1 || die "could not set DPMS $1"
+}
+
+start() {
+	modprobe panel_samsung_ana38401
+	modprobe msm
+	for _ in $(seq 40); do
+		[ -n "$(connector)" ] && break
+		sleep 0.25
+	done
+	[ -n "$(connector)" ] || die "no connector after loading msm"
+	kick
+}
+
+kick() {
+	dpms 3
+	sleep 1.5
+	dpms 0
+}
+
+bars() {
+	local secs=${1:-20} conn crt
+	conn=$(connector)
+	crt=$(crtc)
+	[ -n "$conn" ] && [ -n "$crt" ] || die "msm is not loaded: gts4lv-display start"
+	# modetest sets the mode and exits at once unless its stdin stays open
+	sleep "$secs" | modetest -M msm -s "$conn@$crt:2560x1600" > /dev/null 2>&1 || true
+}
+
+case ${1:-} in
+start) start ;;
+kick) kick ;;
+bars) bars "${2:-20}" ;;
+*) die "usage: gts4lv-display start|kick|bars [seconds]" ;;
+esac

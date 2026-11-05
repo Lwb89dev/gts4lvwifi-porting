@@ -75,7 +75,7 @@ nuove.
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
 | Tocco (FTS1BA90A) | driver nostro, interrupt da device tree, 628 eventi con fino a 3 dita | log del driver; **non** via `evtest`, libinput, compositor |
-| Display (`msm` + pannello) | si carica, `card1-DSI-1` 2560x1600, `modetest` mostra barre; **cosa si vede non è stato riferito**; luminosità, off/on non provati | misurato da ssh |
+| Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Aperti: la console di testo non scrive su `msmdrmfb`, luminosità, refresh, off/on da compositor | proprietario |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
 | Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
 | Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
@@ -125,8 +125,9 @@ nuove.
    con `run-with-log.sh` e si aspetta circa 8 secondi prima di fermarlo.
 2. **Altoparlanti:** abbinare FL, FR, RL, RR alle posizioni (4 toni numerati, una risposta
    semplice dal proprietario); poi i livelli utili con la protezione nel percorso, a gradini.
-3. **Display** (M7.2): farsi dire cosa si vede dopo `modprobe msm` e le barre; poi luminosità
-   (nessuna scrittura al backlight prima che il link DSI sia su), spegnimento/riaccensione.
+3. **Display** (M7.2): funziona (vedi sopra). Restano la console di testo su `msmdrmfb`,
+   luminosità (il link DSI è su: si può provare, a piccoli passi), refresh a 60 Hz e tearing,
+   spegnimento/riaccensione da compositor, e se caricarlo al boot. `docs/DISPLAY-PLAN.md`.
 4. **Tocco** (M7.4): `evtest` con la persona, angoli, rotazione, ripresa; poi libinput.
 5. **Immagine v6** (rootfs ricostruita con kernel `-dirty` e script attuali), copiata in
    `/data` da Lineage, extent nuovi nell'initramfs, recovery riscritta, con una persona
@@ -1428,6 +1429,26 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
 - **Altro errore mio:** il mio aiuto di spegnimento si fermava a metà del recupero
   dell'ADSP (`crashed`, `offline`, `running`) e lo lasciava acceso: l'ho trovato
   `running` prima di riavviare e l'ho fermato a mano; ora aspetto 8 secondi.
+
+## 2026-11-05 sera, 20:00-20:50: il display si accende
+
+- **Causa del nero: `handover` spento per default.** Il driver del pannello ricopre lo stato del
+  bootloader solo con `handover=1`; senza, ogni caricamento stampava «panel re-initialised»
+  (reset e reinizializzazione del pannello), e con questo host DSI il pannello resta nero.
+  Il riferimento dava il parametro per acceso; nel codice di questo albero non lo è.
+- **Poi serve un ciclo DPMS.** Con `handover=1` il pannello è «taken over», il proprietario vede
+  un lampo bianco e poi nero; un ciclo di risparmio energia (spento, 1,5 s, acceso: è quello che
+  fa `gts4lv-panel-kick` nel riferimento) rifà l'accensione, e le barre di colore compaiono.
+- **Esito, dal proprietario:** foto delle barre SMPTE complete e nell'ordine giusto, girate di 90°,
+  senza cucitura visibile fra le due metà DSI.
+- **Smentite misurate:** caricare `msm` a 4,8 s invece che a 2000 s (il PLL dà lo stesso errore nel
+  probe del PHY, che è rumore: in esercizio i clock sono giusti, VCO 1,88 GHz, pixel clock 156,9 MHz
+  per metà); `frame_done_cnt` resta 0 anche con le immagini a schermo.
+- **Fatto:** `device/gts4lvwifi/rootfs/overlay/etc/modprobe.d/gts4lv-display.conf` (`handover=1`) e
+  `usr/local/sbin/gts4lv-display start|kick|bars`. Lo script ha girato intero (20:47:55, `rc=0`);
+  cosa mostrava lo schermo in quella corsa non è riferito. Non si carica al boot.
+- **Due errori miei:** un file `modules-load.d` per anticipare `msm` non funziona (rispetta la
+  blacklist) e l'ho tolto; lo script usciva con 141 (SIGPIPE da `awk` con `pipefail`), corretto.
 
 ## Prossimo passo
 

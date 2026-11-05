@@ -109,3 +109,50 @@ Logs in `out/display-panel`, `out/display-msm`, `out/display-pattern2` (not in g
 - Not done: brightness (the backlight device exists and was not written), display off
   and on, refresh and tearing, `rmmod msm` (not safe per the notes above). `msm` is
   still blacklisted in the image; a reboot returns to the simpledrm console.
+
+## Result: the display works (2026-11-05 20:45, confirmed by the owner with a photo)
+
+The panel shows a picture. The photo of `modetest`'s colour bars is a complete SMPTE
+pattern in the right order (white, yellow, cyan, green, magenta, red, blue, then the row of
+small blocks and the lower strip), turned 90 degrees because the mode is 2560x1600
+landscape and the tablet was held upright. The bands run across the middle of the screen,
+where the two DSI halves meet, without a visible seam.
+
+**Why it stayed black until now.** The panel driver's `handover` parameter is off by default
+(`static bool handover;` in `panel-samsung-ana38401.c`; the reference's notes call it "on by
+default" and set it). Without it every load of the driver logged `panel re-initialised`: it
+reset and re-initialised the panel, which with this DSI host leaves it black. With
+`handover=1` it logs `panel taken over from the bootloader` and keeps the bootloader's state,
+but the panel then stays dark ("a white flash, then black", the owner) until a display
+power-save cycle, which re-runs its power-on. The recipe that gave the picture:
+
+1. `modprobe panel_samsung_ana38401 handover=1` (now `etc/modprobe.d/gts4lv-display.conf`),
+2. `modprobe msm`,
+3. DPMS off, 1.5 s, DPMS on (`modetest -M msm -w <connector>:DPMS:3`, then `:0`),
+4. a frame: `modetest -M msm -s <connector>@<crtc>:2560x1600` with stdin held open.
+
+`gts4lv-display start|kick|bars` does steps 1 to 4. Its first full run (20:47:55) ended
+without error; what the screen showed in that run is not reported yet. The manual commands
+(steps 3 and 4 on a panel taken over with `handover=1`) are the ones in the photo.
+
+**What did not matter**, measured and ruled out: loading `msm` at 4.8 s of uptime instead of
+at 2000 s (the sync_state timeout at about 19 s is not the cause: the same `DSI PLL(0) lock
+failed` appears either way); the PLL lock error itself (it appears only in the PHY probe,
+twice, with clk warnings; during a modeset no lock error is logged and the clocks are right:
+VCO 1.88 GHz, pixel clock 156.9 MHz per half = 313.76 MHz / 2, byte clock 117.7 MHz);
+`frame_done_cnt` in `dri/1/encoder-0/status`, which stays 0 while pictures are shown
+(vsync counts at about 30 per second, page flips complete at 30 Hz).
+
+**What is still open**
+- The text console does not draw on `msmdrmfb`: `fb0: sys_imageblit: framebuffer is not in
+  virtual address space`. A compositor draws through DRM and is not affected; for bring-up the
+  console is ssh and the USB serial gadget, and a reboot returns the simple console. Needs a
+  fix in the fbdev emulation (or no fbcon on msm) before anyone depends on a text console.
+- Brightness (the backlight device `ae94000.dsi.0` reads 160 of 255; it was not written), turning
+  the screen off and on from a compositor, refresh rate (vsync and flips at about 30 Hz: not
+  checked against 60), tearing, the colour of the white bar (it looks bluish in the photo,
+  which may be the panel or the camera).
+- Whether to load the display at boot, and how the kick runs without GDM (Hyprland has no
+  `PowerSaveMode` D-Bus call like Mutter's; `gts4lv-display kick` uses DPMS through `modetest`).
+- One kernel message at every DPMS off: `dpu_encoder_helper_wait_for_irq: encoder is disabled
+  ... ctl_start_irq` (harmless so far).
