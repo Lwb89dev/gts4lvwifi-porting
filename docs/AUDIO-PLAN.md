@@ -170,3 +170,31 @@ leaves the ADSP running.
   four speakers plays its own channel (the slots are `<0 1>` and `<1 2>` in the device
   tree), speaker calibration (Samsung keeps measured resistances in `/efs`; the firmware
   runs with the tuning's defaults).
+
+## The four speakers (2026-11-05 21:00 to 21:10): what is established and what is not
+
+Done with `gts4lv-tone -12 1 1000 dsp <amps> <beeps> <channel>` (1000 Hz, -12 dB, protection DSP
+loaded and in the path), the owner listening, tablet upright with the camera at the top. The amps
+sit at I2C addresses 0x40 to 0x43 and their bus number changes between boots (5, then 4).
+
+| Run | What played | The owner heard |
+| --- | --- | --- |
+| 21:00, one amp per series, order FL FR RL RR | 1, 2, 3, 4 beeps | the first from the top, the other three from the bottom |
+| 21:03, order RR FL RL FR | 1, 2, 3, 4 beeps | the first two from the top left, the others from the bottom left |
+| 21:06, all four amps | 1 beep left channel only, 2 beeps right channel only | both from the top, from both top speakers |
+| 21:08, RL and RR only (FL and FR at -60 dB) | 3 beeps | from the bottom: yes |
+
+- **Established:** the top pair and the bottom pair both produce sound (the bottom pair alone
+  was heard from the bottom). All four amplifiers are enabled alike while playing (over I2C:
+  `PWR_CTRL1` 1, `PWR_CTRL2` `0x3721`, the same interrupt flags on all four, no new power-up
+  error), so a difference between top and bottom is not in the amplifier's state.
+- **Not established:** which address is which speaker, and whether left is left. The one-amp
+  answers contradict each other (RR bottom in the first run, top left in the second), and with
+  all four amps on the top pair covers the bottom pair to the ear. Samsung's suffix names suggest
+  `FL` (0x41) and `FR` (0x40) are the top speakers and `RL` (0x43) and `RR` (0x42) the bottom ones,
+  which fits the 21:06 and 21:08 runs; the `<0 1>` and `<1 2>` slots in the device tree send the left
+  channel to FL and RL and the right channel to FR and RR.
+- **To settle it** once something draws stereo, with the tablet landscape the way it is used:
+  a left-only and a right-only tone, one person, listening for the side. An ear cannot separate
+  four speakers a few centimetres apart; a measurement could (a microphone, which waits on the
+  internal codec crash above).

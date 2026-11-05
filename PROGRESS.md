@@ -77,7 +77,7 @@ nuove.
 | Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati | proprietario, `scripts/touch-summary.py` |
 | Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Luminosità (160, 100, 40, 255, 160) senza artefatti; refresh a circa 63 Hz con i fotogrammi in arrivo (29 Hz a riposo). Aperti: la console di testo non scrive su `msmdrmfb`, off/on da compositor, tearing | proprietario |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
-| Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
+| Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); tutti e quattro producono suono (coppia in alto e coppia in basso sentite da sole); l'abbinamento amplificatore-altoparlante e la correttezza sinistra/destra non sono stabiliti (risposte incoerenti a orecchio) | proprietario, registri I2C |
 | Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
 | ADSP | parte e si ferma pulito | misurato |
 | microSD, sensori, fotocamere, codec video in uso, sospensione | non provati (il canale FastRPC dell'ADSP c'è, `hexagonrpc` è in `packages/`) | — |
@@ -123,8 +123,9 @@ nuove.
    idee che restano: l'albero di Samsung per capire come sono collegati i microfoni di questo
    tablet, l'indirizzo completo del blocco). Un crash dell'ADSP è recuperabile, ma si lavora
    con `run-with-log.sh` e si aspetta circa 8 secondi prima di fermarlo.
-2. **Altoparlanti:** abbinare FL, FR, RL, RR alle posizioni (4 toni numerati, una risposta
-   semplice dal proprietario); poi i livelli utili con la protezione nel percorso, a gradini.
+2. **Altoparlanti:** i quattro suonano; resta l'abbinamento a orecchio, che non ha dato risposte
+   coerenti. Meglio farlo con un microfono (dopo il crash del codec interno) o con uno stereo vero a
+   tablet in orizzontale; poi i livelli utili con la protezione nel percorso, a gradini.
 3. **Display** (M7.2): funziona, con luminosità e 60 Hz misurati (vedi sopra). Restano la console
    di testo su `msmdrmfb`, il tearing, lo spegnimento/riaccensione da compositor, e se caricarlo al
    boot. `docs/DISPLAY-PLAN.md`.
@@ -1477,6 +1478,20 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
   (sfarfalla). Il pannello non ha difetti noti; per giudicarlo si usa `gts4lv-display bars`, non `-v`.
 - **Istruzioni al proprietario:** funzionano se sono scritte grandi nel messaggio e se il segnale
   arriva sullo schermo del tablet (le barre); un conto alla rovescia scritto fra i comandi non si legge.
+
+## 2026-11-05 sera, 21:00-21:10: i quattro altoparlanti
+
+- **Toni da un amplificatore alla volta** (1-4 beep, due ordini diversi) e **canale sinistro/destro**:
+  risposte a orecchio incoerenti (RR «dal basso» e poi «in alto a sinistra»; con tutti e quattro accesi
+  tutto sembra uscire dall'alto). Un test mirato ha dato il dato certo: i **due di sotto soli (RL, RR)
+  si sentono dal basso**. Quindi tutti e quattro suonano.
+- **Registri I2C durante il tono:** i quattro amplificatori hanno lo stesso stato (`PWR_CTRL1` 1,
+  `PWR_CTRL2` `0x3721`, stessi flag), nessun errore di accensione nuovo.
+- **Non provato:** quale indirizzo è quale altoparlante, e se sinistra è sinistra. Dettagli in
+  `docs/AUDIO-PLAN.md`.
+- **Script:** `gts4lv-tone` ha `beeps` e `channel`; il controllo del firmware contava `5-004x` e
+  falliva col bus I2C 4 di questo boot (il numero del bus cambia): ora conta gli amplificatori per
+  indirizzo. Un test che «rifiuta di suonare» è stato questo, e il rifiuto era corretto.
 
 ## Prossimo passo
 
