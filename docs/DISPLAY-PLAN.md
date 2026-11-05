@@ -156,3 +156,17 @@ VCO 1.88 GHz, pixel clock 156.9 MHz per half = 313.76 MHz / 2, byte clock 117.7 
   `PowerSaveMode` D-Bus call like Mutter's; `gts4lv-display kick` uses DPMS through `modetest`).
 - One kernel message at every DPMS off: `dpu_encoder_helper_wait_for_irq: encoder is disabled
   ... ctl_start_irq` (harmless so far).
+
+## Brightness and refresh rate (2026-11-05 20:56 to 21:00)
+
+- **Brightness**, with the colour bars on screen: 160, 100, 40, 255, 160 written to
+  `/sys/class/backlight/ae94000.dsi.0/brightness`, 8 seconds apart; `brightness` and
+  `actual_brightness` read back the written value every time. The owner: every level executed
+  perfectly, no artifact (no lines, flash or patches). No new kernel message.
+- **Refresh rate.** At rest the panel's tearing-effect signal runs at about 29 Hz (counter
+  `vsync` of `dri/1/encoder-0/status`, 14,784 to 15,074 in 10 s); with `modetest -v` flipping
+  pages it runs at about 63 Hz and modetest reports 63.30 Hz. The 30 Hz measured earlier was
+  taken with the panel reset and black. So frames are delivered at 60 Hz when there is
+  something to show.
+- Still open: the text console on the msm framebuffer, turning the screen off and on from a
+  compositor, tearing, whether to load the display at boot.

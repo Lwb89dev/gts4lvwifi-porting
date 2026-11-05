@@ -75,7 +75,7 @@ nuove.
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
 | Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati | proprietario, `scripts/touch-summary.py` |
-| Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Aperti: la console di testo non scrive su `msmdrmfb`, luminosità, refresh, off/on da compositor | proprietario |
+| Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Luminosità (160, 100, 40, 255, 160) senza artefatti; refresh a circa 63 Hz con i fotogrammi in arrivo (29 Hz a riposo). Aperti: la console di testo non scrive su `msmdrmfb`, off/on da compositor, tearing | proprietario |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
 | Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
 | Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
@@ -125,9 +125,9 @@ nuove.
    con `run-with-log.sh` e si aspetta circa 8 secondi prima di fermarlo.
 2. **Altoparlanti:** abbinare FL, FR, RL, RR alle posizioni (4 toni numerati, una risposta
    semplice dal proprietario); poi i livelli utili con la protezione nel percorso, a gradini.
-3. **Display** (M7.2): funziona (vedi sopra). Restano la console di testo su `msmdrmfb`,
-   luminosità (il link DSI è su: si può provare, a piccoli passi), refresh a 60 Hz e tearing,
-   spegnimento/riaccensione da compositor, e se caricarlo al boot. `docs/DISPLAY-PLAN.md`.
+3. **Display** (M7.2): funziona, con luminosità e 60 Hz misurati (vedi sopra). Restano la console
+   di testo su `msmdrmfb`, il tearing, lo spegnimento/riaccensione da compositor, e se caricarlo al
+   boot. `docs/DISPLAY-PLAN.md`.
 4. **Tocco** (M7.4): `evtest` fatto (sopra); restano lo strisciamento sui bordi sinistro e alto,
    la rotazione, la ripresa dopo lo spegnimento dello schermo, poi libinput e il compositor.
 5. **Immagine v6** (rootfs ricostruita con kernel `-dirty` e script attuali), copiata in
@@ -1465,6 +1465,15 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
 - **Come parlare con il proprietario:** istruzioni in grande, nel messaggio finale o sullo schermo
   del tablet, mai a metà di una serie di comandi; un segnale visibile sul tablet vale più di un
   conto alla rovescia scritto.
+
+## 2026-11-05 sera, 20:55-21:00: luminosità e refresh del display
+
+- **Luminosità:** 160, 100, 40, 255, 160 a intervalli di 8 s con le barre a schermo; ogni valore
+  riletto uguale; il proprietario: «esecuzione perfetta di tutte le luminosità senza artefatti».
+- **Refresh:** TE a circa 29 Hz a riposo, circa 63 Hz con i fotogrammi in arrivo (`modetest -v` 63,3
+  flip/s). I 30 Hz misurati prima erano col pannello resettato e nero.
+- **Istruzioni al proprietario:** funzionano se sono scritte grandi nel messaggio e se il segnale
+  arriva sullo schermo del tablet (le barre); un conto alla rovescia scritto fra i comandi non si legge.
 
 ## Prossimo passo
 
