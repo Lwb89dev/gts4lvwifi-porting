@@ -31,7 +31,9 @@ sshc() {
 running=$(sshc 'uname -r')
 [ "$running" = "$release" ] || die "the tablet runs $running, the build is $release"
 
-tar -C "$src" --exclude=./build --exclude=./source -cf - . |
-	sshc "mkdir -p /usr/lib/modules/$release && tar -C /usr/lib/modules/$release --no-same-owner -xf - && depmod -a $release"
+# root-owned, no group or world write, existing directories left as they are
+tar -C "$src" --exclude=./build --exclude=./source --owner=0 --group=0 \
+	--numeric-owner --mode='go-w' -cf - . |
+	sshc "mkdir -p /usr/lib/modules/$release && tar -C /usr/lib/modules/$release --no-overwrite-dir --no-same-owner -xf - && depmod -a $release"
 sshc "ls /usr/lib/modules/$release/kernel | head -3; find /usr/lib/modules/$release -name '*.ko' | wc -l"
 echo "synced $release"

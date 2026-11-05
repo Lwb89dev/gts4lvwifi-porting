@@ -7,8 +7,10 @@
 set -euo pipefail
 
 owner=${1:?uid:gid for the results}
-# dependency order: qrtr first, the rest need libqrtr
-order="qrtr rmtfs tqftpserv pd-mapper hexagonrpc"
+# dependency order: qrtr first, the rest need libqrtr. pd-mapper is not built:
+# the kernel has its own (CONFIG_QCOM_PD_MAPPER, loaded as qcom_pd_mapper) and
+# a second one would answer the same service.
+order="qrtr rmtfs tqftpserv hexagonrpc"
 
 say() { printf '==> %s\n' "$*"; }
 

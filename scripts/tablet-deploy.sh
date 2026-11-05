@@ -30,7 +30,10 @@ sshc 'test "$(uname -r)" = "'"$(cat out/kernel/include/config/kernel.release)"'"
 	die "the tablet does not answer, or runs another kernel than out/kernel"
 
 echo "== overlay"
-tar -C "$overlay" -cf - . | sshc 'tar -C / --no-same-owner -xf -'
+# root-owned, no group or world write, and existing directories (/, /etc, /usr)
+# left as they are: the host's owner and umask must not reach the tablet
+tar -C "$overlay" --owner=0 --group=0 --numeric-owner --mode='go-w' -cf - . |
+	sshc 'tar -C / --no-overwrite-dir --no-same-owner -xf -'
 
 if ls "$repo"/*.pkg.tar.zst >/dev/null 2>&1; then
 	echo "== packages"

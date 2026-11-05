@@ -9,6 +9,16 @@ release=${1:?kernel release}
 
 say() { printf '==> %s\n' "$*"; }
 
+# Copy a tree so that everything it creates is owned by root with no group or
+# world write, whoever owns it on the host: a bind mount shows the host user
+# (uid 1000, which is "alarm" in this image). cp -a would copy that owner and
+# mode onto directories that already exist, /etc among them. Existing
+# directories keep what they have.
+install_tree() { # <from> <to>
+	tar -C "$1" --owner=0 --group=0 --numeric-owner --mode='go-w' -cf - . |
+		tar -C "$2" --no-overwrite-dir --no-same-owner -xf -
+}
+
 say "pacman for a container under qemu-user"
 # qemu-user has no landlock and the container has no mount table for
 # CheckSpace. Both are put back before the image is made.
@@ -42,19 +52,21 @@ fi
 say "our modules for $release"
 rm -rf "/usr/lib/modules/$release"
 mkdir -p "/usr/lib/modules/$release"
-cp -a /kmods/. "/usr/lib/modules/$release/"
+install_tree /kmods "/usr/lib/modules/$release"
 # modules_install leaves links to the build and source trees on the host
 rm -f "/usr/lib/modules/$release/build" "/usr/lib/modules/$release/source"
 depmod -a "$release"
 
 say "configuration"
-cp -a /overlay/. /
+install_tree /overlay /
 passwd -l root
 passwd -l alarm
 install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
 	gts4lv-firmware.service gts4lv-adsp-stop.service
+# bring-up only: a root shell on the USB serial gadget. Remove before release.
+systemctl enable gts4lv-debug-console.service
 # qrtr-ns is the name service every Qualcomm remote service needs
 if [ -e /usr/lib/systemd/system/qrtr-ns.service ]; then
 	systemctl enable qrtr-ns.service

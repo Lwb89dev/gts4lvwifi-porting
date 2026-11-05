@@ -1,0 +1,18 @@
+# BRING-UP ONLY. A root shell, with no password, on the USB serial function of
+# the gadget (/dev/ttyACM0 on the PC). It is the console that still works when
+# the network does not: the first boot of a new image, a hung service, a
+# change to the USB network itself. Anyone with the cable has root, so this
+# unit goes before the tablet is used for anything else.
+[Unit]
+Description=Root shell on the USB serial gadget (bring-up only)
+ConditionPathExists=/dev/ttyGS0
+After=systemd-user-sessions.service
+
+[Service]
+ExecStart=-/usr/bin/agetty --autologin root --noclear ttyGS0 115200 vt100
+Type=idle
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

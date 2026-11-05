@@ -124,5 +124,5 @@ cameras and the video codec are all "Not verified" or "Compiled" and nothing
 more. Wi-Fi, Bluetooth, the video codec and the sensors need the modem or
 audio DSP started first, with firmware from Samsung's own partitions, and
 userspace services that Arch Linux ARM does not package (`rmtfs`, `tqftpserv`,
-`qrtr`, `pd-mapper`, `hexagonrpcd`). The order and the risks are in
+`qrtr`, `hexagonrpcd`; the kernel has its own `pd-mapper`). The order and the risks are in
 `PORTING-ROADMAP.md`.

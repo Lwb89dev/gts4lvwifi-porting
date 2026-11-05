@@ -59,7 +59,7 @@ to the PC, and a hang marker for anything at boot.
 2. **Userspace the distribution does not have.** Arch Linux ARM carries
    `libssc`, `iio-sensor-proxy`, `iw`, `wpa_supplicant`, `alsa-ucm-conf`,
    `pipewire`, `bluez`, `upower`, `hyprland`, `libcamera`. It does not carry
-   `qrtr`, `rmtfs`, `tqftpserv`, `pd-mapper` or `hexagonrpcd`, which the modem
+   `qrtr`, `rmtfs`, `tqftpserv` or `hexagonrpcd`, which the modem
    and sensor paths need. They become packages under `packages/`, built in the
    aarch64 container.
 3. **Kernel options.** `INPUT_UINPUT` (touch), `DRM_PANEL_SAMSUNG_ANA38401`,
@@ -93,7 +93,7 @@ repository (`out/repo`), never in git:
 | `qrtr` (the name service) | every Qualcomm remote service |
 | `rmtfs` | the modem's storage, on RAM copies |
 | `tqftpserv` | firmware requests from the modem |
-| `pd-mapper` | protection domains of the DSPs |
+| ~~`pd-mapper`~~ | not built: this kernel has `qcom_pd_mapper` (checked: the module is loaded), and a second mapper would answer the same service |
 | `hexagonrpcd` | the sensor core on the ADSP, with `libssc` from Arch |
 
 The device package, `omamobile-device-gts4lvwifi`, follows upstream's layout
