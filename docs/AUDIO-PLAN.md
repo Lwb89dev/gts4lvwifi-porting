@@ -198,3 +198,64 @@ sit at I2C addresses 0x40 to 0x43 and their bus number changes between boots (5,
   a left-only and a right-only tone, one person, listening for the side. An ear cannot separate
   four speakers a few centimetres apart; a measurement could (a microphone, which waits on the
   internal codec crash above).
+
+## PipeWire, Bluetooth audio and the working level (2026-11-05 evening)
+
+**The audio server.** `pipewire`, `pipewire-audio`, `pipewire-alsa`, `pipewire-pulse` and
+`wireplumber` are installed (in `packages.txt`). PipeWire refuses to run as root
+(`ConditionUser=!root`), so it runs for the `alarm` user, whose user session stays up without a
+login (`/var/lib/systemd/linger/alarm`) and who is in the `audio`, `lp` and `video` groups
+(`customize.sh`). Start the speakers with `gts4lv-audio start` (or `systemctl start
+gts4lv-audio`, not enabled at boot: see the ADSP warning in the script).
+
+**The speakers as a sink.** The card has no ACP profile, so WirePlumber offers only "Pro Audio":
+eight unnamed AUX channels at 24 bits, and a normal stereo stream found no channel to land on
+(silence, twice). `etc/wireplumber/wireplumber.conf.d/51-gts4lv-speakers.conf` presents the first
+output as stereo FL FR at 16 bits, the format the amplifiers were proven with; the owner then
+heard the tone through PipeWire.
+
+**Bluetooth pairing.** The first attempt failed ("passkey or PIN wrong" on the phone): the
+tablet's agent asked `Confirm passkey ... (yes/no)` and nothing answered. A `bluetoothctl` agent
+that answers yes during a short window paired the phone (a Pixel 10), which was then trusted.
+`l2ping` 5 of 5, 180 to 210 ms. The pairing window is closed afterwards (`discoverable off`,
+`pairable off`): it accepts any device while open.
+
+**Bluetooth audio (phone to tablet), what it took:**
+1. No audio server: `a2dp-source profile connect failed: Protocol not available`; the controller
+   published no Audio Sink. Installing PipeWire/WirePlumber was the prerequisite.
+2. WirePlumber's Bluetooth monitor needs the user on the active logind seat, and `alarm` has none:
+   BlueZ got no A2DP endpoint. `52-gts4lv-bluetooth.conf` turns `monitor.bluez.seat-monitoring`
+   off for the main profile; the controller then published Audio Sink and Audio Source.
+3. The phone connected and BlueZ built the A2DP transport (UUID 110b), but WirePlumber failed
+   to create the node, repeatedly: `failed to create node from factory 'adapter'`,
+   `usage: node.name=<string>`; the codec the Pixel had chosen was Google's vendor codec
+   (Opus). Offered codecs were limited to `sbc sbc_xq aac`, the phone was reconnected and
+   WirePlumber restarted (also once with debug logging). After that the music played from the
+   tablet. **Which of those changes unlocked it is not known.**
+
+**Speakers during Bluetooth music.** At first only the two speakers on the camera side played;
+a little later, after the restarts, the owner heard all four. What made the two on the USB-C side
+start is not established.
+
+**The level.** The first working level (amplifiers at -18 dB digital, analog gain at its minimum)
+was my own conservative choice after the 0 dB incident, and it made the music much fainter than
+Android's. With the protection DSP loaded and in the path, four ten-second phases while music
+played (all four amplifiers, each value read back, capped, restored afterwards):
+
+| Phase | Digital | Analog | The owner |
+| --- | --- | --- | --- |
+| 1 | -12 dB | 0 | (no defect reported) |
+| 2 | -6 dB | 0 | (no defect reported) |
+| 3 | 0 dB | 0 | the clearest |
+| 4 | 0 dB | +6 | the quietest |
+
+More analog gain made it quieter, not louder; the protection limiting is the likely reason and was
+not verified. `gts4lv-audio` now leaves the amplifiers at **0 dB digital, analog 0**, and only
+raises them after the protection firmware is confirmed loaded on all four; it never goes above
+0 dB. Android uses a higher analog gain (the reference tree cites 14 and 17); whether going
+there with this protection tuning and without the speakers' calibration (Samsung keeps
+measured values in `/efs`) is worth it was not tried further.
+
+**Not done:** that the phone reconnects by itself after a tablet reboot (the audio unit is not
+started at boot, so there are no speakers until `gts4lv-audio start`), the microphones, and the
+A2DP source direction (tablet to headphones).

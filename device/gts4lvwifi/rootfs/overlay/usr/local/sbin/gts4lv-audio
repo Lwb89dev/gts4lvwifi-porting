@@ -1,0 +1,97 @@
+#!/bin/bash
+# Get the speakers ready for an audio server, and put them away again.
+#
+#   gts4lv-audio start     ADSP and LPI pins, the amplifiers' protection firmware and the
+#                          route, with the volume read back and capped
+#   gts4lv-audio stop      the ADSP stopped (with the LPI pin driver unloaded)
+#   gts4lv-audio status
+#
+# What it leaves behind: the four amplifiers at 0 dB digital and analog gain 0, the level
+# the owner found cleanest while music played (docs/AUDIO-PLAN.md), with the protection DSP
+# preloaded and in the audio path (PCM Source DSP) and the secondary TDM route to MultiMedia1
+# switched on. The level is only raised after the protection firmware is confirmed loaded on
+# all four, and never above 0 dB. More analog gain made it quieter, not louder (the
+# protection limiting, probably), so it stays at 0. Microphones are not part of this: the
+# internal codec crashes the ADSP (docs/AUDIO-PLAN.md).
+#
+# With the ADSP running, a reset of the tablet can leave the bootloader looping until
+# Power + Volume-down are held: gts4lv-adsp-stop.service stops it at a normal shutdown.
+set -euo pipefail
+
+amps="FL FR RL RR"
+level_raw=817 # 0 dB; 0.125 dB per step
+limit_raw=817 # never above 0 dB
+rest_raw=337 # -60 dB, while the protection is being loaded
+
+die() { echo "gts4lv-audio: $*" >&2; exit 1; }
+
+volume() { # raw volume of one amplifier
+	amixer -c0 cget name="$1 Digital PCM Volume" | sed -n 's/.*: values=\([0-9]*\).*/\1/p'
+}
+
+set_volume() { # <raw>, all four, read back
+	local a v
+	[ "$1" -le "$limit_raw" ] || die "refusing a volume above 0 dB"
+	for a in $amps; do
+		amixer -c0 cset name="$a Digital PCM Volume" "$1" > /dev/null || die "could not set $a"
+	done
+	for a in $amps; do
+		v=$(volume "$a")
+		[ -n "$v" ] && [ "$v" -le "$1" ] || die "$a reads $v after setting $1"
+	done
+}
+
+start() {
+	[ -d /run/gts4lv-fw/cirrus ] || die "run gts4lv-firmware first"
+	/usr/local/sbin/gts4lv-dsp start adsp
+	local _
+	for _ in $(seq 60); do
+		[ -e /proc/asound/card0 ] && break
+		sleep 0.5
+	done
+	[ -e /proc/asound/card0 ] || die "no sound card"
+	# quietest first, then the protection, then the working level
+	set_volume "$rest_raw"
+	for a in $amps; do
+		amixer -c0 cset name="$a DSP1 Preload Switch" on > /dev/null || die "preload $a"
+	done
+	sleep 3
+	local loaded
+	loaded=$(dmesg | grep -oE 'cs35l41 [0-9]+-004[0-3]: DSP1: Protection' | sort -u | wc -l) || true
+	[ "$loaded" -ge 4 ] || die "the protection firmware is not loaded on all four amplifiers ($loaded of 4)"
+	for a in $amps; do
+		amixer -c0 cset name="$a PCM Source" DSP > /dev/null || die "pcm source $a"
+	done
+	amixer -c0 cset name="SEC_TDM_RX_0 Audio Mixer MultiMedia1" on > /dev/null || die "routing"
+	# the first power-up after the firmware is loaded needs the DSP started by a stream
+	timeout 3 aplay -q -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero > /dev/null 2>&1 || true
+	sleep 1
+	for a in $amps; do
+		amixer -c0 cset name="$a Analog PCM Volume" 0 > /dev/null || die "analog gain $a"
+	done
+	set_volume "$level_raw"
+	echo "gts4lv-audio: ready, amplifiers at 0 dB, protection in the path"
+}
+
+stop() {
+	/usr/local/sbin/gts4lv-dsp stop adsp
+}
+
+status() {
+	/usr/local/sbin/gts4lv-dsp status adsp
+	if [ -e /proc/asound/card0 ]; then
+		local a
+		for a in $amps; do
+			echo "$a volume raw $(volume "$a"), PCM Source $(amixer -c0 cget name="$a PCM Source" | sed -n 's/.*: values=\([0-9]*\).*/\1/p')"
+		done
+	else
+		echo "no sound card"
+	fi
+}
+
+case ${1:-} in
+start) start ;;
+stop) stop ;;
+status) status ;;
+*) die "usage: gts4lv-audio start|stop|status" ;;
+esac

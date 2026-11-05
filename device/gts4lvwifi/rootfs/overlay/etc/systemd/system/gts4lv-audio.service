@@ -1,0 +1,19 @@
+# Gets the speakers ready for an audio server (ADSP, LPI pins, the amplifiers' protection
+# firmware, the route, the volume read back and capped). NOT enabled by default: with the ADSP
+# running a reset of the tablet can leave the bootloader looping until Power + Volume-down are
+# held, so it is the owner's choice to start it at boot. gts4lv-adsp-stop.service stops the ADSP
+# at a normal shutdown. Start it by hand with: systemctl start gts4lv-audio
+[Unit]
+Description=Speakers ready for the audio server (ADSP, protection, route)
+Requires=gts4lv-firmware.service
+After=gts4lv-firmware.service gts4lv-modem.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=120
+ExecStart=/usr/local/sbin/gts4lv-audio start
+ExecStop=/usr/local/sbin/gts4lv-audio stop
+
+[Install]
+WantedBy=multi-user.target

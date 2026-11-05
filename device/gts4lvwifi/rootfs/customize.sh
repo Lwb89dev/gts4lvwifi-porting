@@ -69,6 +69,11 @@ say "configuration"
 install_tree /overlay /
 passwd -l root
 passwd -l alarm
+# The audio server refuses to run as root: it runs for "alarm", with a user session that
+# stays up without a login (linger), and "alarm" needs the sound, Bluetooth and video groups.
+usermod -aG audio,lp,video alarm
+mkdir -p /var/lib/systemd/linger
+touch /var/lib/systemd/linger/alarm
 install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \

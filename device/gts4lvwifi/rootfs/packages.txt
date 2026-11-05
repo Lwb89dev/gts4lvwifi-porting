@@ -5,6 +5,11 @@ wpa_supplicant
 wireless-regdb
 bluez
 bluez-utils
+pipewire
+pipewire-audio
+pipewire-alsa
+pipewire-pulse
+wireplumber
 alsa-utils
 alsa-ucm-conf
 evtest
