@@ -78,7 +78,7 @@ nuove.
 | Display (`msm` + pannello) | si carica, `card1-DSI-1` 2560x1600, `modetest` mostra barre; **cosa si vede non è stato riferito**; luminosità, off/on non provati | misurato da ssh |
 | GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
 | Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso (`gts4lv-tone … dsp`); sentito in alto e in basso; quale dei 4 sia quale non è noto | proprietario |
-| Audio, microfoni | **l'ADSP va in crash** all'apertura della cattura (AHB bus hang in `0x62…`, LPASS del codec digitale) | misurato, 5 crash |
+| Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
 | ADSP | parte e si ferma pulito | misurato |
 | microSD, sensori, fotocamere, codec video in uso, sospensione | non provati (il canale FastRPC dell'ADSP c'è, `hexagonrpc` è in `packages/`) | — |
 | M8 (Omarchy), M9 (pacchetti/CI) | non iniziati | — |
@@ -118,9 +118,11 @@ nuove.
 
 ### Prossimi blocchi, in ordine
 
-1. **Microfoni** (M7.6): trovare il clock o l'ordine di accensione che manca al codec
-   interno prima della porta AFE `0x1035` (ipotesi in `docs/AUDIO-PLAN.md`). Un crash
-   dell'ADSP è recuperabile, ma si lavora con `run-with-log.sh` e si ferma l'ADSP a fine prova.
+1. **Microfoni** (M7.6): il codec digitale interno manda in crash l'ADSP a ogni uso (anche
+   in riproduzione). Il clock vero è stato provato e rifiutato (`docs/AUDIO-PLAN.md`, con le
+   idee che restano: l'albero di Samsung per capire come sono collegati i microfoni di questo
+   tablet, l'indirizzo completo del blocco). Un crash dell'ADSP è recuperabile, ma si lavora
+   con `run-with-log.sh` e si aspetta circa 8 secondi prima di fermarlo.
 2. **Altoparlanti:** abbinare FL, FR, RL, RR alle posizioni (4 toni numerati, una risposta
    semplice dal proprietario); poi i livelli utili con la protezione nel percorso, a gradini.
 3. **Display** (M7.2): farsi dire cosa si vede dopo `modprobe msm` e le barre; poi luminosità
@@ -1411,6 +1413,21 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
   `out/audio-mic/` (non in git), ma `coredump` è tornato su `disabled`.
 - **Errore mio, ancora:** la scheda stavolta ha impiegato 16 s a comparire e il mio script
   aspettava 10 s: attesa portata a 30 s.
+
+## 2026-11-05 sera, 19:00-19:10: il codec interno, ipotesi e smentita
+
+- **Riprodurre silenzio verso il codec interno** (`hw:0,1`) manda in crash l'ADSP con lo
+  stesso `AHB Bus hang` dei microfoni: non è la cattura, è ogni uso del codec digitale.
+- **Ipotesi, provata e smentita:** in tutti gli alberi SDM670/710 il clock `ahbix-clk` del
+  codec è un `fixed-clock` che non fa nulla; l'ho sostituito con il clock vero
+  `LPASS_CLK_ID_INTERNAL_DIGITAL_CODEC_CORE` (patch al device tree, kernel ricompilato,
+  recovery riscritta da ssh). Il firmware dell'ADSP rifiuta il comando (`error = 0x2`),
+  il probe del codec fallisce e **la scheda audio non compare più**. Patch ritirata,
+  recovery di prima riscritta e riletta (`6afcfc5e…`), scheda tornata in circa 1 s.
+  Le immagini intermedie sono in `out/prev/` (non in git).
+- **Altro errore mio:** il mio aiuto di spegnimento si fermava a metà del recupero
+  dell'ADSP (`crashed`, `offline`, `running`) e lo lasciava acceso: l'ho trovato
+  `running` prima di riavviare e l'ho fermato a mano; ora aspetto 8 secondi.
 
 ## Prossimo passo
 

@@ -130,14 +130,35 @@ tablet never reset). What the kernel logs:
   AFE started the port.
 
 Playback through the speakers is not affected: it uses the secondary TDM port, which does not
-touch that block. Not yet tried, in this order of likelihood: a clock the codec needs before the
-port starts (`&lpass_codec` takes `LPASS_CLK_ID_INT_MCLK_0` and `int_cdc_bclk` in the device tree;
-whether the ADSP expects another one, or `AHB` for the codec, is not known), the order in which
-the codec's DAPM supplies are powered, and comparing with how the reference tree starts the
-internal codec. With `coredump` set to `enabled` on the ADSP (`echo enabled >
-/sys/class/remoteproc/remoteprocN/coredump`, N by name) the kernel keeps a 44 MB ELF in
-`/sys/class/devcoredump/devcd*/data` for five minutes; the strings in it are the firmware's
-(ADSP.VT.5.0-00513-SDM710) and did not name the cause.
+touch that block.
+
+**It is not specific to capture.** Playing two seconds of silence to the internal codec
+(`hw:0,1`, `LPI_MI2S_RX_0 Audio Mixer MultiMedia2`, port 0x102e) crashes the ADSP with the same
+`AHB Bus hang` message. Every use of the internal digital codec does. `clk_summary` shows all
+`LPASS_CLK_ID_INT_*` clocks at zero before the attempt.
+
+**Tried and rejected, 2026-11-05 19:05:** in the device tree the codec's `ahbix-clk` is the fixed
+clock `int_cdc_bclk`, which switches nothing on (the Pixel 3a and Xiaomi pyxis trees do the same
+and their internal codec works). Giving it the real clock
+`<&q6afecc LPASS_CLK_ID_INTERNAL_DIGITAL_CODEC_CORE ...>` made the ADSP refuse the command
+(`qcom-q6afe: cmd = 0x100f3 returned error = 0x2`, `AFE set params failed -22`), the codec's
+probe failed (`failed to enable ahbclk -22`) and **the sound card no longer appeared**, speakers
+included. The patch was reverted and the recovery rewritten with the earlier kernel; the card
+is back. So this firmware manages that clock itself and the host must not ask for it.
+
+Not yet tried, as ideas rather than leads: the order in which the codec's DAPM supplies power up;
+whether the ADSP firmware (ADSP.VT.5.0-00513-SDM710, Samsung's) supports the internal MI2S ports at
+all on this board (the tablet has no headphone jack, and its microphones may not be the
+PM660L analog ones: Samsung's own tree is the place to look, `sound/soc/codecs` and the
+`sdm670-sec-gts4lv-audio*` device tree files in `android_kernel_samsung_sdm670`); the full address
+in the fatal message, which remoteproc cuts at `0x62`. With `coredump` set to `enabled` on the
+ADSP (`echo enabled > /sys/class/remoteproc/remoteprocN/coredump`, N by name) the kernel keeps a
+44 MB ELF in `/sys/class/devcoredump/devcd*/data` for five minutes; its strings are the firmware's
+and did not name the cause.
+
+After a crash remoteproc restarts the ADSP by itself, passing through `crashed` and `offline`
+before `running`. A script that stops it must wait for that to finish (about 8 seconds), or it
+leaves the ADSP running.
 
 ## Done and not done (2026-11-05)
 
