@@ -1,0 +1,13 @@
+# First M8 image: install the mobile stack, but do not start a graphical
+# session yet. Repository prefixes are deliberate: Omarchy Mobile's Hyprland
+# carries its DPMS fix, while Mesa stays the Arch Linux ARM build with
+# Freedreno (guarded in customize-omarchy.sh and pacman.conf).
+omarchy/omarchy
+omarchy/omarchy-settings
+omarchy/mise-bin
+omamobile/hyprland
+omamobile/omamobile-firstboot
+omamobile/omamobile-omarchy
+omamobile/omamobile-shell
+# The Tab S5e autorotation client talks to iio-sensor-proxy over Gio D-Bus.
+extra/python-gobject

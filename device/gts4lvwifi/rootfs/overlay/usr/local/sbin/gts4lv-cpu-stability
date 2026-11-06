@@ -1,0 +1,18 @@
+#!/bin/bash
+# The downstream SDM670 cpuidle power-collapse state can occasionally return
+# without a working per-CPU scheduler tick.  A task on that CPU then stays in
+# userspace even with SIGKILL pending, and an affinity change waits forever for
+# the reschedule IPI.  Keep the architectural WFI state, but disable only the
+# affected little-cluster rail-collapse state.
+set -euo pipefail
+
+disabled=0
+for name_file in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state*/name; do
+	[ -r "$name_file" ] || continue
+	read -r state_name < "$name_file"
+	[ "$state_name" = cpu-sleep-0-0 ] || continue
+	printf 1 > "${name_file%/name}/disable"
+	disabled=$((disabled + 1))
+done
+
+echo "gts4lv-cpu-stability: disabled $disabled cpu-sleep-0-0 states; WFI remains enabled"

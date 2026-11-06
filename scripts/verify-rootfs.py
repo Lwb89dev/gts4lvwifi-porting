@@ -21,13 +21,32 @@ FORBIDDEN = ("usr/lib/firmware/ath10k/WCN3990/hw1.0/board-2.bin",)
 WANTS = "etc/systemd/system/multi-user.target.wants/"
 # the units the bring-up needs at boot, and the one that must stay off
 ENABLED = ("gts4lv-firmware.service", "gts4lv-modem.service", "gts4lv-boot-ok.service",
-           "gts4lv-bluetooth.service")
+           "gts4lv-bluetooth.service", "gts4lv-sensors.service",
+           "gts4lv-cpu-stability.service")
 NOT_ENABLED = ("qrtr-ns.service",)
+REQUIRED = (
+    "usr/bin/hexagonrpcd",
+    "usr/local/sbin/gts4lv-cpu-stability",
+    "usr/local/sbin/gts4lv-display",
+    "usr/local/sbin/gts4lv-sensors",
+    "usr/lib/gts4lv/sensors/sns_reg.conf",
+    "usr/lib/gts4lv/hypr/tablet.lua",
+    "usr/lib/gts4lv/autorotate.py",
+    "usr/lib/systemd/user/omamobile-autorotate.service",
+    "etc/systemd/system/gts4lv-sensors-prepare.service",
+    "etc/systemd/system/gts4lv-sensors-root.service",
+    "etc/systemd/system/gts4lv-sensors.service",
+    "etc/systemd/system/gts4lv-cpu-stability.service",
+    "etc/systemd/system/gts4lv-display.service",
+    "etc/systemd/system/sddm.service.d/10-gts4lv-display.conf",
+    "etc/udev/rules.d/81-gts4lv-sensors.rules",
+)
 
 
 def check(path):
     problems = []
     seen = {"root_ssh": False, "authorized": False}
+    required = set()
     wants = set()
     with tarfile.open(path, "r|*") as tar:
         for member in tar:
@@ -44,6 +63,8 @@ def check(path):
                 problems.append("stale /boot-attempt marker")
             if name in FORBIDDEN:
                 problems.append(f"file that resets the tablet: /{name}")
+            if name in REQUIRED:
+                required.add(name)
             if name.startswith(WANTS):
                 wants.add(name[len(WANTS):])
             if name == "root/.ssh" and member.mode & 0o077 == 0:
@@ -61,6 +82,9 @@ def check(path):
     for unit in NOT_ENABLED:
         if unit in wants:
             problems.append(f"unit enabled that should not be: {unit}")
+    for name in REQUIRED:
+        if name not in required:
+            problems.append(f"required rootfs file missing: /{name}")
     if not seen["root_ssh"]:
         problems.append("/root/.ssh missing or not private (700)")
     if not seen["authorized"]:

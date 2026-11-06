@@ -3,11 +3,18 @@
 # Does not flash the tablet.
 #
 #   scripts/build-initramfs.sh
+#   ROOTFS_VARIANT=omarchy scripts/build-initramfs.sh
 #
 # Needs the kernel modules from scripts/build-kernel.sh and aarch64-linux-gnu-gcc.
 set -eu
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
+variant=${ROOTFS_VARIANT:-}
+case $variant in
+"") rootfs_dir=$root/out/rootfs ;;
+*[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
+*) rootfs_dir=$root/out/rootfs-$variant ;;
+esac
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 bb=$root/src/busybox
 stage=$root/out/initramfs
@@ -99,8 +106,8 @@ cp "$root/device/gts4lvwifi/initramfs/boot-android" "$stage/usr/sbin/boot-androi
 mkdir -p "$stage/etc" "$stage/mnt/root"
 # The extent list of the rootfs image in userdata, made on the tablet by
 # scripts/rootfs-to-tablet.sh. Without it the initramfs never leaves the shell.
-if [ -f "$root/out/rootfs/rootfs-extents.txt" ]; then
-	cp "$root/out/rootfs/rootfs-extents.txt" "$stage/etc/rootfs-extents.txt"
+if [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
+	cp "$rootfs_dir/rootfs-extents.txt" "$stage/etc/rootfs-extents.txt"
 fi
 for name in backlight drm drm_kms_helper drm_client_lib \
 	drm_sysfb_helper drm_shmem_helper simpledrm \

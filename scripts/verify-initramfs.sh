@@ -1,8 +1,17 @@
 #!/bin/sh
 # Offline check of the first-light initramfs. Does not flash.
+#
+#   scripts/verify-initramfs.sh
+#   ROOTFS_VARIANT=omarchy scripts/verify-initramfs.sh
 set -eu
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
+variant=${ROOTFS_VARIANT:-}
+case $variant in
+"") rootfs_dir=$root/out/rootfs ;;
+*[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
+*) rootfs_dir=$root/out/rootfs-$variant ;;
+esac
 archive=$root/out/initramfs.cpio.gz
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -32,8 +41,8 @@ file "$work/usr/sbin/rebootmode" | grep -q "ARM aarch64"
 file "$work/usr/sbin/rebootmode" | grep -q "statically linked"
 file "$work/usr/sbin/dmlinear" | grep -q "ARM aarch64"
 file "$work/usr/sbin/dmlinear" | grep -q "statically linked"
-if [ -f "$root/out/rootfs/rootfs-extents.txt" ]; then
-	cmp "$root/out/rootfs/rootfs-extents.txt" "$work/etc/rootfs-extents.txt"
+if [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
+	cmp "$rootfs_dir/rootfs-extents.txt" "$work/etc/rootfs-extents.txt"
 fi
 # The shells without a password must be killed before the root is switched,
 # and only after every check that can still keep the USB shell alive.

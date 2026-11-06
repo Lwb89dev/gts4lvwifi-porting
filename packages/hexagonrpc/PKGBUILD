@@ -3,15 +3,22 @@
 # upstream, so it stays a separate package and nothing here links to it.
 pkgname=hexagonrpc
 pkgver=0.5.0
-pkgrel=1
+pkgrel=2
 pkgdesc="FastRPC daemon for the Qualcomm Hexagon DSPs (hexagonrpcd)"
 arch=(aarch64)
 url="https://github.com/linux-msm/hexagonrpc"
 license=(GPL-3.0-only)
 depends=(glibc)
 makedepends=(meson)
-source=("$pkgname-v$pkgver.tar.gz::https://github.com/linux-msm/hexagonrpc/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('2173985932ab68d8ac593f9954357123bdbbbe9ba5f1b17a098d9cbcec22c5d5')
+source=("$pkgname-v$pkgver.tar.gz::https://github.com/linux-msm/hexagonrpc/archive/refs/tags/v$pkgver.tar.gz"
+        '0001-listener-keep-serving-after-rpc-error.patch')
+sha256sums=('2173985932ab68d8ac593f9954357123bdbbbe9ba5f1b17a098d9cbcec22c5d5'
+            '55068bdb41d1e91e17414f818812fb2dc7a2febd2eb4f455786c87fdb7692e6d')
+
+prepare() {
+  patch -d "$pkgname-$pkgver" -Np1 \
+    -i "$srcdir/0001-listener-keep-serving-after-rpc-error.patch"
+}
 
 build() {
   meson setup build "$pkgname-$pkgver" --prefix=/usr --libexecdir=lib \

@@ -23,3 +23,4 @@ libssc
 iio-sensor-proxy
 tree
 htop
+curl

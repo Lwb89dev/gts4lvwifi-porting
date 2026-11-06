@@ -70,15 +70,18 @@ install_tree /overlay /
 passwd -l root
 passwd -l alarm
 # The audio server refuses to run as root: it runs for "alarm", with a user session that
-# stays up without a login (linger), and "alarm" needs the sound, Bluetooth and video groups.
-usermod -aG audio,lp,video alarm
+# stays up without a login (linger). Keep the account in every group needed by a local
+# graphical session; in particular, Omarchy Mobile also expects direct input access.
+usermod -aG audio,input,lp,render,video alarm
 mkdir -p /var/lib/systemd/linger
 touch /var/lib/systemd/linger/alarm
 install -d -m 700 /root/.ssh
 install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
 	gts4lv-firmware.service gts4lv-adsp-stop.service gts4lv-modem.service \
-	gts4lv-bluetooth.service bluetooth.service systemd-timesyncd.service
+	gts4lv-bluetooth.service gts4lv-sensors.service gts4lv-cpu-stability.service \
+	bluetooth.service \
+	systemd-timesyncd.service
 # bring-up only: a root shell on the USB serial gadget. Remove before release.
 systemctl enable gts4lv-debug-console.service
 # The qrtr name service is in the kernel (net/qrtr/ns.c). qrtr-ns.service from
@@ -86,6 +89,12 @@ systemctl enable gts4lv-debug-console.service
 
 say "undo the container-only pacman settings"
 cp /tmp/pacman.conf.orig /etc/pacman.conf
+
+if [ "${OMARCHY_MOBILE:-0}" = 1 ]; then
+	say "Omarchy Mobile packages (session stays disabled)"
+	bash /customize-omarchy.sh /omarchy-repos.lock /omarchy-packages.txt
+fi
+
 pacman -Scc --noconfirm >/dev/null || true
 
 say "package list"

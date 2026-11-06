@@ -1,10 +1,11 @@
 #!/bin/bash
-# Copy out/rootfs/rootfs.img into Android's userdata on the tablet (adb, as
-# root) and record where its blocks are: out/rootfs/rootfs-extents.txt.
+# Copy out/rootfs[-<ROOTFS_VARIANT>]/rootfs.img into Android's userdata on the
+# tablet (adb, as root) and record its blocks beside the source image.
 # Writes one file under /data/lost+found/gts4lv/ and nothing else on the
 # tablet; adb is put back to the shell user at the end.
 #
 #   scripts/rootfs-to-tablet.sh
+#   ROOTFS_VARIANT=omarchy scripts/rootfs-to-tablet.sh
 #
 # Needs LineageOS running, USB debugging authorized and "Rooted debugging"
 # on. TABLET_SERIAL picks the device (default: the Tab S5e); adb is always
@@ -14,14 +15,25 @@ set -euo pipefail
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 serial=${TABLET_SERIAL:-R52M410RCVR}
-image=out/rootfs/rootfs.img
-extents=out/rootfs/rootfs-extents.txt
+min_free_mb=${ROOTFS_MIN_FREE_MB:-4096}
+variant=${ROOTFS_VARIANT:-}
+case $variant in
+"") image_dir=out/rootfs ;;
+*[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
+*) image_dir=out/rootfs-$variant ;;
+esac
+image=$image_dir/rootfs.img
+extents=$image_dir/rootfs-extents.txt
 dir=/data/lost+found/gts4lv
 remote=$dir/rootfs.img
 
 a() { adb -s "$serial" "$@"; }
 prop() { a shell getprop "$1" | tr -d '\r'; }
 die() { echo "rootfs-to-tablet: $*" >&2; exit 1; }
+
+case $min_free_mb in
+""|*[!0-9]*) die "ROOTFS_MIN_FREE_MB must be a non-negative integer" ;;
+esac
 
 check_device() {
 	[ "$(a get-state 2>/dev/null)" = device ] || die "$serial is not a connected adb device"
@@ -55,8 +67,8 @@ check_space() {
 	local need_kb free_kb
 	need_kb=$(($(stat -c %s "$image") / 1024))
 	free_kb=$(a shell "df -k /data | tail -n 1" | tr -d '\r' | awk '{ print $4 }')
-	echo "need ${need_kb} KiB, /data has ${free_kb} KiB free"
-	[ "$free_kb" -gt $((need_kb + 4 * 1024 * 1024)) ] || die "not enough free space in /data"
+	echo "need ${need_kb} KiB plus ${min_free_mb} MiB reserve; /data has ${free_kb} KiB free"
+	[ "$free_kb" -gt $((need_kb + min_free_mb * 1024)) ] || die "not enough free space in /data"
 }
 
 copy_image() {
@@ -85,6 +97,7 @@ record_extents() {
 }
 
 check_device
+[ -f "$image" ] || die "no $image"
 become_root
 check_userdata
 check_space

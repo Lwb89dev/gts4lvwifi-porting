@@ -1,0 +1,29 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+index 37f097f30..972a52f71 100644
+--- a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
++++ b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+@@ -339,7 +339,6 @@ &apps_rsc {
+ 			regulator-min-microvolt = <1800000>;
+ 			regulator-max-microvolt = <1800000>;
+ 			regulator-enable-ramp-delay = <250>;
+-			regulator-always-on;
+ 		};
+ 
+ 		/* Camera sensors' I/O rail (downstream cam_vio = pm660_l14). */
+@@ -412,7 +411,6 @@ &apps_rsc {
+ 			regulator-min-microvolt = <3000000>;
+ 			regulator-max-microvolt = <3300000>;
+ 			regulator-enable-ramp-delay = <250>;
+-			regulator-always-on;
+ 		};
+ 
+ 		vreg_l7b_3p125: ldo7 {
+@@ -637,6 +635,8 @@ touchscreen@49 {
+ 		compatible = "st,fts1ba90a";
+ 		reg = <0x49>;
+ 		interrupts-extended = <&tlmm 123 IRQ_TYPE_LEVEL_LOW>;
++		vdd-supply = <&vreg_l11a_1p8>;
++		avdd-supply = <&vreg_l6b_3p3>;
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&ts_int_default>;
+ 	};

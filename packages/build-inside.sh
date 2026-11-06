@@ -34,6 +34,10 @@ for name in $order; do
 done
 
 say "repository database"
+# /out survives builds. Do not leave an older release of the same package
+# beside the current one: the rootfs builder installs this directory with one
+# pacman -U invocation, where duplicate package targets are an error.
+rm -f /out/*.pkg.tar.zst
 cp /pkgout/*.pkg.tar.zst /out/
 cd /out
 rm -f gts4lv.db* gts4lv.files*

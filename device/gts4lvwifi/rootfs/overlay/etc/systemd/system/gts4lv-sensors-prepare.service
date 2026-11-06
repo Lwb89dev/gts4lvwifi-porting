@@ -1,0 +1,9 @@
+[Unit]
+Description=Expose the Tab S5e sensor firmware and calibration read-only
+Requires=gts4lv-firmware.service
+After=gts4lv-firmware.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gts4lv-sensors prepare

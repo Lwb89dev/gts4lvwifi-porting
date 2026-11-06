@@ -52,7 +52,9 @@ bars() {
 	local secs=${1:-20} conn crt
 	conn=$(connector)
 	crt=$(crtc)
-	[ -n "$conn" ] && [ -n "$crt" ] || die "msm is not loaded: gts4lv-display start"
+	if [ -z "$conn" ] || [ -z "$crt" ]; then
+		die "msm is not loaded: gts4lv-display start"
+	fi
 	# modetest sets the mode and exits at once unless its stdin stays open
 	sleep "$secs" | modetest -M msm -s "$conn@$crt:2560x1600" > /dev/null 2>&1 || true
 }

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+# Tab S5e adaptation of Omarchy Mobile's auto-rotation user service.
+[Unit]
+Description=Rotate the Tab S5e screen with the accelerometer
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/lib/gts4lv/autorotate.py --monitor DSI-1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

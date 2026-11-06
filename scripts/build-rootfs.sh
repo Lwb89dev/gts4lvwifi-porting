@@ -7,7 +7,10 @@
 #
 # Needs: scripts/fetch-alarm-rootfs.sh already run, scripts/build-kernel.sh
 # already run (the modules), docker, qemu-user-static, binfmt-support.
-# ROOTFS_MB sets the image size (default 6144). The upgrade step takes
+# ROOTFS_MB sets the image size (default 6144). ROOTFS_VARIANT writes to a
+# separate out/rootfs-<variant> directory (for example the Omarchy image), so
+# an experimental build cannot replace the known-good bring-up image.
+# The upgrade step takes
 # whatever Arch Linux ARM ships that day, so two builds differ: the package
 # list of each is written to out/rootfs/packages.txt.
 set -euo pipefail
@@ -15,7 +18,12 @@ set -euo pipefail
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 dev=device/gts4lvwifi
-out=$root/out/rootfs
+variant=${ROOTFS_VARIANT:-}
+case $variant in
+"") out=$root/out/rootfs ;;
+*[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
+*) out=$root/out/rootfs-$variant ;;
+esac
 size_mb=${ROOTFS_MB:-6144}
 tarball=src/alarm/ArchLinuxARM-aarch64-latest.tar.gz
 
@@ -66,6 +74,10 @@ d run --name gts4lv-rootfs-build --platform linux/arm64 \
 	-v gts4lv-pkgcache:/var/cache/pacman/pkg \
 	-v "$root/$dev/rootfs/customize.sh:/customize.sh:ro" \
 	-v "$root/$dev/rootfs/packages.txt:/overlay-packages.txt:ro" \
+	-v "$root/$dev/rootfs/customize-omarchy.sh:/customize-omarchy.sh:ro" \
+	-v "$root/$dev/rootfs/packages-omarchy.txt:/omarchy-packages.txt:ro" \
+	-v "$root/$dev/rootfs/omarchy-repos.lock:/omarchy-repos.lock:ro" \
+	-e OMARCHY_MOBILE="${OMARCHY_MOBILE:-0}" \
 	"${pkgs_mount[@]}" \
 	"$tag" bash /customize.sh "$release"
 d export gts4lv-rootfs-build -o "$out/rootfs.tar"

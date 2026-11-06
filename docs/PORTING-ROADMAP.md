@@ -6,7 +6,7 @@ were read for ordering and parameters only (their licence is unstated, see
 `LICENSES.md`, so none of their code is copied). Nothing below has been run
 unless it says so.
 
-## 0. Where this stands (2026-11-05 evening)
+## 0. Where this stands (2026-11-06 morning)
 
 Sections 1 to 6 below are the plan as written on 2026-11-04; this table is the result. Details and
 measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
@@ -17,13 +17,14 @@ measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
 | 1 | M7.7 battery | done |
 | 2 | M7.5 Wi-Fi | done, reconnects by itself after a reboot |
 | 3 | M7.1 microSD | not started (needs a card and a `sdhc_2` node) |
-| 4 | M7.4 touch | done through evdev (own driver); libinput, compositor, edges open. The module is no longer blacklisted in the image |
+| 4 | M7.4 touch | done through evdev and Hyprland (own driver); the DSI panel uses persistent touch transform 3. Resume after display-off remains open |
 | 5 | M7.6 audio | speakers done (ADSP, LPI pins, protection firmware, PipeWire, WirePlumber rules); microphones and headphones blocked by the ADSP crash in the internal codec |
 | 6 | M7.2 display | done (colour bars, brightness, about 63 Hz); text console on msm and compositor behaviour open |
-| 7 | M7.3 GPU | render node and firmware only; no GL or Vulkan test |
-| 8 | M7.8 sensors | not started |
+| 7 | M7.3 GPU | done: Freedreno `FD615` (OpenGL 4.6 / ES 3.2), Turnip `Adreno 615` (Vulkan 1.3) and Hyprland mobile scan-out on DSI-1 |
+| 8 | M7.8 sensors | working for light, magnetometer, compass and LSM6DSM motion through ADSP SSC; synchronized movement changed both raw acceleration and the proxy orientation. Proximity is not advertised. Device-specific Omarchy autorotation and its touch compensation passed live tests |
 | 9 | M7.9 suspend | not started |
 | 10 | M7.10 cameras, video codec | not started; Venus loads |
+| not in the plan | M8 Omarchy Mobile | running on the tablet: hardware GPU, Hyprland mobile, Quickshell, squeekboard and calibrated touch; graphical boot remains disabled while bring-up continues |
 | not in the plan | Bluetooth | done: phone music through the speakers; reconnection after a reboot untested, and the phone must be paired again on v6 |
 
 Open hazards still true: the ADSP must not be running at a reset; hardware numbers (`remoteprocN`, I2C
@@ -102,7 +103,7 @@ to the PC, and a hang marker for anything at boot.
 | 4 | M7.4 touch | needs `uinput`, no kernel driver | `evtest` shows slots and positions when someone touches the glass |
 | 5 | M7.6 audio | needs the ADSP, the LPI pins in order, the amplifiers | `aplay -l` lists cards; a quiet tone at a low level with the owner present |
 | 6 | M7.2 display | highest risk of a dark or hung system | `modetest` lists a 2560x1600 connector; the owner sees a picture |
-| 7 | M7.3 GPU | after the display for a compositor, but a render node can be tested earlier | `/dev/dri/renderD128`, `vulkaninfo`, a Freedreno or Turnip renderer string, not `llvmpipe` |
+| 7 | M7.3 GPU | after the display for a compositor, but a render node can be tested earlier | **passed 2026-11-05**: `/dev/dri/renderD128`, Freedreno `FD615`, Turnip `Adreno 615`, not `llvmpipe`; `scripts/gpu-smoke.sh` |
 | 8 | M7.8 sensors | needs the ADSP and `hexagonrpcd` | `iio-sensor-proxy` reports accelerometer and light |
 | 9 | M7.9 suspend | last; start with suspend off | measured step by step, each one tried over ssh with a timer wake |
 | 10 | M7.10 cameras, video codec | later | `cam -l`, a decode of a test clip |

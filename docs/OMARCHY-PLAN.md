@@ -1,6 +1,6 @@
 # M8 plan: Omarchy Mobile on the tablet
 
-> Status 2026-11-05 evening: M8 has not started. Nothing below has been run on the tablet; the hardware it needs (display, touch, speakers, Wi-Fi) works as described in `HARDWARE-MATRIX.md`, the GPU rendering does not have a test yet.
+> Status 2026-11-06: the 12 GiB M8 image is running on the tablet. Hardware OpenGL/Vulkan, Hyprland mobile, Quickshell, squeekboard and calibrated touch have run. SSC accelerometer motion, automatic display rotation and the matching touch transforms passed live tests. The display manager remains disabled during bring-up.
 
 Written 2026-11-04 night. Everything here was read from the repositories'
 published databases and packages, or measured with `pacman` in print-only mode
@@ -77,7 +77,7 @@ memory.
 | Needs | From |
 | --- | --- |
 | A display and a way to see it | M7.2: panel driver, `msm` handover, a person at the screen |
-| Hardware GPU, not `llvmpipe` | M7.3: render node, Freedreno or Turnip renderer string |
+| Hardware GPU, not `llvmpipe` | **passed**: Freedreno `FD615` and Turnip `Adreno 615`; `scripts/gpu-smoke.sh` |
 | Touch as the input | M7.4: a daemon of our own (pulpoff's has no licence) and `uinput` |
 | Network for `pacman` | works today through `scripts/usb-http-proxy.py`; Wi-Fi is M7.5 |
 | Rotation, brightness, battery in the shell | sensors, backlight, `power_supply` (M7.7, M7.8) |
@@ -120,3 +120,49 @@ Mobile.
 4. Add `omamobile-shell` and the device package; then touch, rotation and the
    keyboard.
 5. Measure memory and start-up before any optimisation.
+
+## 9. First M8 image (2026-11-05 night)
+
+`scripts/build-omarchy-rootfs.sh` now builds into `out/rootfs-omarchy/`, never over the known-good
+`out/rootfs/` v6 image. The result is a 12 GiB ext4 image with 631 packages. Relevant versions in this
+build are Omarchy 4.5.0, Omarchy Mobile shell 0.2.100, the mobile-patched Hyprland 0.57.0, and Arch
+Linux ARM Mesa / Turnip 26.2.6. Its hashes are kept locally in `out/rootfs-omarchy/SHA256`; both
+`verify-rootfs.py` and `verify-omarchy-rootfs.py` pass.
+
+The signed keyring packages, their sha256 values and primary fingerprints are pinned in
+`device/gts4lvwifi/rootfs/omarchy-repos.lock`. `[omamobile]` stays first so its patched Hyprland wins,
+but pacman protects Mesa, `vulkan-freedreno`'s supporting packages and the current Hyprland ABI stack
+from replacement. A second incompatibility was found during the real build: Omarchy stable still
+offers Aquamarine ABI 14, while the mobile Hyprland and current `hyprtoolkit` require ABI 15. Therefore
+Aquamarine, `hyprtoolkit`, `hyprland-guiutils` and the Hyprland portal are installed explicitly from
+Arch `extra` and protected together with Mesa.
+
+The image deliberately has no enabled display manager. The next test is to boot this image, verify the
+existing hardware services, then start Hyprland by hand with kernel logging and observe the panel and
+touch before enabling any graphical boot path.
+
+## 10. First live M8 session and sensors (2026-11-06)
+
+The image has been deployed and boots without failed units. After provisioning `alarm`, a manual SDDM
+session ran the mobile Hyprland 0.57 stack on DSI-1 at 2560x1600 and scale 3.2. Quickshell and
+squeekboard were active, and the compositor used the Freedreno/Turnip path already proved by the GPU
+smoke test. SDDM is still disabled at boot deliberately.
+
+The device overlay now also carries a read-only SSC stack. `gts4lv-sensors` mounts the device's `dsp`
+and `persist` partitions read-only and exposes only the registry/configuration paths that
+`hexagonrpcd` needs below `/run`. Root-PD and sensors-PD start in order; `iio-sensor-proxy` waits for
+the asynchronous SSC catalogue. Ambient light, magnetometer and compass stream, and accelerometer plus
+light are available over `net.hadess.SensorProxy` immediately after reboot. Early captures appeared
+frozen because physical movement and sampling were not synchronized. Repeating them while the owner
+moved the tablet changed the direct gyroscope and accelerometer streams, and the D-Bus orientation
+progressed through `normal`, `right-up` and back. No proximity sensor is published by SSC on this unit.
+Udev supplies Samsung's `x=-y, y=-x, z=-z` matrix instead of the all-zero factory placement record.
+
+Hyprland now receives full FTS1BA90A touch streams. The controller is mounted a quarter-turn from the
+native-landscape DSI panel, so `/usr/lib/gts4lv/hypr/tablet.lua` pins it to DSI-1 with transform 3.
+`/usr/lib/gts4lv/autorotate.py` retains that quarter-turn offset as the monitor rotates and is exposed
+under the exact `omamobile-autorotate.service` name expected by the shell's rotation-lock tile. A live
+test found that the native-landscape panel uses the opposite quarter-turn direction from the generic
+phone mapping; swapping transforms 1 and 3 made both the image and touch follow every physical turn.
+The image also changes the phone-oriented one-minute lock timeout to ten minutes; Stay awake remains a
+quick-settings toggle for bring-up.

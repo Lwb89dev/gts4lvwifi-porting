@@ -1,0 +1,6 @@
+# Arch's iio-sensor-proxy rule enables only SSC light and compass. The same
+# FastRPC endpoint also carries the Tab S5e's LSM6DSM accelerometer.  The
+# factory SSC registry exposes a zero placement matrix even though Samsung's
+# device-specific configuration declares x=-y, y=-x, z=-z.  Pass that real
+# panel-space matrix to iio-sensor-proxy instead of its identity fallback.
+SUBSYSTEM=="misc", KERNEL=="fastrpc-adsp", ENV{IIO_SENSOR_PROXY_TYPE}+="ssc-accel", ENV{ACCEL_MOUNT_MATRIX}="0, -1, 0; -1, 0, 0; 0, 0, -1"

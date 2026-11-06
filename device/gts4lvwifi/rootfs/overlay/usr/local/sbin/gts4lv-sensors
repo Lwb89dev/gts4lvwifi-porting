@@ -1,0 +1,68 @@
+#!/bin/bash
+# Prepare the Tab S5e's read-only FastRPC filesystem and start its ADSP.
+# Android's dsp, vendor and persist partitions are never written: only the
+# directories needed by hexagonrpcd are bind-mounted below /run.
+set -euo pipefail
+
+run=/run/gts4lv
+root=/run/gts4lv-sensors-root
+assets=/usr/lib/gts4lv/sensors
+
+die() { echo "gts4lv-sensors: $*" >&2; exit 1; }
+
+part() { # device node of the partition with this GPT name
+	local u
+	for u in /sys/class/block/mmcblk0p*/uevent; do
+		grep -qx "PARTNAME=$1" "$u" || continue
+		echo "/dev/$(basename "$(dirname "$u")")"
+		return 0
+	done
+	return 1
+}
+
+mount_ro() { # <partition> <target>
+	local dev
+	mountpoint -q "$2" && return 0
+	dev=$(part "$1") || die "no partition '$1'"
+	install -d -m 0755 "$2"
+	mount -t ext4 -o ro,noload "$dev" "$2"
+}
+
+bind_ro() { # <source> <target>
+	mountpoint -q "$2" && return 0
+	[ -e "$1" ] || die "missing $1"
+	install -d -m 0755 "$2"
+	mount --bind "$1" "$2"
+	mount -o remount,bind,ro "$2"
+}
+
+prepare() {
+	# vendor is already mounted by gts4lv-firmware.service.
+	mountpoint -q "$run/vendor" || die "gts4lv-firmware has not mounted vendor"
+	mount_ro persist "$run/persist"
+	mount_ro dsp "$run/dsp"
+
+	install -d -m 0755 "$root/sensors" "$root/socinfo"
+	bind_ro "$run/dsp" "$root/dsp"
+	bind_ro "$run/vendor/etc/sensors/config" "$root/sensors/config"
+	bind_ro "$run/persist/sensors/registry/registry" "$root/sensors/registry"
+	install -m 0644 "$assets/sns_reg.conf" "$root/sensors/sns_reg.conf"
+	install -m 0644 "$assets"/socinfo/* "$root/socinfo/"
+
+	echo "gts4lv-sensors: $(find "$root/sensors/registry" -mindepth 1 -maxdepth 1 | wc -l) registry records exposed read-only"
+}
+
+start_adsp() {
+	/usr/local/sbin/gts4lv-dsp start adsp
+	for _ in $(seq 50); do
+		[ -c /dev/fastrpc-adsp ] && return 0
+		sleep 0.1
+	done
+	die "/dev/fastrpc-adsp did not appear"
+}
+
+case ${1:-} in
+prepare) prepare ;;
+start-adsp) start_adsp ;;
+*) die "usage: gts4lv-sensors prepare|start-adsp" ;;
+esac

@@ -75,6 +75,7 @@
 #define FTS_ERR_QUEUE_FULL		0x01
 
 #define FTS_READY_TRIES			10
+#define FTS_RESET_TRIES			3
 
 #define FTS_MAX_X			1599
 #define FTS_MAX_Y			2559
@@ -314,16 +315,27 @@ static int fts_start(struct fts_ts *ts)
 		0x00,
 	};
 	static const u8 scan[] = { FTS_CMD_SCANMODE, 0x00, FTS_SCAN_MODE_MS_SS };
-	int err;
+	int attempt, err = -ETIMEDOUT;
 
-	err = fts_write(ts, reset, sizeof(reset));
-	if (err)
-		return err;
-	msleep(20);
-
-	err = fts_wait_ready(ts);
+	/*
+	 * Samsung retries the complete reset after a failed READY wait.  This is
+	 * important on the GTS4L: a GPI I2C timeout can consume the first attempt,
+	 * while the controller answers normally on the next one.
+	 */
+	for (attempt = 1; attempt <= FTS_RESET_TRIES; attempt++) {
+		err = fts_write(ts, reset, sizeof(reset));
+		if (!err) {
+			msleep(20);
+			err = fts_wait_ready(ts);
+		}
+		if (!err)
+			break;
+		dev_warn(&ts->client->dev, "reset attempt %d/%d failed: %d\n",
+			 attempt, FTS_RESET_TRIES, err);
+		msleep(100);
+	}
 	if (err) {
-		dev_err(&ts->client->dev, "controller not ready after reset: %d\n", err);
+		dev_err(&ts->client->dev, "controller not ready after reset retries: %d\n", err);
 		return err;
 	}
 	err = fts_check_id(ts);
@@ -351,7 +363,9 @@ static void fts_disable_supplies(void *data)
 {
 	struct fts_ts *ts = data;
 
-	regulator_bulk_disable(ARRAY_SIZE(ts->supplies), ts->supplies);
+	/* Reverse the downstream power-on order: DVDD first, then AVDD. */
+	regulator_disable(ts->supplies[0].consumer);
+	regulator_disable(ts->supplies[1].consumer);
 }
 
 static int fts_probe_input(struct fts_ts *ts)
@@ -390,17 +404,23 @@ static int fts_power_up(struct fts_ts *ts)
 
 	for (i = 0; i < ARRAY_SIZE(ts->supplies); i++)
 		ts->supplies[i].supply = fts_supply_names[i];
-	/* on the Tab S5e both rails are always on; a missing one is a dummy */
 	err = devm_regulator_bulk_get(dev, ARRAY_SIZE(ts->supplies), ts->supplies);
 	if (err)
 		return dev_err_probe(dev, err, "supplies\n");
-	err = regulator_bulk_enable(ARRAY_SIZE(ts->supplies), ts->supplies);
+	/* Samsung's board sequence is AVDD, 1 ms, DVDD, then at least 5 ms. */
+	err = regulator_enable(ts->supplies[1].consumer);
 	if (err)
 		return err;
+	usleep_range(1000, 1500);
+	err = regulator_enable(ts->supplies[0].consumer);
+	if (err) {
+		regulator_disable(ts->supplies[1].consumer);
+		return err;
+	}
 	err = devm_add_action_or_reset(dev, fts_disable_supplies, ts);
 	if (err)
 		return err;
-	msleep(20);
+	msleep(55);
 	return 0;
 }
 

@@ -1,0 +1,4 @@
+# Pinned 2026-11-05 from each repository's signed package database.
+# name url sha256 primary-signing-key-fingerprint
+omarchy-keyring https://pkgs.omarchy.org/stable/aarch64/omarchy-keyring-20251027-1-any.pkg.tar.zst cce48c07cfc2b97e198df1bc81705db2921685032fe39f18b4ddfd84264b5967 40DFB630FF42BCFFB047046CF0134EE680CAC571
+omamobile-keyring https://pkgs.omamobile.org/stable/aarch64/omamobile-keyring-20261026-1-any.pkg.tar.zst 83684eeda2ae7e1929109b0a65ede42bc174e7f00fa093dc69243714a2b125a0 6C84FE3D240709E70E27CC94B301F5EA62B249FE

@@ -1,0 +1,17 @@
+[Unit]
+Description=Tab S5e Snapdragon Sensor Core
+Requires=gts4lv-sensors-root.service
+After=gts4lv-sensors-root.service
+Before=iio-sensor-proxy.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hexagonrpcd -f /dev/fastrpc-adsp -d adsp -s -R /run/gts4lv-sensors-root
+# SSC publishes its sensor catalogue asynchronously. Keep dependent services
+# behind this unit until the accelerometer is available as well as light.
+ExecStartPost=/usr/bin/sleep 5
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

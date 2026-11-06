@@ -1,0 +1,13 @@
+[Unit]
+Description=FastRPC root process for the Tab S5e ADSP
+Requires=gts4lv-sensors-prepare.service
+After=gts4lv-sensors-prepare.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/gts4lv-sensors start-adsp
+ExecStart=/usr/bin/hexagonrpcd -f /dev/fastrpc-adsp -d adsp -R /run/gts4lv-sensors-root
+# The sensors process can attach only after the root listener is serving.
+ExecStartPost=/usr/bin/sleep 2
+Restart=on-failure
+RestartSec=2

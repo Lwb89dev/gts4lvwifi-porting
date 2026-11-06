@@ -1,6 +1,6 @@
 # Progresso del port gts4lvwifi
 
-Aggiornato il 2026-11-05 sera, branch `feat/gts4lvwifi-mainline-bringup`.
+Aggiornato il 2026-11-06 mezzogiorno, branch `feat/gts4lvwifi-mainline-bringup`.
 Questo file è il racconto unico di quello che è stato fatto su questo SM-T720.
 Le misure riga per riga stanno in `device/gts4lvwifi/NOTES.md`. Il runbook di
 rollback sta in `docs/RECOVERY-RUNBOOK.md`.
@@ -84,14 +84,16 @@ nuove.
 | Bluetooth | `hci0`; telefono accoppiato e fidato; **la musica del telefono suona dagli altoparlanti del tablet** (A2DP sink via PipeWire); sulla v6 le chiavi non ci sono più (stavano nella vecchia immagine): **il telefono va riaccoppiato**; non provati: riconnessione dopo il riavvio, tablet come sorgente (cuffie) | proprietario |
 | Modem DSP | stabile; parte da unit al boot | misurato |
 | Batteria/ricarica (SM5705) | funziona | misurato |
-| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme, x 122..1530 e y 148..2551 (bordi sinistro e alto non raggiunti del tutto: da verificare con uno strisciamento deciso sul bordo); libinput e compositor non provati; sulla v6 il modulo si carica da solo al boot | proprietario, `scripts/touch-summary.py` |
+| Tocco (FTS1BA90A) | driver nostro, interrupt da device tree; via `evtest`: 19.153 eventi, 173 contatti aperti e chiusi, fino a 4 dita insieme. Hyprland riceve il flusso completo; il mapping persistente del pannello DSI-1 usa `transform=3` | proprietario, `scripts/touch-summary.py`, cattura Hyprland |
 | Display (`msm` + pannello) | **funziona**: barre SMPTE complete (foto del proprietario, girate di 90° perché il modo è orizzontale), nessuna cucitura visibile. Serve `handover=1` al driver del pannello e un ciclo DPMS spento/acceso dopo `msm` (`gts4lv-display start`). Luminosità (160, 100, 40, 255, 160) senza artefatti; refresh a circa 63 Hz con i fotogrammi in arrivo (29 Hz a riposo). Aperti: la console di testo non scrive su `msmdrmfb`, off/on da compositor, tearing | proprietario |
-| GPU | `renderD128` e firmware caricati; nessun test GL/Vulkan | solo presenza |
+| GPU | **funziona**: Freedreno FD615, OpenGL 4.6 / ES 3.2 e Turnip Vulkan 1.3; nessun fallback software | `scripts/gpu-smoke.sh` |
 | Audio, altoparlanti | **suona** con la protezione DSP caricata e nel percorso, via PipeWire; tutti e quattro producono suono; livello di lavoro 0 dB digitale e analogico 0 (scelto dal proprietario fra quattro fasi; più guadagno analogico suonava più piano); l'abbinamento amplificatore-altoparlante e sinistra/destra non sono stabiliti. Servono `gts4lv-audio start` e l'utente `alarm`; sulla v6 l'uscita predefinita di PipeWire è già gli altoparlanti (testato: tono sentito da tutti e quattro) | proprietario, registri I2C |
 | Audio, codec interno (microfoni, cuffie) | **l'ADSP va in crash** a ogni uso del codec digitale interno, anche in riproduzione (AHB bus hang in `0x62…`); il clock vero `INTERNAL_DIGITAL_CODEC_CORE` è rifiutato dal firmware e fa sparire la scheda | misurato, 6 crash |
 | ADSP | parte e si ferma pulito | misurato |
-| microSD, sensori, fotocamere, codec video in uso, sospensione | non provati (il canale FastRPC dell'ADSP c'è, `hexagonrpc` è in `packages/`) | — |
-| M8 (Omarchy), M9 (pacchetti/CI) | non iniziati | — |
+| Sensori SSC | **parziali**: servizi e catalogo partono al boot; luce VEML3328, magnetometro AK0991x e bussola scorrono. LSM6DSM enumera ma ripete un vettore di gravità fisso, quindi l'autorotazione è bloccata. Il modello Wi-Fi non pubblica prossimità | `ssccli`, D-Bus, due reboot |
+| microSD, fotocamere, codec video in uso, sospensione | non provati | — |
+| M8 (Omarchy) | immagine installata e avviata; Hyprland mobile, Quickshell e squeekboard girano sul pannello con GPU hardware e touch calibrato. Il display manager resta disabilitato durante il bring-up | misurato sul tablet |
+| M9 (pacchetti/CI) | non iniziato | — |
 
 ### Cose che fanno male, imparate qui
 
@@ -1630,3 +1632,65 @@ Dettagli, ordine di avvio e la regola che ne segue in `docs/AUDIO-PLAN.md`.
 ## Prossimo passo
 
 Vale la sezione «Passaggio di consegne» in cima a questo file.
+
+## 2026-11-06 mezzogiorno: sessione M8, touch e sensori sincronizzati
+
+- SDDM avviato dopo `gts4lv-display`: Hyprland usa DSI-1 2560x1600 a scala 3,2 con MSM/FD615,
+  Quickshell e squeekboard. Avviarlo prima del servizio display lo legava invece a simpledrm e
+  llvmpipe; ora una dipendenza systemd ordina display prima di SDDM, che resta disabilitato al boot.
+- Il touch è vivo anche nella sessione grafica: una cattura ha 5.077 righe, 4.193 eventi ABS e
+  press/release corretti. Il controller è ruotato rispetto al pannello nativo landscape; la
+  configurazione persistente usa DSI-1 e `transform=3`. Il debug evento-per-evento è stato spento.
+- Omarchy bloccava dopo 60 s e spegneva subito lo schermo dietro il lock. Durante il bring-up è attivo
+  Stay awake; la configurazione persistente porta il lock a 600 s, mantenendo il toggle rapido.
+- SSC enumera LSM6DSM, VEML3328 e AK0991x. Le prime catture sembravano immobili perché movimento e
+  campionamento non erano sincronizzati. Durante prove concordate col proprietario, 263 campioni
+  accelerometro sono cambiati (X 6,364..7,185, Y -1,006..-0,239, Z 6,636..7,496 m/s²), il giroscopio
+  diretto è cambiato su tutti gli assi e D-Bus ha emesso `normal`, `right-up`, `normal`. Il moto SSC è
+  quindi reale. Le prove con registry in RAM scrivibile e `is_dri=0` erano inutili, sono state
+  annullate e `persist` è di nuovo esposto `ro,norecovery`.
+- Il record factory `placement` è tutto zero, mentre la configurazione Samsung dichiara `x=-y,
+  y=-x, z=-z`: la regola udev ora passa questa matrice a `iio-sensor-proxy`. L'autorotazione specifica
+  per il Tab S5e mantiene il touch a `(transform pannello + 3) mod 4` e usa il nome unità atteso dal
+  toggle Omarchy. La prima prova ruotava il pannello nel verso opposto, lasciando l'immagine a 180°
+  dalla posizione attesa dopo un quarto di giro. Scambiati i transform 1 e 3, il proprietario ha
+  confermato immagine e touch «perfetti» nelle rotazioni vive; il servizio resta abilitato per `alarm`.
+
+## 2026-11-05 notte: GPU passata e primo rootfs M8 costruito
+
+- Sul tablet vivo, dopo `gts4lv-display start`, `scripts/gpu-smoke.sh` ha verificato OpenGL 4.6 / ES
+  3.2 con Freedreno `FD615` e Vulkan 1.3 con Turnip `Adreno 615`; nessun `llvmpipe`, reset o errore.
+  I tentativi separati con log continuo sono in `out/gpu-egl-first/` e `out/gpu-vulkan-first/`.
+- M8 è iniziato sul PC. `scripts/build-omarchy-rootfs.sh` costruisce in `out/rootfs-omarchy/`, separato
+  dalla v6. Il primo risultato contiene 631 pacchetti in un ext4 da 12 GiB: Omarchy 4.5.0,
+  `omamobile-shell` 0.2.100, Hyprland mobile 0.57.0, Mesa e Turnip ALARM 26.2.6. SDDM è disabilitato.
+- Trovato nel resolver reale: Omarchy stable porta ancora Aquamarine ABI 14, incompatibile con
+  Hyprland mobile e `hyprtoolkit` correnti (ABI 15). I quattro componenti ABI vengono quindi da Arch
+  `extra` e sono protetti insieme a Mesa contro una sostituzione dai repository Mali/stable.
+- Keyring, sha256 e fingerprint sono fissati in `omarchy-repos.lock`. `e2fsck`, il verificatore base e
+  quello M8 passano. Hash locali: immagine `d95c8eb2…`, tar `f55c6ff1…`, lista pacchetti `4ae51b6d…`.
+- Il tablet non è stato scritto e continua a eseguire la v6. Il prossimo passo è copiare questa immagine
+  da Lineage, ricostruire la recovery con i suoi extent, avviarla e solo dopo lanciare Hyprland a mano.
+
+## 2026-11-06 mattina: M8 vivo e sensori SSC
+
+- Il rootfs M8 da 12 GiB è sul tablet e si avvia. Installati anche i pacchetti della manifestazione
+  ufficiale Omarchy disponibili per questa architettura: 930 pacchetti totali. Omarchy 4.5.0-3,
+  Omarchy Mobile shell 0.2.100, Hyprland mobile 0.57 e Mesa/Turnip ALARM 26.2.6. Una sessione manuale
+  ha mostrato DSI-1 a 2560x1600, scala 3,2, con Hyprland, Quickshell e squeekboard attivi.
+- `hexagonrpc 0.5.0-2` contiene una patch riproducibile che restituisce al DSP gli errori RPC non
+  supportati senza terminare il listener. La partizione `persist`, come `dsp` e `vendor`, è montata
+  `ro,noload`; al DSP sono esposti sotto `/run` soltanto i 79 record di registry, i 18 JSON di
+  configurazione, le librerie ADSP e i valori socinfo del dispositivo.
+- `gts4lv-sensors-{prepare,root}.service` e `gts4lv-sensors.service` avviano ADSP, root-PD e sensors-PD;
+  un'attesa di readiness impedisce a `iio-sensor-proxy` di partire prima che SSC pubblichi
+  l'accelerometro. Dopo due reboot: quattro unità attive, zero fallite, `HasAccelerometer=true` e
+  `HasAmbientLight=true`. Misure reali: accelerazione con gravità circa 9,89 m/s², luce 124-129 lux,
+  magnetometro e bussola continui. `HasProximity=false`: SSC non offre quel sensore su questo modello.
+- Il touch continua a fare probe come FTS1BA90A su `event3`, GPIO 123 level-low. In questo boot il
+  contatore è rimasto a 1 perché non è ancora arrivata una prova fisica; il test evdev del giorno prima
+  resta valido. Il logging passivo è stato attivato in attesa di 2-3 swipe del proprietario.
+- Stato al passaggio: dopo il secondo reboot due processi `sshd-auth` sono entrati in spin al 99 % e
+  non hanno risposto a SIGKILL. La rete e il kernel rispondono, ma il job di restart di sshd e poi lo
+  stop dell'ADSP dalla console seriale sono rimasti bloccati. Serve Power + Volume-giù; al ritorno si
+  verifica prima SSH/clock, poi il log touch. Nessuna partizione Android è stata scritta.

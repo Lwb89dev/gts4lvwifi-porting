@@ -1,0 +1,10 @@
+[Unit]
+Description=Bring up the Tab S5e MSM display before the graphical session
+After=systemd-udevd.service
+Before=sddm.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gts4lv-display start
+

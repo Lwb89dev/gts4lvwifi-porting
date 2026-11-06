@@ -11,8 +11,8 @@ LTE models (SM-T725) are a different board and are out of scope.
 | M0 to M3: audit, kernel, initramfs, recovery packer | passed, built and checked offline |
 | M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
 | M6: Arch Linux ARM | passed: systemd, ssh over USB, `pacman`; the root image is now v6 |
-| M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch (read through evdev, up to 4 fingers), display (colour bars, brightness), the four speakers through PipeWire. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, sensors, suspend, cameras, GPU rendering, video decode. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
-| M8: Omarchy Mobile | not started: `docs/OMARCHY-PLAN.md` |
+| M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch through evdev and Hyprland, display, Freedreno/Turnip, the four speakers through PipeWire, sensors through ADSP SSC, and Omarchy autorotation with calibrated touch. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, suspend, cameras and video decode. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
+| M8: Omarchy Mobile | in progress on the tablet: Omarchy 4.5, Hyprland mobile, Quickshell, squeekboard, hardware GL/Vulkan and calibrated touch run on DSI-1. SDDM remains disabled at boot during bring-up |
 | M9: CI | a static workflow runs on every push; the kernel build stays manual |
 
 The state in detail, with every measurement and what went wrong, is in

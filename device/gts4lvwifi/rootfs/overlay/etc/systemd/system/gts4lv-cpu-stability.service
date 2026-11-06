@@ -1,0 +1,12 @@
+[Unit]
+Description=Avoid the Tab S5e per-CPU power-collapse timer hang
+Before=sshd.service
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpuidle
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/gts4lv-cpu-stability
+
+[Install]
+WantedBy=multi-user.target
