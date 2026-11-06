@@ -1,45 +1,50 @@
 # PROJECT: OMARCHY MOBILE — SAMSUNG GALAXY TAB S5e (SM-T720)
 ## Engineering assignment: Mainline Linux bring-up, Arch Linux ARM integration and complete Omarchy Mobile port
 
-### 0. RUOLO E MISSIONE
+### 0. ROLE AND MISSION
 
-Agisci come un team composto da:
+Act as a team made up of:
 
-- Linux ARM64 kernel engineer, specializzato in Qualcomm Snapdragon.
-- Device Tree e platform driver engineer.
-- Android/Samsung boot-chain e recovery specialist.
-- Arch Linux ARM distribution engineer.
-- Wayland, Mesa, Freedreno e Hyprland engineer.
-- Embedded Linux integration e release engineer.
-- QA engineer per hardware bring-up.
+- A Linux ARM64 kernel engineer specialised in Qualcomm Snapdragon.
+- A Device Tree and platform-driver engineer.
+- An Android/Samsung boot-chain and recovery specialist.
+- An Arch Linux ARM distribution engineer.
+- A Wayland, Mesa, Freedreno and Hyprland engineer.
+- An embedded Linux integration and release engineer.
+- A QA engineer for hardware bring-up.
 
-Non devi limitarti a produrre un'analisi teorica. Devi esaminare i sorgenti, continuare il lavoro esistente, scrivere codice, compilare quando possibile, correggere errori, preparare test ripetibili e documentare ogni risultato.
+Do not limit yourself to theoretical analysis. Examine the sources, continue the existing work, write
+code, compile when possible, fix errors, prepare repeatable tests and document every result.
 
-**Obiettivo finale:** portare Omarchy Mobile di Derek Ross sul Samsung Galaxy Tab S5e Wi-Fi SM-T720, eseguendo Arch Linux ARM e Hyprland direttamente sull'hardware, senza Android come sistema operativo sottostante.
+**Final goal:** port Derek Ross's Omarchy Mobile to the Samsung Galaxy Tab S5e Wi-Fi SM-T720, running
+Arch Linux ARM and Hyprland directly on the hardware, without Android as the underlying operating system.
 
-L'obiettivo iniziale, invece, è molto più ristretto: ottenere un kernel mainline-based compilato, un'immagine recovery verificabile e successivamente una shell Linux funzionante via USB.
+The initial goal is narrower: obtain a compiled mainline-based kernel, a verifiable recovery image and,
+later, a working Linux shell over USB.
 
-Non considerare completata una fase soltanto perché il codice compila. Ogni milestone deve avere criteri di accettazione misurabili.
+Do not consider a phase complete merely because the code compiles. Every milestone must have measurable
+acceptance criteria.
 
 ---
 
-### 1. REPOSITORY E SORGENTI
+### 1. REPOSITORY AND SOURCES
 
-**Repository principale, obbligatorio:**
+**Required main repository:**
 
 https://github.com/Lwb89dev/gts4lvwifi-porting
 
-Questo è il repository di lavoro. Non creare un nuovo repository per il progetto e non sostituirne arbitrariamente la struttura.
+This is the working repository. Do not create a new repository for the project or arbitrarily replace
+its structure.
 
 **Omarchy Mobile upstream:**
 
 https://github.com/derekross/omarchy-mobile
 
-**Kernel mainline-based specifico per il tablet:**
+**Tablet-specific mainline-based kernel:**
 
 https://github.com/pulpoff/linux-gts4lv
 
-**Riferimenti supplementari:**
+**Additional references:**
 
 - https://github.com/LineageOS/android_device_samsung_gts4lvwifi
 - https://github.com/LineageOS/android_device_samsung_gts4lv-common
@@ -48,9 +53,9 @@ https://github.com/pulpoff/linux-gts4lv
 - https://www.kernel.org/
 - https://docs.kernel.org/
 
-Leggi obbligatoriamente i seguenti documenti prima di modificare codice:
+Read the following documents before modifying code.
 
-Nel nostro repository:
+In this repository:
 
 - `README.md`
 - `PROCESS.md`
@@ -63,7 +68,7 @@ Nel nostro repository:
 - `scripts/build-kernel.sh`
 - `.github/workflows/kernel.yml`
 
-Nell'upstream Omarchy Mobile:
+In Omarchy Mobile upstream:
 
 - `README.md`
 - `AGENTS.md`
@@ -73,262 +78,276 @@ Nell'upstream Omarchy Mobile:
 - `docs/RELEASES.md`
 - `tools/build-packages`
 - `tools/build-rootfs`
-- I pacchetti `omamobile-shell`, `omamobile-apps` e i pacchetti device-specific.
+- The `omamobile-shell`, `omamobile-apps` and device-specific packages.
 
-Nel kernel di pulpoff:
+In pulpoff's kernel:
 
 - `README.md`
 - `arch/arm64/configs/sdm670.config`
 - `arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts`
 - `arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi-dtbo-mask.dtsi`
-- La directory `mobian/`, particolarmente gli strumenti per il boot, touchscreen, USB, firmware e power management.
+- The `mobian/` directory, especially the boot, touchscreen, USB, firmware and power-management tools.
 
-Controlla lo stato attuale dei repository prima di lavorare: branch, ultimi commit, modifiche locali, licenze e incompatibilità eventuali.
+Check the current repository state before working: branch, latest commits, local changes, licences and
+any incompatibilities.
 
-Utilizza `sources.lock` per le revisioni riproducibili. Non aggiornare le revisioni soltanto perché esiste un commit più recente: documenta prima il motivo e l'impatto.
+Use `sources.lock` for reproducible revisions. Do not update revisions merely because a newer commit
+exists: document the reason and impact first.
 
-### 2. HARDWARE TARGET E STATO DI PARTENZA
+### 2. HARDWARE TARGET AND STARTING STATE
 
-Il dispositivo è:
+The device is:
 
-| Campo | Valore |
+| Field | Value |
 |---|---|
-| Modello | Samsung Galaxy Tab S5e Wi-Fi |
+| Model | Samsung Galaxy Tab S5e Wi-Fi |
 | Codename | `gts4lvwifi` |
 | Model number | SM-T720 |
 | SoC | Qualcomm Snapdragon 670 / SDM670 |
 | CPU architecture | ARM64 / AArch64 |
 | GPU | Qualcomm Adreno 615 |
-| RAM del dispositivo | 4 GB |
+| Device RAM | 4 GB |
 | Display | AMOLED 2560×1600 |
 | Storage | eMMC |
-| Partizionamento boot | Single-slot, non A/B |
-| Sistema attuale | LineageOS 22.2, Android 15 |
-| Kernel Android attuale | Linux 4.9.337 |
-| Bootloader | Sbloccato, secondo le verifiche precedenti |
+| Boot partitioning | Single-slot, not A/B |
+| Current system | LineageOS 22.2, Android 15 |
+| Current Android kernel | Linux 4.9.337 |
+| Bootloader | Unlocked, according to previous checks |
 
-I dati sono documentati nel repository, ma vanno riconfermati prima di qualsiasi procedura che possa interessare il dispositivo.
+The data is documented in the repository, but must be reconfirmed before any procedure that could
+affect the device.
 
-Il modello LTE SM-T725 è esplicitamente escluso.
+The LTE SM-T725 model is explicitly out of scope.
 
-Il PC di sviluppo principale è un HP OMEN 16 x86_64 con Pop!_OS 24.04 LTS.
+The main development PC is an HP OMEN 16 x86_64 running Pop!_OS 24.04 LTS.
 
-Può effettuare cross-compilation per AArch64. Verifica le caratteristiche effettive della macchina, i compilatori, la RAM e lo spazio libero senza assumere che sia Arch Linux. Usa `apt` per le dipendenze native di Pop!_OS, salvo ambienti isolati differenti.
+It can cross-compile for AArch64. Check the actual machine capabilities, compilers, RAM and free space
+instead of assuming it is Arch Linux. Use `apt` for native Pop!_OS dependencies, except in separate
+isolated environments.
 
-### 3. VINCOLI ARCHITETTURALI
+### 3. ARCHITECTURAL CONSTRAINTS
 
 #### 3.1 Kernel
 
-La base scelta è `pulpoff/linux-gts4lv`, non `derekross/linux-omarchy-mobile`.
+The chosen base is `pulpoff/linux-gts4lv`, not `derekross/linux-omarchy-mobile`.
 
-Motivo: il kernel di Derek Ross è orientato principalmente ai dispositivi Tensor/Pixel, mentre pulpoff ha già integrato il supporto specifico per SDM670 e Tab S5e.
+Reason: Derek Ross's kernel is primarily aimed at Tensor/Pixel devices, while pulpoff already integrated
+support specific to SDM670 and the Tab S5e.
 
-Il kernel di pulpoff è mainline-based, con patch aggiuntive. Non presentarlo come un kernel vanilla integralmente upstream.
+Pulpoff's kernel is mainline-based, with additional patches. Do not present it as a completely vanilla,
+fully upstream kernel.
 
-Il kernel Samsung 4.9 è soltanto un riferimento per registri, inizializzazioni, timing e configurazioni hardware.
+The Samsung 4.9 kernel is only a reference for registers, initialisation, timing and hardware settings.
 
-Il nostro obiettivo a lungo termine è ridurre le patch fuori albero e inviare le modifiche appropriate upstream.
+Our long-term goal is to reduce out-of-tree patches and submit appropriate changes upstream.
 
 #### 3.2 Bootloader
 
-Il tablet Samsung è single-slot.
+The Samsung tablet is single-slot.
 
-Non utilizzare i comandi di installazione Pixel di Omarchy Mobile.
+Do not use Omarchy Mobile's Pixel installation commands.
 
-**È vietato eseguire `tools/install-phone` sul Tab S5e.**
+**Running `tools/install-phone` on the Tab S5e is forbidden.**
 
-Il percorso previsto dal progetto è:
+The project path is:
 
-- LineageOS rimane nella partizione `boot`.
-- Linux viene avviato attraverso `recovery`.
-- Il bootloader Samsung richiede un'immagine Android boot header v1.
-- Il DTB è concatenato a `Image.gz`.
-- Il `recovery_dtbo` deve essere quello compatibile con il bootloader Samsung.
+- LineageOS remains in the `boot` partition.
+- Linux is booted through `recovery`.
+- The Samsung bootloader requires an Android boot header v1 image.
+- The DTB is concatenated to `Image.gz`.
+- `recovery_dtbo` must be compatible with the Samsung bootloader.
 
-La partizione recovery misurata è di **72.744.960 byte**. Non confonderla con la dimensione di boot, pari a 67.108.864 byte.
+The measured recovery partition is **72,744,960 bytes**. Do not confuse it with the boot size,
+67,108,864 bytes.
 
-Verifica le misure di `PROCESS.md` e `device.conf`, non usare valori generici trovati su Internet.
+Check the measurements in `PROCESS.md` and `device.conf`; do not use generic values found on the Internet.
 
 #### 3.3 Root filesystem
 
-Il sistema definitivo dovrà usare Arch Linux ARM AArch64.
+The final system must use Arch Linux ARM AArch64.
 
-Non cancellare o riformattare `userdata` per installarlo.
+Do not delete or reformat `userdata` to install it.
 
-La partizione dati corrente di LineageOS è ext4 con file-based encryption. Non presumere che sia possibile montarla direttamente da Linux o creare un file immagine senza affrontare crittografia e mappatura degli extent.
+The current LineageOS data partition is ext4 with file-based encryption. Do not assume it can be mounted
+directly from Linux or that an image file can be created without handling encryption and extent mapping.
 
-Studia il metodo implementato da pulpoff con `dm-linear`, ma consideralo una soluzione candidata da verificare, non automaticamente sicura.
+Study pulpoff's `dm-linear` method, but treat it as a candidate solution to verify, not as automatically safe.
 
-Valuta anche un rootfs iniziale su microSD, se il supporto hardware e le modalità di avvio risultano verificati.
+Also evaluate an initial rootfs on microSD if the hardware support and boot modes are verified.
 
-### 4. REGOLE DI SICUREZZA — NON NEGOZIABILI
+### 4. SAFETY RULES — NON-NEGOTIABLE
 
-Prima di ogni modifica che riguarda hardware reale, priorità assoluta alla possibilità di recupero.
+Before every change affecting real hardware, give absolute priority to recoverability.
 
-È vietato, senza approvazione esplicita dell'utente:
+Without explicit user approval, it is forbidden to:
 
-- Flashare qualsiasi partizione.
-- Riavviare o forzare lo spegnimento del tablet.
-- Modificare `boot`, `dtbo`, `vbmeta`, `userdata`, `misc`, bootloader o partizioni di calibrazione.
-- Eseguire scritture raw con `dd`, Heimdall, Odin o altri programmi.
-- Cambiare gli stati di verifica del boot.
-- Applicare modifiche persistenti al sistema LineageOS esistente.
+- Flash any partition.
+- Reboot or forcibly power off the tablet.
+- Modify `boot`, `dtbo`, `vbmeta`, `userdata`, `misc`, the bootloader or calibration partitions.
+- Perform raw writes with `dd`, Heimdall, Odin or other programs.
+- Change boot-verification states.
+- Apply persistent changes to the existing LineageOS system.
 
-Per ogni attività che può diventare distruttiva, produci prima:
+For every activity that could become destructive, provide first:
 
-1. Comando esatto da utilizzare.
-2. Identificazione verificata del dispositivo.
-3. Partizione interessata.
-4. Rischi concreti.
-5. Risultato atteso.
-6. Procedura di rollback.
-7. Condizioni che impongono di interrompersi.
-8. Richiesta di autorizzazione.
+1. The exact command to use.
+2. Verified device identification.
+3. The affected partition.
+4. Concrete risks.
+5. Expected result.
+6. Rollback procedure.
+7. Conditions that require stopping.
+8. A request for authorisation.
 
-Mantieni backup locali delle informazioni e delle partizioni necessarie al ripristino. Non caricare immagini di partizioni o dati personali su GitHub.
+Keep local backups of the information and partitions needed for recovery. Do not upload partition images
+or personal data to GitHub.
 
-Non distribuire firmware proprietario, dati NV, indirizzi MAC, seriali o informazioni di calibrazione.
+Do not distribute proprietary firmware, NV data, MAC addresses, serial numbers or calibration information.
 
-Controlla anche i file binari già presenti nel repository, compreso il `lineage-recovery-dtbo.img`: documentane provenienza, checksum e condizioni di redistribuzione. Se necessario, prepara un meccanismo di estrazione locale dal firmware dell'utente anziché distribuire il blob.
+Also inspect binary files already present in the repository, including `lineage-recovery-dtbo.img`:
+document their origin, checksum and redistribution conditions. If necessary, prepare a local extraction
+mechanism from the owner's firmware instead of distributing the blob.
 
-I test automatici devono essere non distruttivi.
+Automated tests must be non-destructive.
 
 ---
 
-## 5. MILESTONE M0 — AUDIT E PREPARAZIONE AMBIENTE
+## 5. MILESTONE M0 — AUDIT AND ENVIRONMENT PREPARATION
 
-### Attività
+### Activities
 
-1. Recupera il repository principale oppure utilizza il checkout locale già presente.
-2. Controlla `git status`, branch, remote e commit.
-3. Non cancellare modifiche non committate.
-4. Crea un branch dedicato, per esempio `feat/gts4lvwifi-mainline-bringup`, se non esiste già un branch di sviluppo appropriato.
-5. Verifica `sources.lock` e gli hash dei sorgenti.
-6. Controlla i prerequisiti di compilazione.
-7. Verifica disponibilità di CPU, RAM, disco e toolchain ARM64.
-8. Controlla la configurazione GitHub Actions.
-9. Identifica problemi e duplicazioni nell'attuale struttura del repository.
-10. Produci un rapporto tecnico sullo stato del progetto, distinguendo tra implementato, compilato, testato e ancora mancante.
+1. Retrieve the main repository or use the existing local checkout.
+2. Check `git status`, branch, remote and commits.
+3. Do not delete uncommitted changes.
+4. Create a dedicated branch, for example `feat/gts4lvwifi-mainline-bringup`, unless an appropriate development branch already exists.
+5. Verify `sources.lock` and source hashes.
+6. Check build prerequisites.
+7. Check available CPU, RAM, disk and ARM64 toolchain.
+8. Check the GitHub Actions configuration.
+9. Identify problems and duplication in the current repository structure.
+10. Produce a technical status report distinguishing implemented, compiled, tested and still-missing work.
 
-Verifica in particolare che i seguenti file siano utilizzabili:
+In particular, verify that these files are usable:
 
 - `scripts/fetch-sources.sh`
 - `scripts/build-kernel.sh`
 - `device/gts4lvwifi/device.conf`
 - `sources.lock`
 
-Non riscrivere questi componenti se già funzionano. Correggi soltanto problemi documentabili.
+Do not rewrite these components if they already work. Fix only documented problems.
 
-### Deliverable
+### Deliverables
 
 - `docs/AUDIT.md`
 - `docs/BUILD-ENVIRONMENT.md`
-- Un riepilogo dei prerequisiti mancanti.
-- Una checklist verificabile dell'ambiente di compilazione.
+- A summary of missing prerequisites.
+- A verifiable build-environment checklist.
 
-**Criterio di accettazione M0:** sorgenti identificati, ambiente pronto e build riproducibile pianificata senza modificare il tablet.
+**M0 acceptance criterion:** sources identified, environment ready and a reproducible build planned
+without modifying the tablet.
 
 ---
 
-## 6. MILESTONE M1 — CROSS-COMPILATION DEL KERNEL
+## 6. MILESTONE M1 — KERNEL CROSS-COMPILATION
 
-### Obiettivo
+### Objective
 
-Produrre gli artefatti ARM64 per il Galaxy Tab S5e usando il kernel già fissato dal repository.
+Produce ARM64 artifacts for the Galaxy Tab S5e using the kernel fixed by the repository.
 
-### Procedura
+### Procedure
 
-Parti dagli script esistenti:
+Start with the existing scripts:
 
 ```bash
 scripts/fetch-sources.sh
 scripts/build-kernel.sh
 ```
 
-Verifica che la compilazione utilizzi:
+Verify that the build uses:
 
 - `ARCH=arm64`
-- Cross compiler `aarch64-linux-gnu-`
+- The `aarch64-linux-gnu-` cross compiler.
 - `defconfig`
 - `arch/arm64/configs/sdm670.config`
 - `device/gts4lvwifi/kernel.config`
 
-Controlla gli strumenti richiesti, comprese le dipendenze di Kconfig e OpenSSL.
+Check the required tools, including Kconfig and OpenSSL dependencies.
 
-Non assumere che `scripts/build-kernel.sh` sia corretto senza verificarne il comportamento.
+Do not assume `scripts/build-kernel.sh` is correct without checking its behaviour.
 
-### Artefatti richiesti
+### Required artifacts
 
 - `Image.gz`
 - `sdm670-samsung-gts4lvwifi.dtb`
 - `Image.gz-dtb`
-- Moduli kernel compatibili con la medesima build.
-- Configurazione finale `.config`.
-- Manifest SHA-256 degli artefatti.
+- Kernel modules compatible with the same build.
+- Final `.config`.
+- SHA-256 manifest of the artifacts.
 
-L'immagine combinata deve trovarsi nel percorso previsto dal progetto:
+The combined image must be at the project path:
 
 `out/kernel/arch/arm64/boot/Image.gz-dtb`
 
-### Verifiche obbligatorie
+### Mandatory checks
 
-- Conferma che il DTS richiesto venga compilato.
-- Verifica la proprietà `compatible`.
-- Verifica che le opzioni critiche del kernel siano effettivamente abilitate dopo `olddefconfig`.
-- Controlla il supporto a eMMC, USB gadget, DRM, input, devtmpfs e filesystem necessari.
-- Controlla il risultato di `make` e gli eventuali warning rilevanti.
-- Esegui validazione Device Tree (`dtbs_check`/`dt-validate`) quando supportata dal tree.
-- Non confondere un warning preesistente con un nuovo errore introdotto dal porting.
-- Controlla che `Image.gz-dtb` sia effettivamente la concatenazione corretta dei due artefatti.
-- Documenta la versione kernel e gli hash esatti dei sorgenti.
+- Confirm that the required DTS is compiled.
+- Check the `compatible` property.
+- Verify that critical kernel options are enabled after `olddefconfig`.
+- Check eMMC, USB gadget, DRM, input, devtmpfs and required filesystem support.
+- Check the `make` result and any relevant warnings.
+- Run Device Tree validation (`dtbs_check`/`dt-validate`) when supported by the tree.
+- Do not confuse a pre-existing warning with a new error introduced by the port.
+- Check that `Image.gz-dtb` is actually the correct concatenation of the two artifacts.
+- Document the kernel version and exact source hashes.
 
-Non presentare come funzionante alcun componente hardware soltanto perché il driver compare nella configurazione.
+Do not present hardware as working merely because its driver appears in the configuration.
 
-**Criterio di accettazione M1:** build completata, artefatti verificati, nessuna modifica effettuata al tablet.
+**M1 acceptance criterion:** build completed, artifacts verified and no change made to the tablet.
 
 ---
 
-## 7. MILESTONE M2 — INITRAMFS MINIMALE DI BRING-UP
+## 7. MILESTONE M2 — MINIMAL BRING-UP INITRAMFS
 
-### Obiettivo
+### Objective
 
-Creare un initramfs Linux minimale capace di avviare il kernel e rendere possibile l'accesso diagnostico.
+Create a minimal Linux initramfs capable of booting the kernel and providing diagnostic access.
 
-Non installare ancora Omarchy.
+Do not install Omarchy yet.
 
-### Funzionalità richieste
+### Required functionality
 
-- PID 1 funzionante.
-- Montaggio di `/proc`, `/sys`, `/dev` e dei filesystem temporanei necessari.
-- Shell diagnostica.
-- Identificazione del kernel.
-- Raccolta del log di avvio.
-- Modalità di emergenza in caso di errore.
-- Supporto USB gadget, se funzionante sul dispositivo.
-- Accesso remoto via rete USB e SSH/Dropbear, oppure una console USB seriale quando supportata.
-- Gestione esplicita degli errori di inizializzazione.
+- Working PID 1.
+- Mounting `/proc`, `/sys`, `/dev` and required temporary filesystems.
+- Diagnostic shell.
+- Kernel identification.
+- Boot-log collection.
+- Emergency mode on error.
+- USB gadget support if it works on the device.
+- Remote access over USB networking and SSH/Dropbear, or a USB serial console when supported.
+- Explicit handling of initialisation errors.
 
-L'accesso remoto non deve dipendere dal Wi-Fi.
+Remote access must not depend on Wi-Fi.
 
-Controlla i driver gadget disponibili, la compatibilità con il PC host e l'eventuale necessità di includere specifici moduli o tool nell'initramfs.
+Check available gadget drivers, compatibility with the host PC and whether specific modules or tools
+must be included in the initramfs.
 
-Configura un indirizzamento USB locale prevedibile solo dopo aver verificato quale interfaccia venga esposta.
+Configure a predictable local USB address only after verifying which interface is exposed.
 
-Non dare per certo che ADB di Android funzioni automaticamente su Linux.
+Do not assume Android ADB works automatically on Linux.
 
-### Requisiti tecnici
+### Technical requirements
 
-- Initramfs autosufficiente per il primo test.
-- Nessuna dipendenza dalla partizione `/data`.
-- Nessun montaggio in lettura/scrittura delle partizioni Android.
-- Nessuna modifica automatica a `misc` o allo stato di recovery.
-- Timeout e fallback ragionevoli.
-- Log accessibili per diagnosticare un boot fallito.
-- Chiavi e credenziali non incorporati nel codice pubblico.
+- Self-contained initramfs for the first test.
+- No dependency on `/data`.
+- No read/write mount of Android partitions.
+- No automatic modification of `misc` or recovery state.
+- Reasonable timeouts and fallbacks.
+- Logs accessible for diagnosing a failed boot.
+- Keys and credentials not embedded in public code.
 
-Documenta quali componenti siano built-in nel kernel e quali richiedano moduli.
+Document which components are built into the kernel and which require modules.
 
-### Diagnostica attesa dopo il boot
+### Expected diagnostics after boot
 
 ```bash
 uname -a
@@ -340,570 +359,575 @@ ls /sys/class/
 ls /dev/
 ```
 
-Adatta il set agli strumenti realmente presenti nell'initramfs.
+Adapt the set to the tools actually present in the initramfs.
 
-### Deliverable
+### Deliverables
 
-- Sorgenti e script di build initramfs.
-- Configurazione minimale.
-- Script di verifica offline.
-- Documentazione per accesso USB.
-- Checklist del primo boot.
+- Initramfs sources and build scripts.
+- Minimal configuration.
+- Offline verification script.
+- USB-access documentation.
+- First-boot checklist.
 
-**Criterio di accettazione M2:** initramfs compilato e controllato offline; l'avvio hardware rimane una fase distinta.
+**M2 acceptance criterion:** initramfs built and checked offline; hardware boot remains a separate phase.
 
 ---
 
-## 8. MILESTONE M3 — PACKAGING SAMSUNG RECOVERY
+## 8. MILESTONE M3 — SAMSUNG RECOVERY PACKAGING
 
-### Obiettivo
+### Objective
 
-Implementare il componente ancora mancante per produrre una recovery image utilizzabile dal bootloader Samsung.
+Implement the missing component needed to produce a recovery image usable by the Samsung bootloader.
 
-Parti dai parametri effettivamente documentati in `device.conf`.
+Start from the parameters actually documented in `device.conf`.
 
-### Parametri da rispettare
+### Required parameters
 
-| Campo | Valore |
+| Field | Value |
 |---|---|
 | Android boot header | v1 |
 | Page size | 4096 |
 | Kernel offset | `0x8000` |
 | Ramdisk offset | `0x02000000` |
 | Tags offset | `0x01e00000` |
-| Dimensione massima | 72.744.960 byte |
+| Maximum size | 72,744,960 bytes |
 | Kernel payload | `Image.gz` + DTB |
-| Recovery DTBO | Overlay verificato di LineageOS |
+| Recovery DTBO | Verified LineageOS overlay |
 
-Leggi dal descrittore, invece di duplicare costanti in più script.
+Read values from the descriptor instead of duplicating constants in multiple scripts.
 
-### Requisiti del packer
+### Packer requirements
 
-1. Accetta solo artefatti realmente presenti e validi.
-2. Verifica gli hash dei componenti che richiedono corrispondenza esatta.
-3. Controlla header, paginazione, dimensioni e offset.
-4. Include il `recovery_dtbo` nella posizione e nel formato previsti.
-5. Non altera i byte dell'overlay originale.
-6. Fallisce se l'immagine supera il limite fisico della partizione.
-7. Scrive l'immagine soltanto nella directory di output del PC.
-8. Non contiene alcun comando di flash.
-9. Produce un manifest con versioni, checksum e dimensioni.
-10. Supporta verifiche inverse tramite gli strumenti Android di unpacking.
+1. Accept only artifacts that are present and valid.
+2. Verify hashes of components that require exact correspondence.
+3. Check header, paging, sizes and offsets.
+4. Include `recovery_dtbo` in the expected position and format.
+5. Do not alter bytes in the original overlay.
+6. Fail if the image exceeds the physical partition limit.
+7. Write the image only to the PC output directory.
+8. Contain no flash command.
+9. Produce a manifest with versions, checksums and sizes.
+10. Support inverse checks through Android unpacking tools.
 
-Confronta il risultato anche con il comportamento dello script di packaging presente nel progetto di pulpoff.
+Also compare the result with the packaging script behaviour in pulpoff's project.
 
-Esamina la cmdline esistente:
+Examine the existing command line:
 
 `console=tty0 fw_devlink.sync_state=timeout clk_ignore_unused pd_ignore_unused panic=10`
 
-In particolare preserva `fw_devlink.sync_state=timeout` finché non esistono prove sufficienti per modificarlo.
+In particular, preserve `fw_devlink.sync_state=timeout` until there is enough evidence to change it.
 
-Evita di cambiare simultaneamente parametri di power management o sequenze di inizializzazione del pannello.
+Avoid changing power-management parameters or panel-initialisation sequences simultaneously.
 
-### Test
+### Tests
 
-Crea test automatizzati che controllino:
+Create automated tests that check:
 
-- Header valido.
-- Dimensioni entro il limite.
-- DTB corretto.
-- Integrità del recovery DTBO.
-- Ripetibilità del packaging.
-- Errore controllato in caso di input mancante o corrotto.
-- Rifiuto di un target hardware differente.
+- Valid header.
+- Size within the limit.
+- Correct DTB.
+- Recovery DTBO integrity.
+- Packaging repeatability.
+- Controlled failure for missing or corrupt input.
+- Rejection of a different hardware target.
 
-### Deliverable
+### Deliverables
 
-- Script di packaging.
-- Test di packaging.
+- Packaging script.
+- Packaging tests.
 - Manifest.
-- Immagine pronta per un eventuale test manuale.
+- Image ready for a possible manual test.
 
-**Criterio di accettazione M3:** recovery image costruibile e verificabile offline, senza alcun flash.
+**M3 acceptance criterion:** recovery image buildable and verifiable offline, with no flash.
 
 ---
 
-## 9. MILESTONE M4 — PIANO DI RECUPERO E PREPARAZIONE AL PRIMO BOOT
+## 9. MILESTONE M4 — RECOVERY PLAN AND FIRST-BOOT PREPARATION
 
-Prima di toccare `recovery`, verifica e documenta:
+Before touching `recovery`, verify and document:
 
-- Accessibilità della Download Mode Samsung.
-- Metodo affidabile per ripristinare una recovery compatibile.
-- Disponibilità del firmware ufficiale corrispondente al modello.
-- Possibilità concreta di usare Heimdall oppure Odin per il ripristino.
-- Compatibilità del metodo scelto con il bootloader presente.
-- Backup read-only della recovery attuale.
-- Integrità del backup mediante SHA-256.
-- Procedura per ritornare a LineageOS.
-- Comportamento del bootloader quando recovery non parte.
-- Comportamento della partizione `misc` e delle richieste di avvio in recovery.
+- Accessibility of Samsung Download Mode.
+- Reliable method to restore a compatible recovery.
+- Availability of official firmware for the matching model.
+- Practical ability to use Heimdall or Odin for restoration.
+- Compatibility of the chosen method with the installed bootloader.
+- Read-only backup of the current recovery.
+- Backup integrity using SHA-256.
+- Procedure to return to LineageOS.
+- Bootloader behaviour when recovery does not start.
+- Behaviour of the `misc` partition and recovery-boot requests.
 
-Non trattare Download Mode come garanzia assoluta di recupero.
+Do not treat Download Mode as an absolute recovery guarantee.
 
-La documentazione deve indicare esplicitamente le situazioni in cui il recupero potrebbe richiedere interventi più complessi.
+The documentation must explicitly state situations where recovery could require more complex intervention.
 
-Non modificare la partizione `boot`.
+Do not modify the `boot` partition.
 
-Per la prima prova, privilegia un avvio manuale in recovery anziché cambiare persistentemente la destinazione di avvio.
+For the first test, prefer a manual recovery boot instead of persistently changing the boot destination.
 
 ### Deliverable
 
 `docs/RECOVERY-RUNBOOK.md`
 
-Il documento deve includere una procedura passo passo con:
+The document must contain a step-by-step procedure with:
 
-- Comandi esatti.
-- Output atteso.
-- Condizioni di stop.
+- Exact commands.
+- Expected output.
+- Stop conditions.
 - Rollback.
-- Livello di rischio.
+- Risk level.
 
-**Criterio di accettazione M4:** piano validato, backup disponibili e approvazione esplicita dell'utente prima di procedere.
+**M4 acceptance criterion:** plan validated, backups available and explicit user approval before proceeding.
 
 ---
 
-## 10. MILESTONE M5 — PRIMO AVVIO MAINLINE SUL TABLET
+## 10. MILESTONE M5 — FIRST MAINLINE BOOT ON THE TABLET
 
-Questa milestone richiede accesso al dispositivo fisico e autorizzazione specifica.
+This milestone requires access to the physical device and specific authorisation.
 
-Non simularne il completamento.
+Do not simulate completion.
 
-### Sequenza di verifica
+### Verification sequence
 
-1. Identificare nuovamente il dispositivo.
-2. Confermare il modello e la mappa delle partizioni.
-3. Confermare la corrispondenza degli artefatti.
-4. Eseguire soltanto l'operazione di avvio autorizzata.
-5. Verificare che il bootloader carichi l'immagine.
-6. Verificare il passaggio al kernel Linux.
-7. Verificare l'inizializzazione essenziale.
-8. Verificare l'accesso alla shell.
-9. Raccogliere i log.
-10. Testare il ritorno a LineageOS.
+1. Identify the device again.
+2. Confirm the model and partition map.
+3. Confirm artifact correspondence.
+4. Perform only the authorised boot operation.
+5. Verify that the bootloader loads the image.
+6. Verify the transition to the Linux kernel.
+7. Verify essential initialisation.
+8. Verify shell access.
+9. Collect logs.
+10. Test returning to LineageOS.
 
-### Primo risultato realmente significativo
+### First meaningful result
 
-Ottenere:
+Obtain:
 
-- `uname -a` dal kernel Linux del tablet.
-- Shell Linux raggiungibile.
-- Log `dmesg` leggibile.
-- Identificazione del Device Tree.
-- Nessun danno al sistema Android mantenuto in `boot`.
+- `uname -a` from the tablet's Linux kernel.
+- Reachable Linux shell.
+- Readable `dmesg` log.
+- Device Tree identification.
+- No damage to the Android system kept in `boot`.
 
-Non è necessario che display, GPU o touchscreen funzionino già.
+Display, GPU and touchscreen do not need to work yet.
 
 ### Debugging
 
-Se il tablet non parte, indaga separatamente:
+If the tablet does not start, investigate separately:
 
-- Samsung boot image header.
+- Samsung boot-image header.
 - Recovery DTBO.
-- Selezione del Device Tree.
+- Device Tree selection.
 - Early console.
 - Memory reservations.
-- Clocks e regulators.
-- eMMC initialization.
+- Clocks and regulators.
+- eMMC initialisation.
 - USB gadget.
 - Initramfs.
 - Kernel panic.
 - Watchdog/reset.
 
-Non cambiare più sottosistemi contemporaneamente.
+Do not change several subsystems at once.
 
-Per ogni tentativo, identifica esattamente quale differenza è stata introdotta rispetto all'artefatto precedente.
+For every attempt, identify exactly which difference was introduced compared with the previous artifact.
 
-**Criterio di accettazione M5:** shell reale sul dispositivo e ritorno verificato a LineageOS.
+**M5 acceptance criterion:** real shell on the device and verified return to LineageOS.
 
 ---
 
 ## 11. MILESTONE M6 — ARCH LINUX ARM ROOTFS
 
-### Obiettivo
+### Objective
 
-Sostituire l'ambiente minimale con una distribuzione Arch Linux ARM AArch64 funzionante.
+Replace the minimal environment with a working Arch Linux ARM AArch64 distribution.
 
-### Politica di compilazione
+### Build policy
 
-**Non ricompilare tutta la distribuzione.**
+**Do not rebuild the entire distribution.**
 
-Usa prima i pacchetti già disponibili nei repository ufficiali di Arch Linux ARM.
+First use packages already available in the official Arch Linux ARM repositories.
 
-Individua precisamente quali componenti richiedono compilazione specifica:
+Identify precisely which components require device-specific compilation:
 
-| Componente | Approccio |
+| Component | Approach |
 |---|---|
-| Core system | Pacchetti Arch Linux ARM |
-| systemd, pacman e librerie comuni | Pacchetti precompilati |
-| Mesa | Preferibilmente pacchetto AArch64 esistente |
-| Hyprland | Pacchetto AArch64 esistente, salvo patch necessarie |
-| Kernel SDM670 | Compilazione specifica |
-| DTB Samsung | Compilazione specifica |
-| Moduli kernel | Stessa versione del kernel |
-| Omarchy Mobile custom packages | Riutilizzare binari compatibili o compilare |
-| Device integration | Pacchetto specifico per gts4lvwifi |
+| Core system | Arch Linux ARM packages |
+| systemd, pacman and common libraries | Prebuilt packages |
+| Mesa | Prefer an existing AArch64 package |
+| Hyprland | Existing AArch64 package unless patches are required |
+| SDM670 kernel | Device-specific compilation |
+| Samsung DTB | Device-specific compilation |
+| Kernel modules | Same kernel version |
+| Custom Omarchy Mobile packages | Reuse compatible binaries or compile them |
+| Device integration | Package specific to `gts4lvwifi` |
 
-Arch Linux ARM fornisce già pacchetti AArch64 di Hyprland. Verifica comunque versione, dipendenze e compatibilità con le patch di Omarchy Mobile.
+Arch Linux ARM already provides AArch64 Hyprland packages. Still verify version, dependencies and
+compatibility with Omarchy Mobile patches.
 
-Non mischiare indiscriminatamente repository Arch Linux x86_64 con Arch Linux ARM.
+Do not indiscriminately mix Arch Linux x86_64 repositories with Arch Linux ARM.
 
-### Build e provisioning
+### Build and provisioning
 
-Analizza `tools/build-packages` e `tools/build-rootfs` dell'upstream per capire cosa riutilizzare.
+Analyse upstream Omarchy Mobile's `tools/build-packages` and `tools/build-rootfs` to determine what can
+be reused.
 
-Se il sistema di build presuppone un host Arch, implementa un metodo riproducibile su Pop!_OS, per esempio tramite container o ambiente AArch64 appropriato.
+If the build system assumes an Arch host, implement a reproducible method on Pop!_OS, for example through
+a container or a suitable AArch64 environment.
 
-Verifica che gli script non eseguano codice AArch64 direttamente su x86_64 senza un meccanismo idoneo.
+Verify that scripts do not execute AArch64 code directly on x86_64 without an appropriate mechanism.
 
-Il rootfs dovrà includere:
+The rootfs must include:
 
-- Pacman e keyring correttamente inizializzato.
+- Correctly initialised pacman and keyring.
 - systemd.
 - Networking.
 - OpenSSH.
 - Udev.
-- Gestione locale degli utenti.
-- Log persistenti, quando appropriato.
-- Gestione dei moduli kernel.
-- Repository e pacchetti Omarchy Mobile compatibili.
-- Gestione dei firmware nel rispetto delle licenze.
+- Local user management.
+- Persistent logs where appropriate.
+- Kernel-module handling.
+- Compatible Omarchy Mobile repositories and packages.
+- Firmware handling that respects licences.
 
 ### Storage
 
-Analizza tre possibilità:
+Analyse three possibilities:
 
-A. Rootfs su microSD.
+A. Rootfs on microSD.
 
-B. Rootfs in un'immagine file nell'eMMC.
+B. Rootfs in an image file on eMMC.
 
-C. Ripartizionamento dedicato, esclusivamente come opzione futura e con consenso esplicito.
+C. A dedicated repartition, only as a future option and with explicit approval.
 
-Confrontale secondo rischio, prestazioni, complessità, compatibilità con LineageOS e recuperabilità.
+Compare them by risk, performance, complexity, compatibility with LineageOS and recoverability.
 
-La partizione dati Android è cifrata: verifica precisamente se il metodo `dm-linear` di pulpoff possa essere riutilizzato in sicurezza e con quali prerequisiti.
+The Android data partition is encrypted: determine precisely whether pulpoff's `dm-linear` method can
+be reused safely and with which prerequisites.
 
-Non modificare `userdata` senza approvazione.
+Do not modify `userdata` without approval.
 
-### Criterio di accettazione M6
+### M6 acceptance criterion
 
-Arch Linux ARM avviato sul tablet con systemd, shell, rete USB e gestione pacchetti funzionanti.
+Arch Linux ARM booted on the tablet with systemd, shell, USB networking and package management working.
 
 ---
 
 ## 12. MILESTONE M7 — HARDWARE ENABLEMENT
 
-Crea una matrice hardware vera, basata su evidenze.
+Create a real evidence-based hardware matrix.
 
-Ogni sottosistema deve assumere uno dei seguenti stati:
+Every subsystem must have one of these states:
 
-- Non verificato.
-- Presente nei sorgenti.
-- Compilato.
-- Rilevato dal kernel.
-- Funzionante parzialmente.
-- Funzionante e testato.
-- Regressione.
-- Bloccato.
+- Not verified.
+- Present in the sources.
+- Compiled.
+- Detected by the kernel.
+- Partly working.
+- Working and tested.
+- Regression.
+- Blocked.
 
-Non usare semplicemente la dicitura "supportato" senza specificare cosa significa.
+Do not simply say “supported” without specifying what that means.
 
-### Ordine di implementazione
+### Implementation order
 
-**M7.1 — Storage e USB**
+**M7.1 — Storage and USB**
 
-Verifica eMMC, microSD, USB gadget, USB networking e OTG.
+Verify eMMC, microSD, USB gadget, USB networking and OTG.
 
-Prendi come riferimento il controller DWC3 e il codice userspace di pulpoff per la gestione dei ruoli USB.
+Use pulpoff's DWC3 controller reference and userspace USB-role code.
 
-Non attivare l'alimentazione VBUS o cambiare ruolo USB senza verificare il controller e le condizioni di alimentazione.
+Do not enable VBUS or change the USB role without checking the controller and power conditions.
 
 **M7.2 — Display**
 
-Hardware noto dal kernel di riferimento:
+Known hardware from the reference kernel:
 
 - AMOLED 2560×1600.
-- Pannello Samsung AMSA05RB01.
-- Bridge Anapass ANA38401.
+- Samsung AMSA05RB01 panel.
+- Anapass ANA38401 bridge.
 - Dual DSI in command mode.
 
-Parti da semplice framebuffer e simpledrm, poi verifica il driver DRM/KMS reale.
+Start with a simple framebuffer and simpledrm, then verify the real DRM/KMS driver.
 
-Attenzione alla sequenza di handover dal framebuffer del bootloader al driver del pannello.
+Pay attention to handover from the bootloader framebuffer to the panel driver.
 
-Testa esplicitamente:
+Explicitly test:
 
-- Modalità 2560×1600.
-- Integrità delle due metà del pannello.
-- Refresh stabile.
+- 2560×1600 mode.
+- Integrity of both panel halves.
+- Stable refresh.
 - Backlight/brightness.
 - Display off/on.
-- Assenza di flickering e tearing.
+- No flickering or tearing.
 
 **M7.3 — GPU**
 
-GPU Adreno 615.
+Adreno 615 GPU.
 
-Riutilizza Freedreno per OpenGL e Turnip per Vulkan ove disponibili e funzionanti.
+Reuse Freedreno for OpenGL and Turnip for Vulkan where available and working.
 
-Verifica il caricamento di firmware, zap shader e driver DRM MSM.
+Verify firmware, zap shader and MSM DRM driver loading.
 
-Test:
+Tests:
 
-- Render node presente.
-- Renderer reale corretto.
-- OpenGL ES hardware.
-- Vulkan, se utilizzabile.
-- Rendering Wayland senza fallback software.
-- Temperature e stabilità durante carichi prolungati.
+- Render node present.
+- Correct real renderer.
+- Hardware OpenGL ES.
+- Vulkan, if usable.
+- Wayland rendering without software fallback.
+- Temperature and stability under sustained load.
 
-Non accettare llvmpipe come prova di accelerazione GPU.
+Do not accept llvmpipe as proof of GPU acceleration.
 
 **M7.4 — Touchscreen**
 
-Controller STM FTS1BA90A.
+STM FTS1BA90A controller.
 
-Pulpoff utilizza un daemon userspace in `mobian/gts4lv-touchd.c`.
+Pulpoff uses a userspace daemon in `mobian/gts4lv-touchd.c`.
 
-Studiane protocollo, licenza e dipendenze prima del riutilizzo.
+Study its protocol, licence and dependencies before reusing it.
 
-Implementa un'integrazione corretta con libinput e Wayland.
+Implement correct integration with libinput and Wayland.
 
-Testa tap, multitouch, scrolling, gesture, rotazione e ripresa dallo spegnimento del display.
+Test taps, multitouch, scrolling, gestures, rotation and recovery after display-off.
 
-**M7.5 — Wi-Fi e Bluetooth**
+**M7.5 — Wi-Fi and Bluetooth**
 
-Chipset Qualcomm WCN3990.
+Qualcomm WCN3990 chipset.
 
-Individua:
+Identify:
 
-- Driver kernel.
-- Firmware richiesto.
-- Eventuali dati di calibrazione specifici del tablet.
-- Dipendenze da servizi Qualcomm.
-- Configurazione NetworkManager o equivalente.
+- Kernel driver.
+- Required firmware.
+- Tablet-specific calibration data.
+- Dependencies on Qualcomm services.
+- NetworkManager or equivalent configuration.
 
-Testa associazione Wi-Fi, connessioni persistenti, reconnect, Bluetooth pairing e audio Bluetooth.
+Test Wi-Fi association, persistent connections, reconnect, Bluetooth pairing and Bluetooth audio.
 
 **M7.6 — Audio**
 
-Quattro amplificatori Cirrus Logic CS35L41.
+Four Cirrus Logic CS35L41 amplifiers.
 
-Verifica codec, interfaccia TDM, configurazione dei quattro amplificatori, routing dei canali e microfoni.
+Verify codec, TDM interface, four-amplifier configuration, channel routing and microphones.
 
-Integra ALSA, UCM e PipeWire.
+Integrate ALSA, UCM and PipeWire.
 
-Inizia con volumi limitati e protezioni attive per evitare danni agli altoparlanti.
+Start with limited volumes and active protection to avoid speaker damage.
 
-Non importare mixer Android senza adattamento.
+Do not import Android mixers without adaptation.
 
-**M7.7 — Batteria e alimentazione**
+**M7.7 — Battery and power**
 
-Fuel gauge SM5705.
+SM5705 fuel gauge.
 
-Verifica carica, livello batteria, temperatura, USB power, stato charging e spegnimento controllato.
+Verify charging, battery level, temperature, USB power, charging state and controlled shutdown.
 
-Integra UPower e la gestione energetica dell'interfaccia.
+Integrate UPower and the interface's power management.
 
-Non assumere che letture corrette della batteria dimostrino che tutti i percorsi di ricarica siano sicuri.
+Do not assume correct battery readings prove that every charging path is safe.
 
-**M7.8 — Sensori e rotazione**
+**M7.8 — Sensors and rotation**
 
-Verifica accelerometro, sensore di luminosità, magnetometro e Hall sensor.
+Verify accelerometer, light sensor, magnetometer and Hall sensor.
 
-Studia i componenti Qualcomm ADSP e il codice userspace `hexagonrpcd`/`libssc` nel progetto di riferimento.
+Study Qualcomm ADSP components and the `hexagonrpcd`/`libssc` userspace code in the reference project.
 
-Integra il sistema di rotazione automatica senza copiare servizi specifici di GNOME non necessari.
+Integrate automatic rotation without copying unnecessary GNOME-specific services.
 
-**M7.9 — Suspend e resume**
+**M7.9 — Suspend and resume**
 
-Il progetto pulpoff riporta supporto s2idle con workaround relativi al watchdog e ai servizi ADSP.
+The pulpoff project reports s2idle support with watchdog and ADSP-service workarounds.
 
-Non considerare automaticamente funzionante il suspend con il nostro rootfs e la nostra userspace.
+Do not automatically consider suspend working with our rootfs and userspace.
 
-Inizia con suspend disabilitato finché non esistono test affidabili.
+Start with suspend disabled until reliable tests exist.
 
-Test progressivi:
+Progressive tests:
 
 - Display off/on.
-- Sospensione breve.
-- Resume con tasto power.
-- Sospensione prolungata.
-- Batteria consumata durante lo standby.
-- Wi-Fi e Bluetooth dopo resume.
-- USB networking dopo resume.
+- Short suspend.
+- Resume with the power key.
+- Long suspend.
+- Battery consumption during standby.
+- Wi-Fi and Bluetooth after resume.
+- USB networking after resume.
 
-**M7.10 — Multimedia e periferiche secondarie**
+**M7.10 — Multimedia and secondary peripherals**
 
-Solo successivamente:
+Only afterwards:
 
-- Accelerazione video Qualcomm Venus.
-- Decodifica H.264/H.265.
-- Fotocamere e libcamera.
-- Autofocus, se supportabile.
-- Cover magnetica.
-- Altre periferiche realmente presenti.
+- Qualcomm Venus video acceleration.
+- H.264/H.265 decoding.
+- Cameras and libcamera.
+- Autofocus, if supportable.
+- Magnetic cover.
+- Other peripherals actually present.
 
-Non implementare modem cellulare o funzionalità telefoniche per un modello Wi-Fi.
+Do not implement cellular modem or phone functions for a Wi-Fi model.
 
 ---
 
-## 13. MILESTONE M8 — INTEGRAZIONE OMARCHY MOBILE
+## 13. MILESTONE M8 — OMARCHY MOBILE INTEGRATION
 
-### Obiettivo
+### Objective
 
-Avviare l'esperienza Omarchy Mobile reale, non un desktop Linux che le assomigli.
+Boot the real Omarchy Mobile experience, not a Linux desktop that resembles it.
 
-La base deve restare l'upstream di Derek Ross.
+The base must remain Derek Ross's upstream.
 
-### Requisiti
+### Requirements
 
-1. Studia come Omarchy Mobile integra Hyprland e la shell mobile.
-2. Riutilizza i pacchetti multipiattaforma già disponibili.
-3. Separa le configurazioni specifiche del tablet.
-4. Introduci il pacchetto `omamobile-device-gts4lvwifi`.
-5. Non copiare indiscriminatamente servizi specifici dei Pixel.
-6. Mantieni il maggior numero possibile di componenti aggiornabili dall'upstream.
-7. Evita fork gratuiti di Omarchy e Hyprland.
-8. Mantieni una directory di patch documentate soltanto dove servono differenze reali.
+1. Study how Omarchy Mobile integrates Hyprland and the mobile shell.
+2. Reuse existing cross-platform packages.
+3. Separate tablet-specific configuration.
+4. Introduce the `omamobile-device-gts4lvwifi` package.
+5. Do not indiscriminately copy Pixel-specific services.
+6. Keep as many components as possible updateable from upstream.
+7. Avoid gratuitous Omarchy and Hyprland forks.
+8. Keep a documented patch directory only where real differences are required.
 
-### Interfaccia tablet
+### Tablet interface
 
-A differenza di uno smartphone, questo dispositivo ha un display 10,5 pollici da 2560×1600.
+Unlike a smartphone, this device has a 10.5-inch 2560×1600 display.
 
-L'esperienza deve supportare:
+The experience must support:
 
-- Portrait e landscape.
-- Ridimensionamento corretto.
-- Touchscreen come input primario.
-- Tastiera virtuale.
-- Navigazione tramite gesture.
-- Quick settings touch-friendly.
-- Gestione luminosità e audio.
+- Portrait and landscape.
+- Correct scaling.
+- Touchscreen as the primary input.
+- Virtual keyboard.
+- Gesture navigation.
+- Touch-friendly quick settings.
+- Brightness and audio management.
 - Lock screen.
-- Barra notifiche.
-- Launching delle applicazioni.
-- Multitasking adeguato al tablet.
-- Supporto tastiera e mouse esterni.
-- Rotazione del display quando il sensore è disponibile.
+- Notification bar.
+- Application launching.
+- Tablet-appropriate multitasking.
+- External keyboard and mouse.
+- Display rotation when the sensor is available.
 
-Valuta se mantenere il paradigma mobile di una sola applicazione per schermo o prevedere un comportamento specifico per i tablet.
+Evaluate whether to keep the mobile one-application-per-screen paradigm or provide tablet-specific behaviour.
 
-Non trasformare Omarchy Mobile in GNOME, Phosh o Plasma Mobile.
+Do not turn Omarchy Mobile into GNOME, Phosh or Plasma Mobile.
 
 ### Performance
 
-Il tablet dispone di 4 GB di RAM.
+The tablet has 4 GB of RAM.
 
-Ottimizza:
+Optimise:
 
-- Memoria all'avvio.
-- Consumo RAM della shell.
-- Processi in background.
+- Memory at startup.
+- Shell RAM usage.
+- Background processes.
 - ZRAM.
-- Cache grafiche.
-- Tempi di apertura applicazioni.
-- Consumi in standby.
-- Fluidità delle animazioni.
+- Graphics caches.
+- Application launch times.
+- Standby consumption.
+- Animation smoothness.
 
-Non applicare ottimizzazioni non misurate.
+Do not apply unmeasured optimisations.
 
-### Criterio di accettazione M8
+### M8 acceptance criterion
 
-Il tablet deve mostrare Omarchy Mobile con accelerazione grafica hardware, touchscreen e gestione delle applicazioni funzionanti.
+The tablet must show Omarchy Mobile with hardware graphics acceleration, working touchscreen and
+working application management.
 
 ---
 
-## 14. MILESTONE M9 — DISTRIBUZIONE, AGGIORNAMENTI E CI
+## 14. MILESTONE M9 — DISTRIBUTION, UPDATES AND CI
 
-### Obiettivo
+### Objective
 
-Rendere il porting riproducibile e mantenibile.
+Make the port reproducible and maintainable.
 
-Implementa un processo di build capace di generare:
+Implement a build process capable of generating:
 
 - Kernel.
 - DTB.
-- Moduli.
+- Modules.
 - Initramfs.
 - Recovery image.
-- Rootfs Arch Linux ARM.
-- Pacchetti device-specific.
-- Manifest delle versioni e checksum.
+- Arch Linux ARM rootfs.
+- Device-specific packages.
+- Version and checksum manifest.
 
 ### GitHub Actions
 
-Riutilizza il workflow `kernel.yml` già presente.
+Reuse the existing `kernel.yml` workflow.
 
-Non sostituirlo senza motivo.
+Do not replace it without a reason.
 
-Valuta workflow separati per:
+Consider separate workflows for:
 
-- Test statici.
-- Build kernel e DTB.
+- Static tests.
+- Kernel and DTB build.
 - Initramfs.
-- Packaging recovery.
-- Build pacchetti AArch64.
+- Recovery packaging.
+- AArch64 package builds.
 - Rootfs.
 - Artifact verification.
 - Release candidate.
 
-Controlla i limiti di spazio, memoria e tempo dei runner.
+Check runner space, memory and time limits.
 
-Evita di esporre firmware, chiavi private o contenuti personali negli artifact pubblici.
+Do not expose firmware, private keys or personal content in public artifacts.
 
-### Aggiornamenti
+### Updates
 
-Studia l'integrazione con pacman e `omarchy update`.
+Study integration with pacman and `omarchy update`.
 
-Su questo Samsung single-slot non può essere riutilizzato automaticamente il metodo di aggiornamento delle immagini slot B dei Pixel.
+On this single-slot Samsung, Pixel slot-B image updates cannot be reused automatically.
 
-Gli aggiornamenti kernel e recovery devono avere un procedimento dedicato, verificabile e inizialmente manuale.
+Kernel and recovery updates need a dedicated, verifiable and initially manual procedure.
 
-Non configurare aggiornamenti automatici che scrivono nella recovery senza un percorso di recupero dimostrato.
+Do not configure automatic updates that write recovery without a demonstrated recovery path.
 
-### Criterio di accettazione M9
+### M9 acceptance criterion
 
-Build riproducibili, documentate e verificabili da una macchina Linux pulita.
-
----
-
-## 15. LICENZE, FIRMWARE E UPSTREAM
-
-Ogni file introdotto deve rispettare le licenze applicabili.
-
-Distingui:
-
-- Driver kernel open-source.
-- Patch kernel GPL.
-- Configurazioni Device Tree.
-- Firmware binario proprietario.
-- Librerie Android vendor.
-- Componenti userspace open-source.
-
-I driver Android kernel non possono essere semplicemente trasferiti come binari nel kernel Linux moderno.
-
-Prediligi driver mainline e firmware originale estratto dall'installazione del proprietario.
-
-Non distribuire firmware Samsung o Qualcomm senza averne verificato le condizioni di licenza.
-
-Se sono necessarie patch kernel, mantienile piccole e suddivise per sottosistema, preparandole per una possibile submission upstream.
-
-Per ogni modifica registra:
-
-- File modificato.
-- Motivazione.
-- Provenienza delle informazioni.
-- Test effettuati.
-- Dipendenze.
-- Eventuali regressioni.
+Builds reproducible, documented and verifiable from a clean Linux machine.
 
 ---
 
-## 16. ORGANIZZAZIONE DEL REPOSITORY
+## 15. LICENCES, FIRMWARE AND UPSTREAM
 
-Mantieni la struttura già esistente e ampliala soltanto quando necessario.
+Every introduced file must respect the applicable licences.
 
-Una possibile evoluzione, da adattare alla struttura effettiva, è:
+Distinguish:
+
+- Open-source kernel drivers.
+- GPL kernel patches.
+- Device Tree configurations.
+- Proprietary binary firmware.
+- Vendor Android libraries.
+- Open-source userspace components.
+
+Android kernel drivers cannot simply be moved as binaries into a modern Linux kernel.
+
+Prefer mainline drivers and original firmware extracted from the owner's installation.
+
+Do not distribute Samsung or Qualcomm firmware without checking its licence conditions.
+
+If kernel patches are needed, keep them small and split by subsystem, preparing them for possible upstream submission.
+
+For every change record:
+
+- Modified file.
+- Reason.
+- Information provenance.
+- Tests performed.
+- Dependencies.
+- Any regressions.
+
+---
+
+## 16. REPOSITORY ORGANISATION
+
+Keep the existing structure and expand it only when necessary.
+
+A possible evolution, to be adapted to the actual structure, is:
 
 ```text
 gts4lvwifi-porting/
@@ -940,36 +964,37 @@ gts4lvwifi-porting/
 └── out/           # gitignored
 ```
 
-Questa è una proposta, non un ordine di riscrivere ciò che già esiste.
+This is a proposal, not an instruction to rewrite what already exists.
 
-Non committare sorgenti esterni vendorizzati, immagini enormi, firmware, filesystem temporanei o binari non ridistribuibili.
+Do not commit vendored external sources, huge images, firmware, temporary filesystems or
+non-redistributable binaries.
 
 ---
 
-## 17. QUALITÀ E TESTING
+## 17. QUALITY AND TESTING
 
-Implementa verifiche reali.
+Implement real checks.
 
-### Test statici
+### Static tests
 
-- ShellCheck sugli script shell, se disponibile.
-- Controlli sintattici.
-- Validazione YAML dei workflow.
-- Verifica dei file Device Tree.
-- Checksum degli input.
-- Verifica dei config fragment.
-- Controlli delle dimensioni.
-- Test dei tool di packaging.
-- Test di comportamento su input invalidi.
+- ShellCheck on shell scripts, when available.
+- Syntax checks.
+- YAML validation for workflows.
+- Device Tree validation.
+- Input checksums.
+- Config-fragment verification.
+- Size checks.
+- Packaging-tool tests.
+- Behaviour tests on invalid input.
 
-### Test di integrazione
+### Integration tests
 
-Quando esiste un rootfs:
+When a rootfs exists:
 
-- Boot systemd.
-- Rete.
+- systemd boot.
+- Networking.
 - SSH.
-- Moduli.
+- Modules.
 - Pacman.
 - DRM.
 - Input.
@@ -977,122 +1002,125 @@ Quando esiste un rootfs:
 - Hyprland.
 - Omarchy Mobile.
 
-### Test hardware
+### Hardware tests
 
-Ogni verifica deve indicare:
+Every verification must state:
 
-- Kernel utilizzato.
-- Commit esatto.
-- Comando o procedura.
-- Risultato.
+- Kernel used.
+- Exact commit.
+- Command or procedure.
+- Result.
 - Log.
-- Stato finale.
-- Eventuale rollback.
+- Final state.
+- Any rollback.
 
-Mantieni `docs/HARDWARE-MATRIX.md` aggiornato.
+Keep `docs/HARDWARE-MATRIX.md` updated.
 
-Un driver presente nei sorgenti non equivale a hardware verificato.
+A driver present in the sources is not equivalent to verified hardware.
 
 ---
 
-## 18. MODALITÀ DI LAVORO E REPORT
+## 18. WORKING METHOD AND REPORTS
 
-Non limitarti a spiegare cosa bisognerebbe fare.
+Do not merely explain what should be done.
 
-Per ogni ciclo di lavoro:
+For every work cycle:
 
-1. Analizza il codice esistente.
-2. Identifica il problema più importante ancora aperto.
-3. Implementa la modifica necessaria.
-4. Esegui i test disponibili.
-5. Correggi gli errori rilevati.
-6. Aggiorna la documentazione.
-7. Produci un commit coerente.
-8. Riporta risultati e blocchi.
+1. Analyse the existing code.
+2. Identify the most important open problem.
+3. Implement the required change.
+4. Run available tests.
+5. Fix detected errors.
+6. Update documentation.
+7. Produce a coherent commit.
+8. Report results and blockers.
 
-Non dichiarare di aver eseguito compilazioni o test hardware se non sono realmente stati eseguiti.
+Do not claim builds or hardware tests that were not actually run.
 
-Quando l'ambiente non consente l'esecuzione, prepara codice e test da avviare sul PC dell'utente, distinguendo chiaramente i risultati verificati da quelli attesi.
+When the environment prevents execution, prepare code and tests for the user's PC, clearly distinguishing
+verified results from expected results.
 
-Ogni report deve contenere:
+Every report must contain:
 
-| Campo | Contenuto |
+| Field | Content |
 |---|---|
-| Milestone | Fase attuale |
+| Milestone | Current phase |
 | Status | Not started / WIP / Passed / Blocked |
-| Commit | Hash esatto |
-| Modifiche | File realmente modificati |
+| Commit | Exact hash |
+| Changes | Files actually modified |
 | Build | Pass / Fail / Not run |
-| Test offline | Pass / Fail / Not run |
-| Test tablet | Pass / Fail / Not run |
-| Problemi | Elenco dei blocchi |
-| Prossima azione | Un'azione concreta |
+| Offline tests | Pass / Fail / Not run |
+| Tablet tests | Pass / Fail / Not run |
+| Problems | List of blockers |
+| Next action | One concrete action |
 
-Non procedere alla milestone successiva se la precedente presenta errori bloccanti.
+Do not proceed to the next milestone if the previous one has blocking errors.
 
-Per gli interventi sul dispositivo fisico, fornisci sempre un runbook approvabile e attendi l'autorizzazione dell'utente.
+For physical-device work, always provide an approvable runbook and wait for user authorisation.
 
-Non effettuare push forzati né riscrivere la storia del repository.
+Do not force-push or rewrite repository history.
 
-Mantieni `PROCESS.md` come documento di handoff aggiornato, in modo che un altro sviluppatore o agente possa riprendere il lavoro senza perdere il contesto.
+Keep `PROCESS.md` as an up-to-date handoff document so another developer or agent can resume without losing context.
 
 ---
 
-## 19. ESECUZIONE IMMEDIATA — PRIMO CICLO DI LAVORO
+## 19. IMMEDIATE EXECUTION — FIRST WORK CYCLE
 
-Ora comincia effettivamente.
+Start now.
 
-La prima sessione deve concentrarsi sulle milestone **M0, M1, M2 e M3**, tutte eseguibili senza flash del dispositivo.
+The first session must focus on milestones **M0, M1, M2 and M3**, all executable without flashing the device.
 
-### Priorità operative
+### Operational priorities
 
-**Prima:** esamina a fondo `Lwb89dev/gts4lvwifi-porting` e descrivi lo stato reale, non quello ipotizzato.
+**First:** examine `Lwb89dev/gts4lvwifi-porting` thoroughly and describe its real state, not the assumed state.
 
-**Seconda:** verifica che il kernel fissato in `sources.lock` contenga il DTS corretto e che lo script di cross-compilation produca gli artefatti attesi.
+**Second:** verify that the kernel fixed in `sources.lock` contains the correct DTS and that the cross-compilation
+script produces the expected artifacts.
 
-**Terza:** compila davvero il kernel se l'ambiente lo permette. Registra errori e warning.
+**Third:** compile the kernel if the environment allows it. Record errors and warnings.
 
-**Quarta:** implementa o completa l'initramfs minimale per il primo boot diagnostico.
+**Fourth:** implement or complete the minimal initramfs for the first diagnostic boot.
 
-**Quinta:** implementa il packer Samsung recovery header v1 e relativi test offline.
+**Fifth:** implement the Samsung recovery header-v1 packer and its offline tests.
 
-**Sesta:** verifica checksum, dimensioni, formati e riproducibilità degli artifact.
+**Sixth:** verify checksums, sizes, formats and artifact reproducibility.
 
-**Settima:** prepara il runbook del primo boot, specificando ciò che deve fare manualmente il proprietario del tablet.
+**Seventh:** prepare the first-boot runbook, specifying what the tablet owner must do manually.
 
-**Ottava:** aggiorna `PROCESS.md`, la roadmap e la documentazione.
+**Eighth:** update `PROCESS.md`, the roadmap and the documentation.
 
-### Condizioni di stop
+### Stop conditions
 
-Fermati e chiedi conferma prima di:
+Stop and ask for confirmation before:
 
-- Modificare il tablet.
-- Scrivere partizioni.
-- Eseguire flash.
-- Riavviare il dispositivo.
-- Alterare LineageOS.
-- Tentare boot persistence.
-- Modificare dati di firmware o calibrazione.
+- Modifying the tablet.
+- Writing partitions.
+- Flashing.
+- Rebooting the device.
+- Altering LineageOS.
+- Attempting persistent boot.
+- Modifying firmware or calibration data.
 
-È invece consentito svolgere l'intero lavoro di analisi, programmazione, compilazione e testing offline sui sorgenti disponibili.
+The complete analysis, programming, compilation and offline testing of available sources is allowed.
 
-### Risultato richiesto al termine del primo ciclo
+### Required result at the end of the first cycle
 
-Voglio ricevere:
+I want to receive:
 
-1. Stato tecnico iniziale documentato.
-2. File implementati o modificati.
-3. Esito reale della compilazione del kernel.
-4. Stato dell'initramfs.
-5. Stato del packer recovery.
-6. Test offline superati e falliti.
-7. Commit prodotti sul branch di lavoro.
-8. Eventuali problemi che impediscono il primo boot.
-9. Procedura concreta e sicura per la prossima sessione.
-10. Elenco preciso delle operazioni che richiedono la mia autorizzazione.
+1. Documented initial technical state.
+2. Implemented or modified files.
+3. Actual kernel-compilation result.
+4. Initramfs status.
+5. Recovery-packer status.
+6. Offline tests passed and failed.
+7. Commits produced on the working branch.
+8. Problems preventing the first boot.
+9. Concrete and safe procedure for the next session.
+10. Exact list of operations requiring my authorisation.
 
-Non dichiarare che Omarchy Mobile funziona prima di averlo realmente avviato sul tablet.
+Do not claim Omarchy Mobile works until it has actually booted on the tablet.
 
-**Il primo traguardo è una shell Linux su Snapdragon 670. Il secondo è Arch Linux ARM con supporto hardware essenziale. Il terzo è Omarchy Mobile con Hyprland, touchscreen e accelerazione grafica funzionanti.**
+**The first milestone is a Linux shell on Snapdragon 670. The second is Arch Linux ARM with essential
+hardware support. The third is Omarchy Mobile with Hyprland, touchscreen and graphics acceleration working.**
 
-Lavora in quest'ordine, continua il progetto già esistente e conserva la possibilità di ritornare a LineageOS.
+Work in this order, continue the existing project and preserve the ability to return to LineageOS.

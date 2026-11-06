@@ -80,8 +80,8 @@ to the PC, and a hang marker for anything at boot.
    started Lineage's recovery instead of Arch (observed 2026-11-04 22:45; the
    cause is a hypothesis: AOSP `install-recovery.sh` restoring the partition).
    Until this is understood and switched off, every trip through Android costs
-   a rewrite of `recovery`. See `PROGRESS.md`, "Il giro Lineage → Arch non è
-   chiuso".
+   a rewrite of `recovery`. See `PROGRESS.md`, "The Lineage → Arch cycle is
+   not closed".
 2. **Userspace the distribution does not have.** Arch Linux ARM carries
    `libssc`, `iio-sensor-proxy`, `iw`, `wpa_supplicant`, `alsa-ucm-conf`,
    `pipewire`, `bluez`, `upower`, `hyprland`, `libcamera`. It does not carry
