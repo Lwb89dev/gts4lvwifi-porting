@@ -1,0 +1,4 @@
+# Packages held at the versions supported by Omarchy Mobile's patch series.
+# Format: name version sha256 official-package-url
+omarchy 4.0.6-1 27cd6d88fda0be6c269c14dd65dad6a014384fedc3ea4eb5c742b2b972b10494 https://pkgs.omarchy.org/stable/aarch64/omarchy-4.0.6-1-aarch64.pkg.tar.zst
+omarchy-settings 4.0.6-1 f653d97a7832eaa6b71dae1a6ce0480cb2631d6ca9a3350534a579cb08c6b309 https://pkgs.omarchy.org/stable/aarch64/omarchy-settings-4.0.6-1-aarch64.pkg.tar.zst

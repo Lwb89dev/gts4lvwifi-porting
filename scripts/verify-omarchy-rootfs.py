@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check the M8 rootfs without mounting it or touching the tablet."""
+import json
 import sys
 import tarfile
 
@@ -8,11 +9,19 @@ REQUIRED_PACKAGES = ("omarchy", "omamobile-omarchy", "omamobile-shell", "hyprlan
 FORBIDDEN_PACKAGES = ("vulkan-panfrost",)
 REQUIRED_FILES = ("usr/lib/dri/msm_dri.so", "usr/lib/libvulkan_freedreno.so",
                   "usr/share/vulkan/icd.d/freedreno_icd.json", "usr/bin/Hyprland",
+                  "usr/share/wayland-sessions/hyprland-uwsm.desktop",
                   "usr/lib/gts4lv/hypr/tablet.lua", "usr/lib/gts4lv/autorotate.py",
+                  "usr/lib/gts4lv/finalize-mobile-user",
                   "usr/lib/systemd/user/omamobile-autorotate.service",
-                  "etc/systemd/user/graphical-session.target.wants/omamobile-autorotate.service")
+                  "etc/systemd/user/graphical-session.target.wants/omamobile-autorotate.service",
+                  "etc/systemd/system/multi-user.target.wants/gts4lv-audio.service")
 CONFIG_FILES = ("home/alarm/.config/hypr/hyprland.lua",
-                "home/alarm/.config/omarchy/shell.json")
+                "home/alarm/.config/omarchy/shell.json",
+                "etc/sddm.conf.d/90-gts4lv-autologin.conf",
+                "etc/systemd/system/sddm.service.d/10-gts4lv-display.conf",
+                "etc/systemd/sleep.conf.d/90-gts4lv-disable-suspend.conf",
+                "etc/systemd/user/omamobile-setup-user.service.d/10-gts4lv.conf",
+                "var/lib/omamobile/omarchy-patches/state.json")
 
 
 def fail(problems):
@@ -26,7 +35,8 @@ def main():
     package_path = sys.argv[2] if len(sys.argv) > 2 else "out/rootfs-omarchy/packages.txt"
     problems = []
     with open(package_path, encoding="utf-8") as stream:
-        packages = {line.split()[0] for line in stream if line.strip()}
+        package_versions = dict(line.split() for line in stream if line.strip())
+    packages = set(package_versions)
     for package in REQUIRED_PACKAGES:
         if package not in packages:
             problems.append(f"required package missing: {package}")
@@ -48,20 +58,67 @@ def main():
     for path in REQUIRED_FILES:
         if path not in members:
             problems.append(f"required Freedreno/Hyprland file missing: /{path}")
-    if "etc/systemd/system/display-manager.service" in members:
-        problems.append("graphical session enabled before the first M8 boot test")
+    display_manager = members.get("etc/systemd/system/display-manager.service")
+    if display_manager is None:
+        problems.append("SDDM is not enabled through display-manager.service")
+    elif not display_manager.issym() or not display_manager.linkname.endswith("sddm.service"):
+        problems.append("display-manager.service does not select SDDM")
+    autologin = members.get("etc/sddm.conf.d/90-gts4lv-autologin.conf", "")
+    for setting in ("User=alarm", "Session=hyprland-uwsm.desktop", "Relogin=true"):
+        if setting not in autologin.splitlines():
+            problems.append(f"SDDM autologin setting missing: {setting}")
+    sddm_order = members.get("etc/systemd/system/sddm.service.d/10-gts4lv-display.conf", "")
+    for setting in ("Requires=gts4lv-display.service gts4lv-audio.service",
+                    "After=gts4lv-display.service gts4lv-audio.service"):
+        if setting not in sddm_order.splitlines():
+            problems.append(f"SDDM speaker ordering missing: {setting}")
     hyprland = members.get("home/alarm/.config/hypr/hyprland.lua", "")
     if 'dofile("/usr/lib/gts4lv/hypr/tablet.lua")' not in hyprland:
         problems.append("Hyprland does not load the Tab S5e touchscreen calibration")
     shell = members.get("home/alarm/.config/omarchy/shell.json", "")
-    if '"lock": 600' not in shell:
+    try:
+        shell_config = json.loads(shell)
+    except (TypeError, json.JSONDecodeError):
+        shell_config = {}
+    if shell_config.get("idle", {}).get("lock") != 600:
         problems.append("Omarchy tablet lock timeout is not 600 seconds")
+    mobile_setup = members.get(
+        "etc/systemd/user/omamobile-setup-user.service.d/10-gts4lv.conf", ""
+    )
+    if "ConditionPathExists=" not in mobile_setup.splitlines():
+        problems.append("Omamobile user setup still requires a firstboot marker")
+    if "ExecStartPost=/usr/lib/gts4lv/finalize-mobile-user" not in mobile_setup.splitlines():
+        problems.append("Omamobile setup does not restore the tablet policy")
+    sleep_policy = members.get(
+        "etc/systemd/sleep.conf.d/90-gts4lv-disable-suspend.conf", ""
+    )
+    for setting in ("AllowSuspend=no", "AllowHibernation=no",
+                    "AllowSuspendThenHibernate=no", "AllowHybridSleep=no"):
+        if setting not in sleep_policy.splitlines():
+            problems.append(f"unsupported sleep mode is not disabled: {setting}")
+    patch_state = members.get("var/lib/omamobile/omarchy-patches/state.json", "")
+    try:
+        patch_state = json.loads(patch_state)
+    except (TypeError, json.JSONDecodeError):
+        patch_state = {}
+    if not patch_state.get("files") or not patch_state.get("applied"):
+        problems.append("Omarchy Mobile patch series has no successful recorded state")
+    for name, version in (("omarchy", "4.0.6-1"), ("omarchy-settings", "4.0.6-1")):
+        if package_versions.get(name) != version:
+            problems.append(
+                f"{name} is {package_versions.get(name, 'missing')}, expected pinned {version}"
+            )
+    if "IgnorePkg = omarchy omarchy-settings" not in pacman_conf:
+        problems.append("pinned Omarchy packages are not protected from upgrades")
     sections = [pacman_conf.find(f"[{name}]") for name in ("omamobile", "omarchy", "core")]
     if -1 in sections or sections != sorted(sections):
         problems.append("pacman repository order is not omamobile, omarchy, core")
-    ignore_line = next((line for line in pacman_conf.splitlines()
-                        if line.startswith("IgnorePkg =")), "")
-    ignored = set(ignore_line.removeprefix("IgnorePkg =").split())
+    ignored = {
+        package
+        for line in pacman_conf.splitlines()
+        if line.startswith("IgnorePkg =")
+        for package in line.removeprefix("IgnorePkg =").split()
+    }
     protected = {"mesa", "vulkan-mesa-implicit-layers", "vulkan-panfrost",
                  "aquamarine", "hyprtoolkit", "hyprland-guiutils",
                  "xdg-desktop-portal-hyprland"}
@@ -70,7 +127,7 @@ def main():
         problems.append(f"pacman does not protect the Arch graphics stack: {sorted(missing)}")
     if problems:
         fail(problems)
-    print(f"ok  {tar_path} (Omarchy Mobile installed, Freedreno protected, session disabled)")
+    print(f"ok  {tar_path} (Omarchy Mobile installed, Freedreno protected, SDDM autologin enabled)")
 
 
 if __name__ == "__main__":

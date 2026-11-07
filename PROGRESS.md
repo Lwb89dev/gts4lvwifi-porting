@@ -1,6 +1,6 @@
 # gts4lvwifi port progress
 
-Updated 2026-11-06 at midday, branch `feat/gts4lvwifi-mainline-bringup`.
+Updated 2026-11-07, branch `feat/gts4lvwifi-mainline-bringup`.
 This is the single narrative of the work performed on the SM-T720. Line-by-line measurements are in
 `device/gts4lvwifi/NOTES.md`; the rollback runbook is in `docs/RECOVERY-RUNBOOK.md`.
 
@@ -70,12 +70,14 @@ supersede older ones.
 | Touch (FTS1BA90A) | Custom interrupt-driven driver; 19,153 evdev events, 173 contacts, up to four fingers; persistent DSI-1 `transform=3` | Owner, `touch-summary.py`, Hyprland capture |
 | Display (`msm` plus panel) | **Working**: complete SMPTE bars, no visible seam, brightness and refresh tested; text console and compositor off/on remain open | Owner |
 | GPU | **Working**: Freedreno FD615, OpenGL 4.6/ES 3.2, Turnip Vulkan 1.3, no software fallback | `scripts/gpu-smoke.sh` |
-| Speaker audio | **Working** with protection DSP and PipeWire; all four speakers produce sound; working level is 0 dB digital, 0 analog | Owner and I2C registers |
+| Speaker audio | **Working** with protection DSP and PipeWire; all four speakers produce sound; the automatic path starts before SDDM with a -12 dB hardware ceiling and 0 analog gain | Owner, PipeWire and I2C registers |
 | Internal codec (microphones/headphones) | **Blocked**: every use crashes the ADSP with an AHB bus hang near `0x62…` | Six crashes measured |
 | ADSP | Starts and stops cleanly when handled by name | Measured |
 | SSC sensors | Working after synchronized testing: light, magnetometer, compass, accelerometer and autorotation; no proximity sensor | `ssccli`, D-Bus and live rotation tests |
-| microSD, cameras, video codec in use, suspend | Not completed | — |
-| M8 Omarchy | Installed and booted; mobile Hyprland, Quickshell, squeekboard, hardware GPU and calibrated touch work | Live tablet |
+| Suspend/resume | Unsupported: s2idle powered the tablet down but did not resume; all systemd sleep modes and the Omamobile menu action are disabled | Live test and `CanSuspend = no` |
+| microSD, cameras, video codec in use | Not completed | — |
+| Poweroff/reboot | Working: reboot returned normally; poweroff remained off for more than a minute with USB attached | PMIC reason registers and three live poweroff tests |
+| M8 Omarchy | The pre-audio image passed a clean reinstall and reboot. The audio-inclusive image was rebuilt and verified offline, but its final boot still needs to be repeated from a freshly written recovery | Offline verifiers and live tablet |
 | M9 packages/CI | Partial: build and verification scripts exist; final release workflow remains | Repository |
 
 ### Lessons that matter
@@ -96,26 +98,40 @@ supersede older ones.
 
 ### Current practical state
 
-The 12 GiB M8 rootfs is installed in `/data` and boots. It contains Omarchy 4.5.0-3,
-Omarchy Mobile shell 0.2.100, mobile Hyprland 0.57 and Mesa/Turnip ALARM 26.2.6. A live session
-uses DSI-1 at 2560×1600, scale 3.2, with MSM/FD615, Quickshell and squeekboard.
+The 12 GiB M8 rootfs installed in `/data` contains the patch-compatible,
+cryptographically pinned Omarchy 4.0.6-1, Omarchy Mobile shell 0.2.100, mobile Hyprland 0.57 and
+Mesa/Turnip ALARM 26.2.6. A live session uses DSI-1 at 2560×1600, mobile scale 3, with MSM/FD615,
+Quickshell and squeekboard.
 
-The display service must run before SDDM. SDDM is deliberately disabled at boot while bring-up continues;
-it can be enabled after a clean reboot test. The Omarchy lock timeout is 600 seconds and Stay Awake remains
-available as a quick setting.
+The display service runs before SDDM. SDDM is enabled and automatically starts the `alarm` Wayland
+session; the clean hands-off reboot reached systemd `running` with zero failed units. The Omarchy lock
+timeout is 600 seconds and Stay Awake remains available as a quick setting.
 
-The owner-provided temporary `alarm` password was used to get past the first graphical login. It must be
-changed or the account locked before a public/release image; root remains locked and SSH uses a key.
+The ALARM account predates the Omamobile packages, so upstream firstboot had never created its mobile
+profile marker. The image now removes that marker precondition from the idempotent user setup unit and
+runs a device finalizer after it. The live account has all 12 Omamobile plugins, phone window rules,
+squeekboard, the unsupported-suspend toggle and the ten-minute lock timeout.
+
+Suspend is not exposed: the only s2idle attempt powered the tablet down without a working resume, so
+systemd rejects suspend, hibernate and their hybrid variants. Poweroff is separate and now works. The
+Qualcomm PON driver programs both PMICs for `SHUTDOWN`; the device-specific `qcom,pon-reset-off` policy
+masks USB_CHG and CBLPWR while leaving the power-key and RTC triggers enabled. Before the second mask,
+the PMIC recorded a successful PS_HOLD shutdown followed by a CBL power-on. With both masks active,
+`PON_TRIGGER_EN` was `0xa4` and the tablet stayed off for the full one-minute observation window with
+the USB cable connected.
+
+The rebuilt image has no published or temporary password: both `root` and `alarm` are locked. SSH is
+key-only. The owner still has to set a private `alarm` password locally to unlock the graphical lock
+screen; it must never be sent through chat or committed.
 
 ### Next blocks, in order
 
-1. Rebuild the image from the committed tree and verify it offline.
-2. Reboot the rebuilt image and confirm services, Wi-Fi, display, touch, sensors and autorotation persist.
-3. Decide whether to enable SDDM at boot and test a hands-off graphical start.
-4. Change or remove the temporary `alarm` password and remove the bring-up debug console.
-5. Test Bluetooth reconnection after reboot and decide whether audio should start automatically.
-6. Investigate microphone/headphone support only if the ADSP codec path can be made safe.
-7. Optional hardware work: microSD, suspend/resume, cameras, video decode, display console and touch
+1. Set a private `alarm` password locally, then verify only that its status is `P`; do not record it.
+2. Commit and publish the closure changes, then rebuild from that exact GitHub commit if a release-grade
+   bit-for-bit provenance record is required.
+3. Test Bluetooth reconnection after reboot and decide whether speaker audio should start automatically.
+4. Investigate microphone/headphone support only if the ADSP codec path can be made safe.
+5. Optional hardware work: microSD, suspend/resume, cameras, video decode, display console and touch
    resume after display-off.
 
 The following historical sections record the evidence that led here.
@@ -327,6 +343,59 @@ service maps `normal=0`, `left-up=3`, `bottom-up=2`, `right-up=1`, and keeps tou
 The owner confirmed that image and touch are correct in every live rotation. `omamobile-autorotate.service`
 is enabled and active for `alarm`.
 
+### Final rebuild, reinstall and automatic graphical boot
+
+The first image could not be reproduced unchanged after Omarchy 4.5 was republished: Omarchy Mobile
+0.1.32's 27 patches no longer applied to it. The build now pins signed Omarchy 4.0.6-1 and settings
+4.0.6-1 by exact URL and SHA-256 in `omarchy-packages.lock`, checks the installed versions and protects
+them with `IgnorePkg`. A clean build installed 983 packages and all 27 patches applied without conflict;
+both rootfs verifiers passed.
+
+The final 2026-11-07 rebuild produced a 12 GiB image
+(`2d18c316de543f6dd39bd208852afd5e2e94918dd04e2bd4314a939e9ad093f3`), which was copied to the
+SM-T720 and verified there. FIEMAP produced 5,314 extents covering the full
+12,884,901,888 bytes. The resulting recovery image
+(`0e7d18044942b3859422c24f6111d3232ad2b5344086550daa9be0b721881214`) was written only to
+`recovery` and read back exactly before the final boot.
+
+The immediately preceding image completed a hands-off boot and normal reboot. Systemd reported
+`running`, no units failed, SDDM was enabled and active, and `alarm` had an active Wayland session on
+seat0 with the graphical and autorotation user units active. The CPU stability fix, sensor stack and IIO
+proxy were active; the touchscreen reappeared as event3. The audio changes were then deployed live and
+survived a normal reboot: the speaker service finished before SDDM, loaded protection on all four
+CS35L41 amplifiers and exposed `Tab S5e speakers` automatically through PipeWire at a -12 dB hardware
+ceiling. The debug console was disabled and inactive. Effective sshd policy was key-only: root
+`prohibit-password`, password authentication off and keyboard-interactive authentication off.
+
+The audio-inclusive artifacts above were subsequently rebuilt, copied and read back exactly. Their
+first attempted boot is not valid release evidence: after the recovery write, a failed key-combination
+attempt booted LineageOS again, which is known to be able to rewrite `recovery`; `adb reboot recovery`
+was then used despite the runbook warning and the device entered a bootloop. Reflash recovery after the
+last Android boot, enter it directly with the hardware keys and collect early boot evidence before
+classifying this as an image regression. Wi-Fi credentials remain private and are not part of the image.
+
+### Mobile profile, suspend policy and real poweroff (2026-11-07)
+
+The installed packages were already Omamobile, but `alarm` still used the desktop Omarchy shell profile:
+the vendor setup service only ran when a firstboot marker already existed, while this image seeds the
+pre-existing ALARM user directly. A systemd user drop-in now lets the idempotent setup run before every
+graphical session. Its first successful run enabled the 12 mobile plugins, phone rules and squeekboard;
+the device finalizer preserves the 600-second lock timeout and the suspend-off menu toggle.
+
+The suspend report was reproduced as a failed s2idle resume, not a working shutdown path. Systemd sleep
+policy now returns `CanSuspend = no` and rejects suspend, hibernate, hybrid sleep and suspend-then-hibernate.
+After the clean reinstall and reboot, an explicit `systemctl suspend` returned failure without changing
+the boot ID or system state.
+
+The original poweroff reached `systemd-poweroff`, but the primary PMIC retained its hard-reset type.
+The PON reboot notifier now selects shutdown for `SYS_POWER_OFF` and uses Qualcomm's 500-microsecond
+programming delay. A first retest proved that PS_HOLD shutdown completed, then the connected USB cable
+caused a new cold boot. The driver and DT now implement `qcom,pon-reset-off` for both USB_CHG and CBLPWR.
+The final rebuilt recovery image has SHA-256
+`0e7d18044942b3859422c24f6111d3232ad2b5344086550daa9be0b721881214`; it was written only to
+`recovery` and read back exactly. The successful reboot and following poweroff test belong to the
+preceding image; the audio-inclusive artifact still needs the clean boot sequence described above.
+
 ## Rollback
 
 If a boot does not return a shell and Lineage is needed:
@@ -348,7 +417,10 @@ not in GitHub. Do not force-push or publish backup refs.
 
 ## Current handoff
 
-The core Omarchy Mobile port is usable on the tablet. The shortest path to closure is to rebuild from the
-committed tree, perform one clean reboot test, decide on automatic SDDM startup, remove the temporary
-login/debug bring-up state and update the final release documentation. Optional hardware work can then
-continue independently without blocking the working Omarchy session.
+The core Omarchy Mobile port was usable on the tablet before the final audio-inclusive rebuild. The
+mobile profile, touch, sensors, autorotation, rejected suspend, reboot, poweroff, key-only SSH,
+debug-console cleanup and live-deployed automatic speaker path all have evidence. The current bootloop
+must first be separated from LineageOS recovery rewriting and the unsupported `adb reboot recovery`
+sequence by reflashing after the last Android boot. The mandatory private action left after recovery is
+setting the owner's `alarm` password locally. Optional hardware work can continue after the exact image
+passes the clean boot sequence.

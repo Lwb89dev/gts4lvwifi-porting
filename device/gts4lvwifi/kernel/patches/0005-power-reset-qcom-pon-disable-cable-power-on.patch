@@ -1,0 +1,55 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+--- a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
++++ b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+@@ -572,6 +572,7 @@
+ &pon {
+ 	/* Restart as a PMIC hard reset, as downstream does; ABL can hang on a warm one. */
+ 	qcom,hard-reset-restart;
++	qcom,pon-reset-off;
+ 	mode-normal = <0x01>;
+ 	mode-recovery = <0x01>;
+ 	mode-android = <0x14>;
+diff --git a/drivers/power/reset/qcom-pon.c b/drivers/power/reset/qcom-pon.c
+--- a/drivers/power/reset/qcom-pon.c
++++ b/drivers/power/reset/qcom-pon.c
+@@ -24,6 +24,10 @@
+ #define  PON_PS_HOLD_TYPE_SHUTDOWN	4
+ #define  PON_PS_HOLD_TYPE_HARD_RESET	7
+ #define PON_SOFT_RB_SPARE		0x8f
++#define PON_TRIGGER_EN			0x80
++#define  PON_USB_CHG_ENABLE		BIT(4)
++#define  PON_CBLPWR_N_ENABLE		BIT(6)
++#define  PON_EXTERNAL_POWER_ENABLE	(PON_USB_CHG_ENABLE | PON_CBLPWR_N_ENABLE)
+ 
+ #define GEN1_REASON_SHIFT		2
+ #define GEN2_REASON_SHIFT		1
+@@ -47,7 +49,7 @@ static void qcom_pon_set_ps_hold_type(struct qcom_pon *pon, unsigned int type)
+ 	regmap_update_bits(pon->regmap, pon->baseaddr + enable_reg,
+ 			   PON_PS_HOLD_ENABLE, 0);
+-	/* Updates of the enable bit need 3 sleep-clock cycles between them. */
+-	usleep_range(100, 1000);
++	/* Qualcomm downstream requires at least ten sleep-clock cycles. */
++	udelay(500);
+ 	regmap_update_bits(pon->regmap, pon->baseaddr + PON_PS_HOLD_RST_CTL,
+ 			   PON_PS_HOLD_TYPE_MASK, type);
+ 	regmap_update_bits(pon->regmap, pon->baseaddr + enable_reg,
+@@ -122,6 +124,19 @@ static int qcom_pon_probe(struct platform_device *pdev)
+ 
+ 	reason_shift = (long)of_device_get_match_data(&pdev->dev);
+ 
++	/*
++	 * Downstream's qcom,pon-reset-off policy prevents a connected USB cable
++	 * from immediately powering the device back on after PS_HOLD shutdown.
++	 * The power-key trigger is a separate bit and remains enabled.
++	 */
++	if (of_property_read_bool(pdev->dev.of_node, "qcom,pon-reset-off")) {
++		error = regmap_update_bits(pon->regmap, pon->baseaddr + PON_TRIGGER_EN,
++					   PON_EXTERNAL_POWER_ENABLE, 0);
++		if (error)
++			return dev_err_probe(&pdev->dev, error,
++					     "failed to disable cable power-on\n");
++	}
++
+ 	/* Reboot modes belong to the primary PMIC; a second one would clash. */
+ 	if (reason_shift != NO_REASON_SHIFT &&
+ 	    !of_property_read_bool(pdev->dev.of_node, "qcom,secondary-pon-reset")) {

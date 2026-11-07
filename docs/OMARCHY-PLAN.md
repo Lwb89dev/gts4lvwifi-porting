@@ -1,6 +1,6 @@
 # M8 plan: Omarchy Mobile on the tablet
 
-> Status 2026-11-06: the 12 GiB M8 image is running on the tablet. Hardware OpenGL/Vulkan, Hyprland mobile, Quickshell, squeekboard and calibrated touch have run. SSC accelerometer motion, automatic display rotation and the matching touch transforms passed live tests. The display manager remains disabled during bring-up.
+> Status 2026-11-07: the 12 GiB M8 image was rebuilt and verified. The pre-audio image and the live-deployed audio changes passed reboot tests, but the exact audio-inclusive artifact still needs a clean recovery reflash and boot: an intervening LineageOS boot may have rewritten recovery before the first attempt entered a bootloop. The 12-plugin Omamobile profile, hardware OpenGL/Vulkan, Hyprland, Quickshell, squeekboard, calibrated touch, sensors and autorotation have live evidence. Suspend is safely disabled; reboot and real poweroff work. SSH is key-only and the bring-up debug console is disabled.
 
 Written 2026-11-04 night. Everything here was read from the repositories'
 published databases and packages, or measured with `pacman` in print-only mode
@@ -166,3 +166,59 @@ test found that the native-landscape panel uses the opposite quarter-turn direct
 phone mapping; swapping transforms 1 and 3 made both the image and touch follow every physical turn.
 The image also changes the phone-oriented one-minute lock timeout to ten minutes; Stay awake remains a
 quick-settings toggle for bring-up.
+
+## 11. Reproducible final image and hands-off boot (2026-11-06)
+
+The upstream Omarchy 4.5 packages were republished after the first image and no longer accept the
+Omarchy Mobile 0.1.32 patch series. The final build therefore follows Omarchy Mobile's supported
+combination and pins `omarchy` plus `omarchy-settings` at 4.0.6-1. Their official package URLs,
+versions and SHA-256 sums are in `omarchy-packages.lock`; the build also verifies their pacman
+signatures and refuses any version drift. Pacman keeps both packages in `IgnorePkg` so a routine
+upgrade cannot silently replace the patched files.
+
+A clean 2026-11-07 build installed 983 packages and applied all 27 mobile patches with no conflict.
+Both rootfs verifiers passed. The final artifacts used for the live reinstall were:
+
+- rootfs image: `2d18c316de543f6dd39bd208852afd5e2e94918dd04e2bd4314a939e9ad093f3`;
+- rootfs tar: `6d984cce5cd2b41dda465b5ea32caa751b731817b9475a6d873f0945436b7d62`;
+- package list: `8f9c804d5d33ce6aec07a4e8d8e0659ba43973ae149f58075e6dd567c0d939df`;
+- recovery image: `0e7d18044942b3859422c24f6111d3232ad2b5344086550daa9be0b721881214`.
+
+The copy in Android userdata matched the rootfs hash and FIEMAP covered all 12,884,901,888 bytes
+in 5,314 extents.
+The recovery write was read back with the same hash. The prior image had already completed a hands-off
+boot and normal reboot with systemd `running`, zero failed units, active SDDM and an `alarm` Wayland
+session on seat0. The graphical and autorotation units, CPU stability, sensor and IIO proxy services were
+active, and the FTS1BA90A touchscreen appeared as `event3`. The protected speaker path was deployed live,
+then survived a normal reboot: it starts before SDDM, caps all four amplifier channels at -12 dB and lets
+WirePlumber publish `Tab S5e speakers` without a manual service restart.
+
+The exact artifact listed above has not yet completed that test. The hardware-key attempt after flashing
+instead booted LineageOS, which can rewrite `recovery`; a subsequent `adb reboot recovery` entered a
+bootloop. Recovery must be flashed again after the last Android boot and entered directly with the
+documented hardware-key sequence before treating the loop as a rootfs regression.
+
+The image locks both account passwords by design. Root SSH accepts the installed key only
+(`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`).
+The owner must set a private `alarm` password after installation to unlock the graphical lock screen;
+that secret is never put in the image, repository or build log. The recovery debug console remains
+installed for deliberate recovery work but is disabled and inactive during a normal boot.
+
+## 12. Omamobile account provisioning and power policy (2026-11-07)
+
+The packages alone were insufficient for the pre-existing ALARM `alarm` account: its shell still had
+the desktop Omarchy bar and no mobile plugins because the vendor user unit required a marker normally
+created by firstboot. A device drop-in clears that condition. The upstream idempotent setup now runs
+before the graphical session and creates the 12-plugin profile, phone window rules, squeekboard setup
+and suspend-off toggle. A device finalizer keeps the tablet's 600-second lock timeout.
+
+The only s2idle test powered down without resuming. `/etc/systemd/sleep.conf.d` therefore rejects all
+sleep and hibernate variants instead of presenting a destructive Suspend action. After the clean reinstall
+and reboot, `systemctl suspend` failed as configured while the boot ID and running state stayed unchanged.
+
+Poweroff required two PMIC changes. The Qualcomm PON notifier now programs `SHUTDOWN` rather than the
+restart type for `SYS_POWER_OFF`. Live reason registers then proved that shutdown completed but the
+connected cable immediately caused a new CBL power-on. The device policy now masks both external
+USB_CHG and CBLPWR triggers, leaving RTC, the secondary PMIC and the power key enabled. With the live
+trigger register at `0xa4`, the tablet remained off for more than one minute with USB still attached. The
+same one-minute test passed again after the final clean image, recovery and normal-reboot cycle.

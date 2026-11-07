@@ -18,6 +18,7 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 host=${TABLET_IP:-172.16.42.1}
 key=out/keys/gts4lv_ed25519
+known_hosts=${TABLET_KNOWN_HOSTS:-out/keys/known_hosts}
 part_bytes=72744960
 staged=/run/recovery-new.img
 reboot=0
@@ -44,7 +45,7 @@ pick_transport() {
 
 sshc() {
 	ssh -F /dev/null -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
-		-o ConnectTimeout=10 -o UserKnownHostsFile=out/keys/known_hosts \
+		-o ConnectTimeout=10 -o UserKnownHostsFile="$known_hosts" \
 		-o StrictHostKeyChecking=accept-new "root@$host" "$@"
 }
 

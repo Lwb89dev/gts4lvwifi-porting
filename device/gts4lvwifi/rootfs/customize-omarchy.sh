@@ -6,6 +6,7 @@ set -euo pipefail
 
 lock=${1:?repository lock file}
 packages=${2:?package list}
+pinned=${3:?pinned package lock file}
 
 say() { printf '==> %s\n' "$*"; }
 die() { printf 'customize-omarchy: %s\n' "$*" >&2; exit 1; }
@@ -53,6 +54,51 @@ add_repositories() {
 	rm -f "$tmp"
 }
 
+install_pinned_packages() {
+	local name version sha url extra pkg got i
+	local files=() expected_names=() expected_versions=()
+	while read -r name version sha url extra; do
+		case $name in ""|'#'*) continue ;; esac
+		[ -z "${extra:-}" ] || die "bad line in $pinned for $name"
+		[[ $sha =~ ^[0-9a-f]{64}$ ]] || die "bad checksum in $pinned for $name"
+		case $url in https://*.pkg.tar.zst) ;; *) die "bad package URL in $pinned for $name" ;; esac
+		pkg="/tmp/${url##*/}"
+		curl --fail --location --proto '=https' --tlsv1.2 \
+			--connect-timeout 15 --max-time 300 --output "$pkg" "$url"
+		curl --fail --location --proto '=https' --tlsv1.2 \
+			--connect-timeout 15 --max-time 120 --output "$pkg.sig" "$url.sig"
+		echo "$sha  $pkg" | sha256sum -c --quiet - || die "$name checksum mismatch"
+		pacman-key --verify "$pkg.sig" "$pkg" >/dev/null 2>&1 ||
+			die "$name package signature is not trusted"
+		files+=("$pkg")
+		expected_names+=("$name")
+		expected_versions+=("$version")
+	done < "$pinned"
+	[ "${#files[@]}" -gt 0 ] || die "empty pinned package lock"
+	pacman -U --noconfirm --needed "${files[@]}"
+	for ((i = 0; i < ${#expected_names[@]}; i++)); do
+		got=$(pacman -Q "${expected_names[$i]}" | awk '{ print $2 }')
+		[ "$got" = "${expected_versions[$i]}" ] ||
+			die "${expected_names[$i]} $got, expected ${expected_versions[$i]}"
+	done
+}
+
+protect_pinned_omarchy() {
+	local file=$1 tmp
+	tmp=$(mktemp)
+	awk '
+		/^\[options\]$/ {
+			print
+			print "# Omarchy Mobile patches target the signed, pinned 4.0.6 packages."
+			print "IgnorePkg = omarchy omarchy-settings"
+			next
+		}
+		{ print }
+	' "$file" > "$tmp"
+	install -m 644 "$tmp" "$file"
+	rm -f "$tmp"
+}
+
 protect_arch_graphics() {
 	local file=$1 tmp
 	tmp=$(mktemp)
@@ -71,7 +117,10 @@ protect_arch_graphics() {
 
 check_repo_package() {
 	local repo=$1 name=$2 selected
-	selected=$(pacman -Sp --print-format '%r' "$name" 2>/dev/null | tail -1)
+	# Query the qualified target. An older package with the same name may
+	# legitimately exist in a higher-priority repository; the explicit package
+	# list below must still select the requested repository.
+	selected=$(pacman -Sp --print-format '%r' "$repo/$name" 2>/dev/null | tail -1)
 	[ "$selected" = "$repo" ] || die "$name resolves from [$selected], expected [$repo]"
 }
 
@@ -113,6 +162,12 @@ install_omarchy_base() {
 		package=${package//[[:space:]]/}
 		[ -n "$package" ] || continue
 		case $skipped in *" $package "*) continue ;; esac
+		# Explicit mobile targets are installed before the generic Omarchy base
+		# list. Do not let an unqualified duplicate from a higher-priority repo
+		# replace or downgrade one of those packages.
+		if pacman -Q "$package" >/dev/null 2>&1; then
+			continue
+		fi
 		if pacman -Sp --print-format '%n' "$package" >/dev/null 2>&1; then
 			targets+=("$package")
 		else
@@ -152,9 +207,12 @@ protect_arch_graphics /etc/pacman.conf
 protect_arch_graphics /tmp/pacman.omarchy.conf
 
 check_repo_package omamobile hyprland
-check_repo_package omarchy omarchy
 check_freedreno
+install_pinned_packages
+protect_pinned_omarchy /etc/pacman.conf
+protect_pinned_omarchy /tmp/pacman.omarchy.conf
 pacman -S --noconfirm --needed "${wanted[@]}"
+/usr/bin/omamobile-omarchy-patches apply --hook
 install_omarchy_base
 
 cp /tmp/pacman.omarchy.conf /etc/pacman.conf
@@ -166,9 +224,12 @@ pacman -Q omarchy omamobile-omarchy omamobile-shell hyprland
 # provisioners then perform only the per-user steps that require a session bus.
 say "seed Omarchy configuration for alarm"
 cp -a /etc/skel/. /home/alarm/
-# The stock one-minute lock is too aggressive while bringing up a tablet.
-# Ten minutes remains finite; Stay awake is still available as a quick toggle.
-sed -i 's/"lock": 60/"lock": 600/' /home/alarm/.config/omarchy/shell.json
+# The stock lock is too aggressive while bringing up a tablet. Ten minutes
+# remains finite; Stay awake is still available as a quick toggle. Match the
+# current nested idle object as well as older one-line profiles.
+sed -Ei 's/"lock":[[:space:]]*[0-9]+/"lock": 600/' /home/alarm/.config/omarchy/shell.json
+grep -q '"lock": 600' /home/alarm/.config/omarchy/shell.json ||
+	die "could not set the Omarchy lock timeout"
 # Keep device calibration outside the package-owned user files, then load it
 # last so Omarchy defaults cannot overwrite the touchscreen mapping.
 sed -i '$a dofile("/usr/lib/gts4lv/hypr/tablet.lua")' /home/alarm/.config/hypr/hyprland.lua
@@ -179,10 +240,11 @@ chown -R alarm:alarm /home/alarm
 # session from the first login; the tile can still lock it via its state file.
 systemctl --global enable omamobile-autorotate.service
 
-# This stage proves installability and contents. Starting SDDM/Hyprland is a
-# separate, observable tablet test after the image boots.
-systemctl disable sddm.service >/dev/null 2>&1 || true
-[ ! -e /etc/systemd/system/display-manager.service ] ||
-	die "a display manager was enabled during the package install"
+# The tablet has now completed the observable bring-up test. Start the same
+# UWSM-managed Omarchy session automatically on every boot.
+systemctl enable gts4lv-audio.service sddm.service
+[ -L /etc/systemd/system/display-manager.service ] ||
+	die "SDDM did not create display-manager.service"
+/usr/bin/omamobile-omarchy-patches verify
 
-say "Omarchy Mobile installed; graphical session remains disabled"
+say "Omarchy Mobile installed; SDDM autologin enabled"

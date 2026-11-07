@@ -23,7 +23,8 @@ WANTS = "etc/systemd/system/multi-user.target.wants/"
 ENABLED = ("gts4lv-firmware.service", "gts4lv-modem.service", "gts4lv-boot-ok.service",
            "gts4lv-bluetooth.service", "gts4lv-sensors.service",
            "gts4lv-cpu-stability.service")
-NOT_ENABLED = ("qrtr-ns.service",)
+NOT_ENABLED = ("qrtr-ns.service", "gts4lv-debug-console.service")
+SSH_CONFIG = "etc/ssh/sshd_config.d/10-gts4lv.conf"
 REQUIRED = (
     "usr/bin/hexagonrpcd",
     "usr/local/sbin/gts4lv-cpu-stability",
@@ -32,6 +33,7 @@ REQUIRED = (
     "usr/lib/gts4lv/sensors/sns_reg.conf",
     "usr/lib/gts4lv/hypr/tablet.lua",
     "usr/lib/gts4lv/autorotate.py",
+    "usr/lib/gts4lv/finalize-mobile-user",
     "usr/lib/systemd/user/omamobile-autorotate.service",
     "etc/systemd/system/gts4lv-sensors-prepare.service",
     "etc/systemd/system/gts4lv-sensors-root.service",
@@ -39,13 +41,23 @@ REQUIRED = (
     "etc/systemd/system/gts4lv-cpu-stability.service",
     "etc/systemd/system/gts4lv-display.service",
     "etc/systemd/system/sddm.service.d/10-gts4lv-display.conf",
+    "etc/systemd/sleep.conf.d/90-gts4lv-disable-suspend.conf",
+    "etc/systemd/user/omamobile-setup-user.service.d/10-gts4lv.conf",
+    SSH_CONFIG,
     "etc/udev/rules.d/81-gts4lv-sensors.rules",
+)
+EXECUTABLES = (
+    "usr/local/sbin/gts4lv-cpu-stability",
+    "usr/local/sbin/gts4lv-display",
+    "usr/local/sbin/gts4lv-sensors",
+    "usr/lib/gts4lv/finalize-mobile-user",
 )
 
 
 def check(path):
     problems = []
     seen = {"root_ssh": False, "authorized": False}
+    ssh_config = ""
     required = set()
     wants = set()
     with tarfile.open(path, "r|*") as tar:
@@ -65,6 +77,10 @@ def check(path):
                 problems.append(f"file that resets the tablet: /{name}")
             if name in REQUIRED:
                 required.add(name)
+            if name == SSH_CONFIG:
+                ssh_config = tar.extractfile(member).read().decode()
+            if name in EXECUTABLES and member.mode & 0o111 == 0:
+                problems.append(f"required program is not executable: /{name} ({member.mode:o})")
             if name.startswith(WANTS):
                 wants.add(name[len(WANTS):])
             if name == "root/.ssh" and member.mode & 0o077 == 0:
@@ -89,6 +105,13 @@ def check(path):
         problems.append("/root/.ssh missing or not private (700)")
     if not seen["authorized"]:
         problems.append("/root/.ssh/authorized_keys missing or not private (600)")
+    for setting in (
+        "PermitRootLogin prohibit-password",
+        "PasswordAuthentication no",
+        "KbdInteractiveAuthentication no",
+    ):
+        if setting not in ssh_config.splitlines():
+            problems.append(f"SSH key-only setting missing: {setting}")
     return problems
 
 

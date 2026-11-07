@@ -31,8 +31,21 @@ say "pacman for a container under qemu-user"
 # qemu-user has no landlock and the container has no mount table for
 # CheckSpace. Both are put back before the image is made.
 cp /etc/pacman.conf /tmp/pacman.conf.orig
+cp /etc/pacman.d/mirrorlist /tmp/mirrorlist.orig
 sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
 sed -i 's/^\[options\]/[options]\nDisableSandbox/' /etc/pacman.conf
+if [ -n "${ALARM_BUILD_MIRROR:-}" ]; then
+	build_mirror=${ALARM_BUILD_MIRROR%/}
+	case $build_mirror in
+		http://*|https://*) ;;
+		*) printf 'invalid ALARM_BUILD_MIRROR: %s\n' "$build_mirror" >&2; exit 1 ;;
+	esac
+	case $build_mirror in
+		*[[:space:]\$\|]*) printf 'unsafe ALARM_BUILD_MIRROR: %s\n' "$build_mirror" >&2; exit 1 ;;
+	esac
+	sed -i "0,/^Server = /s|^Server = .*|Server = $build_mirror/\$arch/\$repo|" \
+		/etc/pacman.d/mirrorlist
+fi
 
 say "keyring"
 pacman-key --init
@@ -82,8 +95,9 @@ systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
 	gts4lv-bluetooth.service gts4lv-sensors.service gts4lv-cpu-stability.service \
 	bluetooth.service \
 	systemd-timesyncd.service
-# bring-up only: a root shell on the USB serial gadget. Remove before release.
-systemctl enable gts4lv-debug-console.service
+# Keep the recovery unit available, but never expose an unauthenticated root
+# console during a normal boot.
+systemctl disable gts4lv-debug-console.service >/dev/null 2>&1 || true
 # The qrtr name service is in the kernel (net/qrtr/ns.c). qrtr-ns.service from
 # the package is left disabled: it only reports "nameserver already running".
 
@@ -91,9 +105,13 @@ say "undo the container-only pacman settings"
 cp /tmp/pacman.conf.orig /etc/pacman.conf
 
 if [ "${OMARCHY_MOBILE:-0}" = 1 ]; then
-	say "Omarchy Mobile packages (session stays disabled)"
-	bash /customize-omarchy.sh /omarchy-repos.lock /omarchy-packages.txt
+	say "Omarchy Mobile packages and automatic graphical session"
+	bash /customize-omarchy.sh /omarchy-repos.lock /omarchy-packages.txt \
+		/omarchy-packages.lock
 fi
+
+# A build-time mirror override must not become a device update policy.
+cp /tmp/mirrorlist.orig /etc/pacman.d/mirrorlist
 
 pacman -Scc --noconfirm >/dev/null || true
 

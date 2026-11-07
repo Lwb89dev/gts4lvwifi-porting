@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Apply gts4lvwifi policy after Omamobile's per-user setup."""
+
+import json
+import os
+from pathlib import Path
+
+
+home = Path.home()
+profile = home / ".config/omarchy/shell.json"
+if profile.exists():
+    with profile.open(encoding="utf-8") as stream:
+        config = json.load(stream)
+    idle = config.setdefault("idle", {})
+    if idle.get("lock") != 600:
+        idle["lock"] = 600
+        temporary = profile.with_suffix(".json.new")
+        with temporary.open("w", encoding="utf-8") as stream:
+            json.dump(config, stream, indent=2)
+            stream.write("\n")
+        os.replace(temporary, profile)
+
+# Keep the unsupported action out of Omamobile's power menu even if a user
+# deletes its one-time marker or an upstream migration recreates the profile.
+toggle = home / ".local/state/omarchy/toggles/suspend-off"
+toggle.parent.mkdir(parents=True, exist_ok=True)
+toggle.touch()

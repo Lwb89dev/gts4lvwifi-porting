@@ -64,11 +64,20 @@ check_userdata() {
 }
 
 check_space() {
-	local need_kb free_kb
+	local need_kb free_kb reclaim_kb=0 remote_type available_kb
 	need_kb=$(($(stat -c %s "$image") / 1024))
 	free_kb=$(a shell "df -k /data | tail -n 1" | tr -d '\r' | awk '{ print $4 }')
-	echo "need ${need_kb} KiB plus ${min_free_mb} MiB reserve; /data has ${free_kb} KiB free"
-	[ "$free_kb" -gt $((need_kb + min_free_mb * 1024)) ] || die "not enough free space in /data"
+	remote_type=$(a shell "if [ -L $remote ]; then echo symlink; elif [ -e $remote ]; then stat -c %F $remote; else echo missing; fi" | tr -d '\r')
+	case $remote_type in
+	"regular file")
+		reclaim_kb=$(a shell "du -k $remote" | tr -d '\r' | awk '{ print $1 }')
+		;;
+	missing) ;;
+	*) die "$remote is a $remote_type, refusing to replace it" ;;
+	esac
+	available_kb=$((free_kb + reclaim_kb))
+	echo "need ${need_kb} KiB plus ${min_free_mb} MiB reserve; /data has ${free_kb} KiB free and ${reclaim_kb} KiB reclaimable from the old rootfs"
+	[ "$available_kb" -gt $((need_kb + min_free_mb * 1024)) ] || die "not enough replaceable space in /data"
 }
 
 copy_image() {

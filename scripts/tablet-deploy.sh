@@ -13,6 +13,7 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 host=${TABLET_IP:-172.16.42.1}
 key=out/keys/gts4lv_ed25519
+known_hosts=${TABLET_KNOWN_HOSTS:-out/keys/known_hosts}
 overlay=device/gts4lvwifi/rootfs/overlay
 repo=out/repo/aarch64
 
@@ -20,7 +21,7 @@ die() { echo "tablet-deploy: $*" >&2; exit 1; }
 
 sshc() {
 	ssh -F /dev/null -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
-		-o ConnectTimeout=10 -o UserKnownHostsFile=out/keys/known_hosts \
+		-o ConnectTimeout=10 -o UserKnownHostsFile="$known_hosts" \
 		-o StrictHostKeyChecking=accept-new "root@$host" "$@"
 }
 

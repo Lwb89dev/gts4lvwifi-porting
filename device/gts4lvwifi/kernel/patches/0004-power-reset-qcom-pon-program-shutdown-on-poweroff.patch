@@ -1,0 +1,14 @@
+diff --git a/drivers/power/reset/qcom-pon.c b/drivers/power/reset/qcom-pon.c
+--- a/drivers/power/reset/qcom-pon.c
++++ b/drivers/power/reset/qcom-pon.c
+@@ -74,7 +74,9 @@ static int qcom_pon_restart_notify(struct notifier_block *nb,
+ {
+ 	struct qcom_pon *pon = container_of(nb, struct qcom_pon, restart_nb);
+ 
+-	if (code == SYS_RESTART)
++	if (code == SYS_POWER_OFF)
++		qcom_pon_set_ps_hold_type(pon, PON_PS_HOLD_TYPE_SHUTDOWN);
++	else if (code == SYS_RESTART)
+ 		qcom_pon_set_ps_hold_type(pon, PON_PS_HOLD_TYPE_HARD_RESET);
+ 	return NOTIFY_DONE;
+ }

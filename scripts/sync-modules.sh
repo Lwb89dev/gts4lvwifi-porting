@@ -21,6 +21,7 @@ if [ "${1:-}" = --stage ]; then
 fi
 host=${TABLET_IP:-172.16.42.1}
 key=out/keys/gts4lv_ed25519
+known_hosts=${TABLET_KNOWN_HOSTS:-out/keys/known_hosts}
 release=$(cat out/kernel/include/config/kernel.release)
 src=out/kernel/modules/lib/modules/$release
 
@@ -28,7 +29,7 @@ die() { echo "sync-modules: $*" >&2; exit 1; }
 
 sshc() {
 	ssh -F /dev/null -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
-		-o ConnectTimeout=10 -o UserKnownHostsFile=out/keys/known_hosts \
+		-o ConnectTimeout=10 -o UserKnownHostsFile="$known_hosts" \
 		-o StrictHostKeyChecking=accept-new "root@$host" "$@"
 }
 

@@ -77,7 +77,9 @@ d run --name gts4lv-rootfs-build --platform linux/arm64 \
 	-v "$root/$dev/rootfs/customize-omarchy.sh:/customize-omarchy.sh:ro" \
 	-v "$root/$dev/rootfs/packages-omarchy.txt:/omarchy-packages.txt:ro" \
 	-v "$root/$dev/rootfs/omarchy-repos.lock:/omarchy-repos.lock:ro" \
+	-v "$root/$dev/rootfs/omarchy-packages.lock:/omarchy-packages.lock:ro" \
 	-e OMARCHY_MOBILE="${OMARCHY_MOBILE:-0}" \
+	-e ALARM_BUILD_MIRROR="${ALARM_BUILD_MIRROR:-}" \
 	"${pkgs_mount[@]}" \
 	"$tag" bash /customize.sh "$release"
 d export gts4lv-rootfs-build -o "$out/rootfs.tar"

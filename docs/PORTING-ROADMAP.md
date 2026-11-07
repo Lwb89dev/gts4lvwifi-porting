@@ -6,7 +6,7 @@ were read for ordering and parameters only (their licence is unstated, see
 `LICENSES.md`, so none of their code is copied). Nothing below has been run
 unless it says so.
 
-## 0. Where this stands (2026-11-06 morning)
+## 0. Where this stands (2026-11-07)
 
 Sections 1 to 6 below are the plan as written on 2026-11-04; this table is the result. Details and
 measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
@@ -18,13 +18,14 @@ measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
 | 2 | M7.5 Wi-Fi | done, reconnects by itself after a reboot |
 | 3 | M7.1 microSD | not started (needs a card and a `sdhc_2` node) |
 | 4 | M7.4 touch | done through evdev and Hyprland (own driver); the DSI panel uses persistent touch transform 3. Resume after display-off remains open |
-| 5 | M7.6 audio | speakers done (ADSP, LPI pins, protection firmware, PipeWire, WirePlumber rules); microphones and headphones blocked by the ADSP crash in the internal codec |
+| 5 | M7.6 audio | speakers done and automatic before SDDM (ADSP, LPI pins, protection firmware, -12 dB hardware ceiling, PipeWire and WirePlumber rules); microphones and headphones blocked by the ADSP crash in the internal codec |
 | 6 | M7.2 display | done (colour bars, brightness, about 63 Hz); text console on msm and compositor behaviour open |
 | 7 | M7.3 GPU | done: Freedreno `FD615` (OpenGL 4.6 / ES 3.2), Turnip `Adreno 615` (Vulkan 1.3) and Hyprland mobile scan-out on DSI-1 |
 | 8 | M7.8 sensors | working for light, magnetometer, compass and LSM6DSM motion through ADSP SSC; synchronized movement changed both raw acceleration and the proxy orientation. Proximity is not advertised. Device-specific Omarchy autorotation and its touch compensation passed live tests |
-| 9 | M7.9 suspend | not started |
+| 9 | M7.9 suspend | tested once: s2idle powered down but could not resume. Suspend/hibernate are blocked by systemd and removed from the Omamobile menu until kernel resume support exists |
 | 10 | M7.10 cameras, video codec | not started; Venus loads |
-| not in the plan | M8 Omarchy Mobile | running on the tablet: hardware GPU, Hyprland mobile, Quickshell, squeekboard and calibrated touch; graphical boot remains disabled while bring-up continues |
+| not in the plan | M8 Omarchy Mobile | running on the tablet: the 12-plugin mobile profile, hardware GPU, Hyprland, Quickshell, squeekboard and calibrated touch. The rebuilt image passed its offline verifiers and a full reinstall/reboot; SDDM autologin starts the Wayland session hands-off |
+| not in the plan | poweroff | working with USB connected: the PON driver selects PMIC shutdown and masks USB_CHG/CBLPWR, while preserving the power-key and RTC triggers |
 | not in the plan | Bluetooth | done: phone music through the speakers; reconnection after a reboot untested, and the phone must be paired again on v6 |
 
 Open hazards still true: the ADSP must not be running at a reset; hardware numbers (`remoteprocN`, I2C

@@ -1,25 +1,31 @@
 # Omarchy on the Galaxy Tab S5e (SM-T720)
 
-Mainline Linux, Arch Linux ARM and, next, Omarchy Mobile for the Samsung
+Mainline Linux, Arch Linux ARM and Omarchy Mobile for the Samsung
 Galaxy Tab S5e Wi-Fi (`gts4lvwifi`, SM-T720 / SM-T720N, Snapdragon 670). The
 LTE models (SM-T725) are a different board and are out of scope.
 
-## Status, 2026-11-05 (evening)
+## Status, 2026-11-07
 
 | Milestone | State |
 | --- | --- |
 | M0 to M3: audit, kernel, initramfs, recovery packer | passed, built and checked offline |
 | M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
 | M6: Arch Linux ARM | passed: systemd, ssh over USB, `pacman`; the root image is now v6 |
-| M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch through evdev and Hyprland, display, Freedreno/Turnip, the four speakers through PipeWire, sensors through ADSP SSC, and Omarchy autorotation with calibrated touch. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, suspend, cameras and video decode. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
-| M8: Omarchy Mobile | in progress on the tablet: Omarchy 4.5, Hyprland mobile, Quickshell, squeekboard, hardware GL/Vulkan and calibrated touch run on DSI-1. SDDM remains disabled at boot during bring-up |
+| M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch through evdev and Hyprland, display, Freedreno/Turnip, the four speakers through PipeWire, sensors through ADSP SSC, Omarchy autorotation with calibrated touch, reboot and poweroff. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, cameras and video decode. Suspend cannot resume on this kernel and is deliberately disabled. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
+| M8: Omarchy Mobile | usable in the last confirmed boot: the 12 GiB image pins Omarchy 4.0.6, applies all 27 Omarchy Mobile patches, and runs the 12-plugin mobile profile, Hyprland, Quickshell, squeekboard and hardware GL/Vulkan on DSI-1. The audio-inclusive rebuild is verified offline but needs a clean recovery reflash and boot after an intervening LineageOS boot caused the first final attempt to loop |
 | M9: CI | a static workflow runs on every push; the kernel build stays manual |
 
 The state in detail, with every measurement and what went wrong, is in
 `PROGRESS.md`; its first section is the handoff (rules, how to work on the tablet, what to do
 next). "Working" above means measured on the
-tablet, with the owner's eyes and ears where a person is the instrument; the boot-time
-display and audio need `gts4lv-display start` and `gts4lv-audio start` after each boot.
+tablet, with the owner's eyes and ears where a person is the instrument. Display and the
+graphical session and the protected four-speaker PipeWire sink start automatically; the
+automatic amplifier ceiling is -12 dB. Microphone/headphone audio is not considered complete.
+
+Poweroff programs both PM660-family PON blocks for shutdown and masks the two
+external USB/cable power-on triggers, so a connected cable no longer turns a
+completed shutdown into an apparent reboot. The power key and RTC triggers
+remain enabled.
 
 ## How it boots
 
@@ -90,7 +96,14 @@ The root image and the packages need Docker with the aarch64 binfmt handler
 scripts/fetch-alarm-rootfs.sh
 scripts/build-packages.sh
 scripts/build-rootfs.sh
+scripts/build-omarchy-rootfs.sh
 ```
+
+The Omarchy build verifies the pinned package versions, SHA-256 sums and pacman
+signatures from `device/gts4lvwifi/rootfs/omarchy-packages.lock`, applies and checks
+the mobile patch series, then runs both rootfs verifiers. The image deliberately
+ships with `root` and `alarm` locked; set a private `alarm` password locally after
+installation. SSH permits key authentication only.
 
 On a machine with less than 12 GB of RAM the kernel script uses `-j2`. GitHub
 Actions has two workflows: `static` (shellcheck, yamllint, the C tools, the

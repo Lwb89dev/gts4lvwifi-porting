@@ -18,12 +18,3 @@ index 37f097f30..972a52f71 100644
  		};
  
  		vreg_l7b_3p125: ldo7 {
-@@ -637,6 +635,8 @@ touchscreen@49 {
- 		compatible = "st,fts1ba90a";
- 		reg = <0x49>;
- 		interrupts-extended = <&tlmm 123 IRQ_TYPE_LEVEL_LOW>;
-+		vdd-supply = <&vreg_l11a_1p8>;
-+		avdd-supply = <&vreg_l6b_3p3>;
- 		pinctrl-names = "default";
- 		pinctrl-0 = <&ts_int_default>;
- 	};

@@ -2,7 +2,7 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64
 index f34b07f47..37f097f30 100644
 --- a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
 +++ b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
-@@ -623,6 +623,27 @@ &qupv3_id_1 {
+@@ -623,6 +623,29 @@ &qupv3_id_1 {
  &i2c9 {
  	clock-frequency = <400000>;
  	status = "okay";
@@ -16,6 +16,8 @@ index f34b07f47..37f097f30 100644
 +		compatible = "st,fts1ba90a";
 +		reg = <0x49>;
 +		interrupts-extended = <&tlmm 123 IRQ_TYPE_LEVEL_LOW>;
++		vdd-supply = <&vreg_l11a_1p8>;
++		avdd-supply = <&vreg_l6b_3p3>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&ts_int_default>;
 +	};

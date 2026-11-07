@@ -2,8 +2,9 @@
 # session yet. Repository prefixes are deliberate: Omarchy Mobile's Hyprland
 # carries its DPMS fix, while Mesa stays the Arch Linux ARM build with
 # Freedreno (guarded in customize-omarchy.sh and pacman.conf).
-omarchy/omarchy
-omarchy/omarchy-settings
+# Omarchy and omarchy-settings are installed from the signed, checksum-pinned
+# artifacts in omarchy-packages.lock. Omarchy Mobile's patches currently target
+# 4.0.6; do not let the repository's newer 4.5 package replace it.
 omarchy/mise-bin
 omamobile/hyprland
 omamobile/omamobile-firstboot

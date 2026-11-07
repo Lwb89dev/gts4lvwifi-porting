@@ -30,7 +30,8 @@ states, and "measured" says what was done on the tablet:
 | eMMC | Working and tested | `sdhci-msm`, HS400, CQE, 58.2 GiB, 57 partitions seen from Linux with names and sizes equal to Android's. The root image lives in a file in userdata and is mounted read-write through dm-linear; readbacks of `recovery` matched their sha256 |
 | USB gadget | Working and tested | dwc3 in device mode at high speed with the QUSB2 PHY; configfs NCM + RNDIS + ACM. ssh, ping, a 17 MB transfer by `nc`, `pacman` through a proxy. `usb_role` reads `device`. Host mode not tried |
 | USB data path (SM5705 MUIC) | Working and tested | the bit-banged `i2c-charger` bus (needs `CONFIG_I2C_GPIO`), `MANSW1 = 0x24` written by init; without it the host never saw the gadget |
-| Restart reasons (`qcom-pon`) | Working and tested | `reboot android` and `reboot recovery` reach Lineage and the recovery partition; a key reset does not |
+| Restart and poweroff (`qcom-pon`) | Working and tested | `reboot android` and `reboot recovery` reach Lineage and the recovery partition. Normal reboot returns to Arch. Poweroff programs both PMICs for shutdown and masks USB_CHG/CBLPWR; with USB connected the tablet stayed off for more than one minute. Power key and RTC triggers remain enabled |
+| Suspend/resume | Blocked | The only s2idle attempt powered the tablet down but did not resume. Systemd reports `CanSuspend = no`, rejects all sleep/hibernate variants, and Omamobile hides Suspend until kernel resume support exists |
 | Power and volume-down keys | Detected by the kernel | `pm8941_pwrkey` and `pm8941_resin` input devices exist; no key event read |
 | Thermal sensors | Detected by the kernel | 21 zones readable, 30.2 to 31.4 C at idle on 2026-11-04 21:20; no load test |
 | Boot framebuffer | Partly working | `simpledrm` on the bootloader's framebuffer shows the text console (photos in `CONSOLE-LOG.txt`); no panel driver, no backlight control, nothing from the GPU. Until 2026-11-05 the screen went black at 31 s in every boot: the panel's supply `octa-vdd` (GPIO 21, no consumer) was switched off by the regulator late cleanup. With `regulator_ignore_unused` it stays `enabled` at 48 s; the lit panel is for the owner to confirm |
@@ -49,7 +50,7 @@ states, and "measured" says what was done on the tablet:
 | Audio card (`sdm660-sndcard`) | Partly working | `card 0: S5e`, three MultiMedia PCMs, `Speaker Playback`, `Headphone Playback`, `Mic Capture` backends. After the LPI fix (below) a 1000 Hz tone through the speaker path was heard on 2 of 3 runs at -24, -18 and -12 dB with the protection DSP in the path; all four speakers produce sound (top pair and bottom pair each heard on their own, 2026-11-05 21:08); which amplifier is which speaker and whether left is left are not established, see `AUDIO-PLAN.md`. Microphones and UCM not done (PipeWire: next but one row). The LPI pin driver must be unloaded each time the ADSP stops (`gts4lv-dsp stop adsp` does it): its registers reset with the ADSP, and without that only the first playback after a boot powered up |
 | Speaker amplifiers (4x CS35L41) | Partly working | probe at `5-0040..0043`, revision A0, dummy `VA`/`VP` supplies. The protection DSP loads on all four with Samsung's `cs35l41-dsp1-spk-prot.wmfw` and tuning (`TAB_LV_S5e_PV2`) once the files are visible under `cirrus/` and `DSP1 Preload Switch` is on; `PCM Source` DSP puts it in the audio path (default ASP bypasses it). **A tone was played once at 0 dB with no protection loaded** (a failed volume command, see `AUDIO-PLAN.md`). The first power-up after the firmware is loaded afresh logs `Enable(1) failed: -110` (the DSP starts with the first stream); one second of silence first avoids it. Speaker calibration not done |
 | Internal digital codec (`62ec0000`, PM660L analog) | Not working | any port that uses it (capture, or playback to `hw:0,1`) makes the ADSP report `AHB Bus hang … addr0 = 0x62…` and remoteproc restarts it (6 crashes, the tablet never reset). Giving the codec the real `INTERNAL_DIGITAL_CODEC_CORE` clock makes the firmware refuse it and the card disappears; reverted. Microphones and headphones are behind this |
-| Audio server (PipeWire 1.6.10, WirePlumber 0.5.18) | Working and tested | runs for the `alarm` user (it refuses root), speakers presented as a stereo FL FR 16-bit sink by a WirePlumber rule; the owner heard a PipeWire tone and then Bluetooth music from the speakers. The speakers need `gts4lv-audio start` first. On a fresh image (v6) WirePlumber had no remembered profile for the card and PipeWire offered only a dummy sink: a rule now starts the card in Pro Audio and ranks the speakers first, and a PipeWire tone at 40 % sink volume was heard from all four speakers with no manual step (2026-11-05) Working level: amplifiers at 0 dB digital, analog 0, protection in the path (the owner's choice among four phases) |
+| Audio server (PipeWire 1.6.10, WirePlumber 0.5.18) | Working and tested | runs for the `alarm` user (it refuses root), with the speakers presented as a stereo FL FR 16-bit sink. `gts4lv-audio` is ordered before SDDM, loads protection on all four amplifiers and caps the automatic path at -12 dB digital with analog gain 0. After reboot WirePlumber selected Pro Audio and published `Tab S5e speakers` automatically at the saved 25% software volume. A PipeWire tone completed with no amplifier errors. Microphone and headphone PCM nodes remain unusable because the internal codec crashes the ADSP |
 | Package manager and clock | Working and tested | `pacman -Sy` and an install with signature check through the host proxy. No RTC: the clock starts in 1977 and is set from the host |
 
 ## 2. Everything else: what the build has
@@ -142,17 +143,17 @@ touchscreen has no kernel driver in this tree; pulpoff drives the STM
 FTS1BA90A from a daemon over i2c-dev that creates its multitouch device
 through uinput.
 
-## 3. Not measured (2026-11-05 evening)
+## 3. Not measured (2026-11-07)
 
 - Display: the text console on the msm framebuffer and tearing. Hyprland DPMS off/on works.
 - GPU: scan-out from a demanding real application. Hyprland and the shell use the hardware path;
   headless OpenGL and Vulkan also pass.
-- Touch: the left and top edges, autorotation composition and resume after display-off.
+- Touch: the left and top edges and resume after display-off. Autorotation composition passed live tests.
 - Audio: microphones and headphones (the internal digital codec crashes the ADSP), which amplifier is
   which speaker, left and right, speaker calibration, audio at boot.
 - Bluetooth: reconnection after a reboot, the tablet as a source, HFP/HSP.
-- microSD (needs a card and a device-tree node), sensors (`hexagonrpcd`, `libssc`; the ADSP's FastRPC
-  channel is there), suspend, cameras, video decode (Venus loads and `/dev/video12`, `13` exist), USB host mode.
+- microSD (needs a card and a device-tree node), cameras, video decode (Venus loads and `/dev/video12`,
+  `13` exist), USB host mode.
 - Thermal behaviour under load.
 
 The order and the risks are in `PORTING-ROADMAP.md`.

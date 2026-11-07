@@ -6,8 +6,8 @@
 #   gts4lv-audio stop      the ADSP stopped (with the LPI pin driver unloaded)
 #   gts4lv-audio status
 #
-# What it leaves behind: the four amplifiers at 0 dB digital and analog gain 0, the level
-# the owner found cleanest while music played (docs/AUDIO-PLAN.md), with the protection DSP
+# What it leaves behind: the four amplifiers at -12 dB digital and analog gain 0, a
+# conservative automatic-boot ceiling, with the protection DSP
 # preloaded and in the audio path (PCM Source DSP) and the secondary TDM route to MultiMedia1
 # switched on. The level is only raised after the protection firmware is confirmed loaded on
 # all four, and never above 0 dB. More analog gain made it quieter, not louder (the
@@ -19,8 +19,8 @@
 set -euo pipefail
 
 amps="FL FR RL RR"
-level_raw=817 # 0 dB; 0.125 dB per step
-limit_raw=817 # never above 0 dB
+level_raw=721 # -12 dB; 0.125 dB per step, 817 is 0 dB
+limit_raw=721 # never above the validated automatic-playback ceiling
 rest_raw=337 # -60 dB, while the protection is being loaded
 
 die() { echo "gts4lv-audio: $*" >&2; exit 1; }
@@ -31,7 +31,7 @@ volume() { # raw volume of one amplifier
 
 set_volume() { # <raw>, all four, read back
 	local a v
-	[ "$1" -le "$limit_raw" ] || die "refusing a volume above 0 dB"
+	[ "$1" -le "$limit_raw" ] || die "refusing a volume above -12 dB"
 	for a in $amps; do
 		amixer -c0 cset name="$a Digital PCM Volume" "$1" > /dev/null || die "could not set $a"
 	done
@@ -70,7 +70,7 @@ start() {
 		amixer -c0 cset name="$a Analog PCM Volume" 0 > /dev/null || die "analog gain $a"
 	done
 	set_volume "$level_raw"
-	echo "gts4lv-audio: ready, amplifiers at 0 dB, protection in the path"
+	echo "gts4lv-audio: ready, amplifiers at -12 dB, protection in the path"
 }
 
 stop() {
