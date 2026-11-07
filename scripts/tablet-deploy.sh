@@ -46,5 +46,5 @@ if ls "$repo"/*.pkg.tar.zst >/dev/null 2>&1; then
 fi
 
 echo "== units"
-sshc 'systemctl daemon-reload && systemctl enable --now gts4lv-firmware.service gts4lv-adsp-stop.service && systemctl is-active gts4lv-firmware.service gts4lv-adsp-stop.service'
+sshc 'systemctl daemon-reload && systemctl --global enable gts4lv-initial-speaker-volume.service && systemctl enable gts4lv-mark-poweroff.service && systemctl enable --now gts4lv-firmware.service gts4lv-adsp-stop.service && systemctl is-active gts4lv-firmware.service gts4lv-adsp-stop.service'
 echo "deployed"

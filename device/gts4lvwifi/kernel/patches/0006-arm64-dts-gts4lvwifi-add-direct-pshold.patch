@@ -1,0 +1,20 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+--- a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
++++ b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+@@ -603,6 +603,16 @@
+ 
+ /* APSS watchdog, at the same address as on SDM845 (downstream qcom,wdt@17980000). */
+ &soc {
++	/*
++	 * Match Samsung's SDM670 shutdown path: after qcom-pon has selected the
++	 * PMIC reset type, use the platform PS_HOLD sys-off path instead of PSCI.
++	 * The driver first asks secure firmware, then retains the MMIO fallback.
++	 */
++	pshold@c264000 {
++		compatible = "qcom,pshold";
++		reg = <0 0x0c264000 0 0x4>;
++	};
++
+ 	watchdog@17980000 {
+ 		compatible = "qcom,apss-wdt-sdm845", "qcom,kpss-wdt";
+ 		reg = <0 0x17980000 0 0x1000>;

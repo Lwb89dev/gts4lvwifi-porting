@@ -4,13 +4,6 @@ Updated 2026-11-07, branch `feat/gts4lvwifi-mainline-bringup`.
 This is the single narrative of the work performed on the SM-T720. Line-by-line measurements are in
 `device/gts4lvwifi/NOTES.md`; the rollback runbook is in `docs/RECOVERY-RUNBOOK.md`.
 
-## Handoff: from Claude to Codex (updated 2026-11-05 evening)
-
-The owner reached **98% of the weekly limit** with Claude (Sonnet 5.5), asked it to stop, and handed
-the work to Codex. This section is for whoever resumes the work. Project rules are in `PROMPT.md`
-(milestones M0-M9) and here; the rest of this file is a chronological log, and newer statements
-supersede older ones.
-
 ### Owner rules
 
 - **The tablet is disposable, within limits.** `recovery`, `userdata` and files below `/data` (the
@@ -76,8 +69,8 @@ supersede older ones.
 | SSC sensors | Working after synchronized testing: light, magnetometer, compass, accelerometer and autorotation; no proximity sensor | `ssccli`, D-Bus and live rotation tests |
 | Suspend/resume | Unsupported: s2idle powered the tablet down but did not resume; all systemd sleep modes and the Omamobile menu action are disabled | Live test and `CanSuspend = no` |
 | microSD, cameras, video codec in use | Not completed | — |
-| Poweroff/reboot | Working: reboot returned normally; poweroff remained off for more than a minute with USB attached | PMIC reason registers and three live poweroff tests |
-| M8 Omarchy | The pre-audio image passed a clean reinstall and reboot. The audio-inclusive image was rebuilt and verified offline, but its final boot still needs to be repeated from a freshly written recovery | Offline verifiers and live tablet |
+| Poweroff/reboot | Working: reboot returns normally; secure PS_HOLD performs a real shutdown, and a cable-triggered cold boot is intercepted in display-off/USB-off charging mode instead of restarting Omarchy | PMIC reason registers and live poweroff tests |
+| M8 Omarchy | The exact audio-inclusive image passed a clean reinstall, hands-off boot and reboot with systemd running, zero failed units and the mobile graphical/audio stack active | Offline verifiers and live tablet |
 | M9 packages/CI | Partial: build and verification scripts exist; final release workflow remains | Repository |
 
 ### Lessons that matter
@@ -109,16 +102,16 @@ timeout is 600 seconds and Stay Awake remains available as a quick setting.
 
 The ALARM account predates the Omamobile packages, so upstream firstboot had never created its mobile
 profile marker. The image now removes that marker precondition from the idempotent user setup unit and
-runs a device finalizer after it. The live account has all 12 Omamobile plugins, phone window rules,
+runs a device finalizer after it. The live account has all 13 Omamobile plugins, phone window rules,
 squeekboard, the unsupported-suspend toggle and the ten-minute lock timeout.
 
 Suspend is not exposed: the only s2idle attempt powered the tablet down without a working resume, so
 systemd rejects suspend, hibernate and their hybrid variants. Poweroff is separate and now works. The
-Qualcomm PON driver programs both PMICs for `SHUTDOWN`; the device-specific `qcom,pon-reset-off` policy
-masks USB_CHG and CBLPWR while leaving the power-key and RTC triggers enabled. Before the second mask,
-the PMIC recorded a successful PS_HOLD shutdown followed by a CBL power-on. With both masks active,
-`PON_TRIGGER_EN` was `0xa4` and the tablet stayed off for the full one-minute observation window with
-the USB cable connected.
+Qualcomm PON driver programs both PMICs for `SHUTDOWN`, Samsung firmware deasserts PS_HOLD through SCM,
+and fresh reason registers prove the real shutdown. A full PMIC cycle restores CBLPWR and an attached
+cable starts a new cold boot despite the runtime trigger mask. A rootfs marker lets initramfs recognize
+that case and remain in display-off/USB-off charging mode instead of starting Omarchy; removing VBUS
+completes shutdown and Power continues the normal boot.
 
 The rebuilt image has no published or temporary password: both `root` and `alarm` are locked. SSH is
 key-only. The owner still has to set a private `alarm` password locally to unlock the graphical lock
@@ -367,19 +360,18 @@ CS35L41 amplifiers and exposed `Tab S5e speakers` automatically through PipeWire
 ceiling. The debug console was disabled and inactive. Effective sshd policy was key-only: root
 `prohibit-password`, password authentication off and keyboard-interactive authentication off.
 
-The audio-inclusive artifacts above were subsequently rebuilt, copied and read back exactly. Their
-first attempted boot is not valid release evidence: after the recovery write, a failed key-combination
-attempt booted LineageOS again, which is known to be able to rewrite `recovery`; `adb reboot recovery`
-was then used despite the runbook warning and the device entered a bootloop. Reflash recovery after the
-last Android boot, enter it directly with the hardware keys and collect early boot evidence before
-classifying this as an image regression. Wi-Fi credentials remain private and are not part of the image.
+The audio-inclusive artifacts above were subsequently rebuilt, copied and read back exactly. A later
+clean recovery write proved that the apparent first bootloop was not a rootfs regression. The exact
+rootfs reached systemd `running` with zero failed units; SDDM, Hyprland, Quickshell, Omamobile, touch,
+sensors, autorotation, PipeWire and all four protected speakers were active. Wi-Fi credentials remain
+private and are not part of the image.
 
 ### Mobile profile, suspend policy and real poweroff (2026-11-07)
 
 The installed packages were already Omamobile, but `alarm` still used the desktop Omarchy shell profile:
 the vendor setup service only ran when a firstboot marker already existed, while this image seeds the
 pre-existing ALARM user directly. A systemd user drop-in now lets the idempotent setup run before every
-graphical session. Its first successful run enabled the 12 mobile plugins, phone rules and squeekboard;
+graphical session. Its first successful run enabled the 13 mobile plugins, phone rules and squeekboard;
 the device finalizer preserves the 600-second lock timeout and the suspend-off menu toggle.
 
 The suspend report was reproduced as a failed s2idle resume, not a working shutdown path. Systemd sleep
@@ -389,12 +381,13 @@ the boot ID or system state.
 
 The original poweroff reached `systemd-poweroff`, but the primary PMIC retained its hard-reset type.
 The PON reboot notifier now selects shutdown for `SYS_POWER_OFF` and uses Qualcomm's 500-microsecond
-programming delay. A first retest proved that PS_HOLD shutdown completed, then the connected USB cable
-caused a new cold boot. The driver and DT now implement `qcom,pon-reset-off` for both USB_CHG and CBLPWR.
-The final rebuilt recovery image has SHA-256
-`0e7d18044942b3859422c24f6111d3232ad2b5344086550daa9be0b721881214`; it was written only to
-`recovery` and read back exactly. The successful reboot and following poweroff test belong to the
-preceding image; the audio-inclusive artifact still needs the clean boot sequence described above.
+programming delay. Samsung's SDM670 firmware requires the secure SCM PS_HOLD deassert call; the direct
+MMIO fallback alone ended in a watchdog restart. With SCM, fresh registers recorded PS_HOLD shutdown
+(`POFF_REASON=0x02`) followed by CBL power-on (`PON_REASON=0x40`). The runtime USB_CHG/CBLPWR mask is
+lost across that full PMIC cycle, so initramfs now handles an intentional cable-only cold boot as an
+off/charge state: display and USB stay off, removing the cable finishes poweroff, and Power starts Arch.
+The current recovery candidate (`2f82fd38077957b092bcd3283d14c54e7d61c8bc25b975fa9d05247b0bd6e41a`)
+was written only to `recovery` and read back exactly.
 
 ## Rollback
 
@@ -411,16 +404,14 @@ The full command sequence, stop conditions and risks are in `docs/RECOVERY-RUNBO
 ## Git and publication
 
 The bring-up branch is `feat/gts4lvwifi-mainline-bringup`. The current porting work was committed and
-pushed normally as `44cb729a0b991f35d350e531fe85aceca59214fb`, authored by
+pushed normally as `6cb33ffef0d1e29dde565eaa35150b90c07293df`, authored by
 `Lwb89dev <luigi.antona89@protonmail.com>`. Ignored photos, `src/`, `out/`, temporary files and keys are
 not in GitHub. Do not force-push or publish backup refs.
 
 ## Current handoff
 
-The core Omarchy Mobile port was usable on the tablet before the final audio-inclusive rebuild. The
-mobile profile, touch, sensors, autorotation, rejected suspend, reboot, poweroff, key-only SSH,
-debug-console cleanup and live-deployed automatic speaker path all have evidence. The current bootloop
-must first be separated from LineageOS recovery rewriting and the unsupported `adb reboot recovery`
-sequence by reflashing after the last Android boot. The mandatory private action left after recovery is
-setting the owner's `alarm` password locally. Optional hardware work can continue after the exact image
-passes the clean boot sequence.
+The core Omarchy Mobile port is usable on the tablet. The exact audio-inclusive image, 13-plugin mobile
+profile, touch, sensors, autorotation, rejected suspend, reboot, cable-aware poweroff, key-only SSH,
+debug-console cleanup and automatic protected speaker path all have live evidence. The mandatory private
+action left is setting the owner's `alarm` password locally. Optional hardware work can continue with
+Bluetooth reconnection, display-off touch resume, microSD, cameras/video and the blocked internal codec.

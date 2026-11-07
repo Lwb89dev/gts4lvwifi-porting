@@ -1,0 +1,26 @@
+#!/bin/sh
+# Give a freshly provisioned alarm account a conservative software volume.
+# Once this succeeds, WirePlumber owns the user's later volume choices.
+set -eu
+
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/gts4lv
+marker=$state_dir/speaker-volume-initialized
+
+[ ! -e "$marker" ] || exit 0
+
+attempt=0
+while [ "$attempt" -lt 30 ]; do
+	if wpctl inspect @DEFAULT_AUDIO_SINK@ 2>/dev/null |
+		grep -Fq 'node.description = "Tab S5e speakers"'; then
+		wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.25
+		wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -Fq 'Volume: 0.25'
+		mkdir -p "$state_dir"
+		: > "$marker"
+		exit 0
+	fi
+	attempt=$((attempt + 1))
+	sleep 1
+done
+
+echo "gts4lv initial speaker volume: speaker sink did not appear" >&2
+exit 1

@@ -1,6 +1,6 @@
 # M8 plan: Omarchy Mobile on the tablet
 
-> Status 2026-11-07: the 12 GiB M8 image was rebuilt and verified. The pre-audio image and the live-deployed audio changes passed reboot tests, but the exact audio-inclusive artifact still needs a clean recovery reflash and boot: an intervening LineageOS boot may have rewritten recovery before the first attempt entered a bootloop. The 12-plugin Omamobile profile, hardware OpenGL/Vulkan, Hyprland, Quickshell, squeekboard, calibrated touch, sensors and autorotation have live evidence. Suspend is safely disabled; reboot and real poweroff work. SSH is key-only and the bring-up debug console is disabled.
+> Status 2026-11-07: the 12 GiB M8 image was rebuilt, verified, installed and boot-tested. The exact audio-inclusive artifact completed hands-off boot and reboot with systemd running and no failed units. The 13-plugin Omamobile profile, hardware OpenGL/Vulkan, Hyprland, Quickshell, squeekboard, calibrated touch, sensors, autorotation and protected speakers have live evidence. Suspend is safely disabled; reboot and the cable-aware off/charge path work. SSH is key-only and the bring-up debug console is disabled.
 
 Written 2026-11-04 night. Everything here was read from the repositories'
 published databases and packages, or measured with `pacman` in print-only mode
@@ -193,10 +193,10 @@ active, and the FTS1BA90A touchscreen appeared as `event3`. The protected speake
 then survived a normal reboot: it starts before SDDM, caps all four amplifier channels at -12 dB and lets
 WirePlumber publish `Tab S5e speakers` without a manual service restart.
 
-The exact artifact listed above has not yet completed that test. The hardware-key attempt after flashing
-instead booted LineageOS, which can rewrite `recovery`; a subsequent `adb reboot recovery` entered a
-bootloop. Recovery must be flashed again after the last Android boot and entered directly with the
-documented hardware-key sequence before treating the loop as a rootfs regression.
+The exact artifact listed above subsequently completed that test after recovery was rewritten and read
+back once more. The earlier apparent bootloop was a recovery-selection/USB-observation failure, not a
+rootfs regression: systemd, SDDM, Hyprland, Quickshell, the Omamobile session, touch, sensors,
+autorotation, PipeWire and all four protected speakers were active on the exact installed rootfs.
 
 The image locks both account passwords by design. Root SSH accepts the installed key only
 (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`).
@@ -209,16 +209,18 @@ installed for deliberate recovery work but is disabled and inactive during a nor
 The packages alone were insufficient for the pre-existing ALARM `alarm` account: its shell still had
 the desktop Omarchy bar and no mobile plugins because the vendor user unit required a marker normally
 created by firstboot. A device drop-in clears that condition. The upstream idempotent setup now runs
-before the graphical session and creates the 12-plugin profile, phone window rules, squeekboard setup
+before the graphical session and creates the 13-plugin profile, phone window rules, squeekboard setup
 and suspend-off toggle. A device finalizer keeps the tablet's 600-second lock timeout.
 
 The only s2idle test powered down without resuming. `/etc/systemd/sleep.conf.d` therefore rejects all
 sleep and hibernate variants instead of presenting a destructive Suspend action. After the clean reinstall
 and reboot, `systemctl suspend` failed as configured while the boot ID and running state stayed unchanged.
 
-Poweroff required two PMIC changes. The Qualcomm PON notifier now programs `SHUTDOWN` rather than the
-restart type for `SYS_POWER_OFF`. Live reason registers then proved that shutdown completed but the
-connected cable immediately caused a new CBL power-on. The device policy now masks both external
-USB_CHG and CBLPWR triggers, leaving RTC, the secondary PMIC and the power key enabled. With the live
-trigger register at `0xa4`, the tablet remained off for more than one minute with USB still attached. The
-same one-minute test passed again after the final clean image, recovery and normal-reboot cycle.
+Poweroff required a secure SoC path and a cable-aware first stage. The Qualcomm PON notifier programs
+`SHUTDOWN`, both PMICs receive the correct type, and Samsung's firmware deasserts PS_HOLD through SCM.
+Fresh reason registers proved a completed PS_HOLD shutdown followed by a new CBL power-on: the PMIC
+restores that hardware trigger after a full shutdown even when Linux masks it at runtime. The rootfs now
+records an intentional poweroff before unmount. On the CBL-only cold boot, initramfs consumes that marker,
+blanks the framebuffer, unbinds USB and waits in the minimal charging environment rather than starting
+Omarchy. Removing VBUS completes the physical shutdown; pressing Power clears the marker and continues
+the normal Arch boot.

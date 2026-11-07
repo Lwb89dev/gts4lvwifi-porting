@@ -1,0 +1,70 @@
+diff --git a/drivers/firmware/qcom/qcom_scm.c b/drivers/firmware/qcom/qcom_scm.c
+--- a/drivers/firmware/qcom/qcom_scm.c
++++ b/drivers/firmware/qcom/qcom_scm.c
+@@ -479,6 +479,20 @@ void qcom_scm_cpu_power_down(u32 flags)
+ }
+ EXPORT_SYMBOL_GPL(qcom_scm_cpu_power_down);
+ 
++int qcom_scm_deassert_ps_hold(void)
++{
++	struct qcom_scm_desc desc = {
++		.svc = QCOM_SCM_SVC_PWR,
++		.cmd = QCOM_SCM_PWR_DEASSERT_PS_HOLD,
++		.args[0] = 0,
++		.arginfo = QCOM_SCM_ARGS(1),
++		.owner = ARM_SMCCC_OWNER_SIP,
++	};
++
++	return qcom_scm_call_atomic(__scm ? __scm->dev : NULL, &desc, NULL);
++}
++EXPORT_SYMBOL_GPL(qcom_scm_deassert_ps_hold);
++
+ int qcom_scm_set_remote_state(u32 state, u32 id)
+ {
+ 	struct qcom_scm_desc desc = {
+diff --git a/drivers/firmware/qcom/qcom_scm.h b/drivers/firmware/qcom/qcom_scm.h
+--- a/drivers/firmware/qcom/qcom_scm.h
++++ b/drivers/firmware/qcom/qcom_scm.h
+@@ -111,6 +111,9 @@ int qcom_scm_shm_bridge_enable(struct device *scm_dev);
+ #define QCOM_SCM_IO_READ		0x01
+ #define QCOM_SCM_IO_WRITE		0x02
+ 
++#define QCOM_SCM_SVC_PWR		0x09
++#define QCOM_SCM_PWR_DEASSERT_PS_HOLD	0x02
++
+ #define QCOM_SCM_SVC_INFO		0x06
+ #define QCOM_SCM_INFO_IS_CALL_AVAIL	0x01
+ 
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -4,6 +4,7 @@
+ 
+ #include <linux/delay.h>
+ #include <linux/err.h>
++#include <linux/firmware/qcom/qcom_scm.h>
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/io.h>
+@@ -17,6 +18,10 @@ static void __iomem *msm_ps_hold;
+ 
+ static int do_msm_poweroff(struct sys_off_data *data)
+ {
++	/* Samsung's SDM670 firmware requires the secure deassert first. */
++	qcom_scm_deassert_ps_hold();
++
++	/* Fall back to the direct register write if the SCM call returns. */
+ 	writel(0, msm_ps_hold);
+ 	mdelay(10000);
+ 
+diff --git a/include/linux/firmware/qcom/qcom_scm.h b/include/linux/firmware/qcom/qcom_scm.h
+--- a/include/linux/firmware/qcom/qcom_scm.h
++++ b/include/linux/firmware/qcom/qcom_scm.h
+@@ -64,6 +64,7 @@ bool qcom_scm_is_available(void);
+ int qcom_scm_set_cold_boot_addr(void *entry);
+ int qcom_scm_set_warm_boot_addr(void *entry);
+ void qcom_scm_cpu_power_down(u32 flags);
++int qcom_scm_deassert_ps_hold(void);
+ int qcom_scm_set_remote_state(u32 state, u32 id);
+ 
+ struct qcom_scm_pas_context {

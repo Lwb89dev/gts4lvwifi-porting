@@ -59,6 +59,15 @@ done
 [ -x "$work/usr/sbin/boot-android" ]
 head -n 1 "$work/usr/sbin/boot-android" | grep -q '^#!/bin/busybox sh'
 grep -q 'qcom-pon' "$work/init"
+# An intentional shutdown followed by a cable-only cold boot must stop before
+# switch_root. Keep every input to that decision in the packed image: the
+# persistent marker, PMIC reason, live VBUS check, USB unbind and power key.
+for token in poweroff-requested '08c0:' '0x40' --vbus 'echo "" > "$G/UDC"' \
+	pm8941_pwrkey 'off-charge: power key, starting Arch'
+do
+	grep -Fq -- "$token" "$work/init"
+done
+grep -Fq -- '--vbus' "$work/usr/sbin/muic-usb"
 # qcom-pon must load after the telnet is up, not in the early module list.
 telnet_line=$(grep -n '^log "telnet' "$work/init" | head -n 1 | cut -d: -f1)
 pon_line=$(grep -n 'insmod /lib/modules/qcom-pon.ko' "$work/init" | head -n 1 | cut -d: -f1)

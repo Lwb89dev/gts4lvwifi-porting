@@ -277,3 +277,17 @@ The audio pieces were baked into a fresh root image (v6) and tested from a clean
   because an ADSP left running across a hard reset can loop the bootloader. The phone has to be paired
   again on v6 and the reconnection after a reboot tried. Microphones, headphones and the speaker mapping
   are open.
+
+## Final automatic speaker path (2026-11-07)
+
+The final Omarchy Mobile image supersedes the last bullet above. `gts4lv-audio.service` is enabled and
+ordered before SDDM; `gts4lv-adsp-stop.service` still stops the ADSP on every orderly shutdown. The live
+path loaded protection firmware on all four CS35L41 amplifiers, selected DSP PCM source, capped the
+hardware digital level at -12 dB with analog gain 0, and published `Tab S5e speakers` automatically.
+It survived a normal reboot and the exact audio-inclusive rootfs completed a hands-off boot with the
+same sink.
+
+WirePlumber software volume is initialized to 25 percent only on the first successful graphical
+session. A state marker then preserves the owner's later choice across reboots. Microphones and the
+internal codec remain blocked by the repeatable ADSP AHB hang; Bluetooth reconnection after reboot and
+the tablet-to-headphones direction remain open.

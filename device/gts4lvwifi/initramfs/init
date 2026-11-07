@@ -2,7 +2,7 @@
 # First light: USB network (NCM + RNDIS), ACM serial, telnet shell.
 # Does not write eMMC. Does not reboot.
 
-/bin/busybox mkdir -p /bin /sbin /usr/bin /usr/sbin /proc /sys /dev /tmp /run /lib/modules
+/bin/busybox mkdir -p /bin /sbin /usr/bin /usr/sbin /proc /sys /dev /tmp /run /lib/modules /sys/kernel/debug
 /bin/busybox --install -s
 
 mount -t proc proc /proc
@@ -13,6 +13,7 @@ mount -t devpts devpts /dev/pts
 mount -t tmpfs tmpfs /tmp
 mount -t tmpfs tmpfs /run
 mount -t configfs configfs /sys/kernel/config
+mount -t debugfs debugfs /sys/kernel/debug
 
 log() {
 	echo "gts4lv-init: $*" > /dev/kmsg
@@ -25,6 +26,89 @@ part() {
 		return 0
 	done
 	return 1
+}
+
+# A connected cable is a PMIC power-on source and its enable mask returns to
+# the hardware default after a complete shutdown. If that wakes us following
+# an intentional poweroff, stay in this minimal charging state instead of
+# starting the graphical system. Power starts Arch; removing VBUS completes
+# a real shutdown. Reboots and normal power-key boots never enter this path.
+off_charge_mode() {
+	root=$1
+	marker=$root/var/lib/gts4lv/poweroff-requested
+	[ -e "$marker" ] || return 0
+
+	pon_reason=$(awk '$1 == "08c0:" { print $2; exit }' \
+		/sys/kernel/debug/regmap/0-00/registers 2>/dev/null)
+	case $pon_reason in
+	'' | *[!0-9a-fA-F]*) cable_wake=no ;;
+	*)
+		if [ $((0x$pon_reason & 0x40)) -ne 0 ]; then
+			cable_wake=yes
+		else
+			cable_wake=no
+		fi
+		;;
+	esac
+	if [ "$cable_wake" != yes ]; then
+		rm -f "$marker"
+		sync
+		return 0
+	fi
+
+	log "off-charge: cable wake after requested poweroff"
+	console_loglevel=$(awk '{ print $1; exit }' /proc/sys/kernel/printk 2>/dev/null)
+	dmesg -n 1 2>/dev/null || true
+	if [ -c /dev/fb0 ]; then
+		dd if=/dev/zero of=/dev/fb0 bs=4096 2>/dev/null || true
+	fi
+	if [ -n "${udc:-}" ]; then
+		echo "" > "$G/UDC" 2>/dev/null || true
+	fi
+
+	pwr_event=
+	while true; do
+		# The PON input device can finish probing after this early userspace
+		# loop has begun, especially while fw_devlink is still timing out.
+		# Rescan until it exists rather than deciding once at entry.
+		if [ -z "$pwr_event" ]; then
+			for input in /sys/class/input/event*; do
+				[ "$(cat "$input/device/name" 2>/dev/null)" = pm8941_pwrkey ] || continue
+				pwr_event=/dev/input/$(basename "$input")
+				log "off-charge: power key ready on $pwr_event"
+				break
+			done
+		fi
+		if [ -n "${bus:-}" ]; then
+			/usr/sbin/muic-usb "$bus" --vbus
+			vbus_rc=$?
+			if [ "$vbus_rc" -eq 1 ]; then
+				log "off-charge: cable removed, completing poweroff"
+				rm -f "$marker"
+				sync
+				umount "$root" 2>/dev/null || true
+				poweroff -f
+				while true; do sleep 60; done
+			elif [ "$vbus_rc" -ne 0 ]; then
+				log "off-charge: VBUS read failed ($vbus_rc), retrying"
+				sleep 1
+			fi
+		fi
+		if [ -n "$pwr_event" ] &&
+		   timeout 1 dd if="$pwr_event" of=/dev/null bs=24 count=1 2>/dev/null; then
+			log "off-charge: power key, starting Arch"
+			rm -f "$marker"
+			sync
+			if [ -n "${udc:-}" ]; then
+				echo "$udc" > "$G/UDC" 2>/dev/null || true
+			fi
+			if [ -n "$console_loglevel" ]; then
+				dmesg -n "$console_loglevel" 2>/dev/null || true
+			fi
+			return 0
+		fi
+		[ -n "$pwr_event" ] || sleep 1
+	done
 }
 
 # The Arch Linux ARM root is a file in Android's userdata. dm-linear maps its
@@ -55,6 +139,7 @@ try_arch() {
 		umount /mnt/root
 		return 1
 	fi
+	off_charge_mode /mnt/root
 	if [ -e /mnt/root/boot-attempt ]; then
 		log "arch: the last attempt never finished, staying"
 		umount /mnt/root

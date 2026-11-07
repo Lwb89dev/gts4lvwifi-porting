@@ -12,7 +12,7 @@ LTE models (SM-T725) are a different board and are out of scope.
 | M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
 | M6: Arch Linux ARM | passed: systemd, ssh over USB, `pacman`; the root image is now v6 |
 | M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch through evdev and Hyprland, display, Freedreno/Turnip, the four speakers through PipeWire, sensors through ADSP SSC, Omarchy autorotation with calibrated touch, reboot and poweroff. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, cameras and video decode. Suspend cannot resume on this kernel and is deliberately disabled. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
-| M8: Omarchy Mobile | usable in the last confirmed boot: the 12 GiB image pins Omarchy 4.0.6, applies all 27 Omarchy Mobile patches, and runs the 12-plugin mobile profile, Hyprland, Quickshell, squeekboard and hardware GL/Vulkan on DSI-1. The audio-inclusive rebuild is verified offline but needs a clean recovery reflash and boot after an intervening LineageOS boot caused the first final attempt to loop |
+| M8: Omarchy Mobile | usable and boot-tested: the 12 GiB image pins Omarchy 4.0.6, applies all 27 Omarchy Mobile patches, and runs the 13-plugin mobile profile, Hyprland, Quickshell, squeekboard and hardware GL/Vulkan on DSI-1. The exact audio-inclusive rootfs completed a hands-off boot and normal reboot with systemd running and no failed units |
 | M9: CI | a static workflow runs on every push; the kernel build stays manual |
 
 The state in detail, with every measurement and what went wrong, is in
@@ -22,10 +22,11 @@ tablet, with the owner's eyes and ears where a person is the instrument. Display
 graphical session and the protected four-speaker PipeWire sink start automatically; the
 automatic amplifier ceiling is -12 dB. Microphone/headphone audio is not considered complete.
 
-Poweroff programs both PM660-family PON blocks for shutdown and masks the two
-external USB/cable power-on triggers, so a connected cable no longer turns a
-completed shutdown into an apparent reboot. The power key and RTC triggers
-remain enabled.
+Poweroff programs both PM660-family PON blocks for shutdown. The PMIC restores
+its cable trigger after a complete power cycle, so the initramfs catches the
+resulting CBL-only wake and stays in a display-off, USB-off charging state
+instead of starting Omarchy. Removing the cable completes a physical shutdown;
+the power key starts the normal system.
 
 ## How it boots
 

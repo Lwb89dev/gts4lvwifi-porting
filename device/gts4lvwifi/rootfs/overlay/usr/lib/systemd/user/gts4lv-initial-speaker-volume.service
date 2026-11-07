@@ -1,0 +1,13 @@
+[Unit]
+Description=Set the initial Tab S5e speaker volume
+Wants=pipewire.service wireplumber.service
+After=pipewire.service wireplumber.service
+ConditionPathExists=!%h/.local/state/gts4lv/speaker-volume-initialized
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/gts4lv/set-initial-speaker-volume
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical-session.target

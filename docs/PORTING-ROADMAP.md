@@ -24,8 +24,8 @@ measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
 | 8 | M7.8 sensors | working for light, magnetometer, compass and LSM6DSM motion through ADSP SSC; synchronized movement changed both raw acceleration and the proxy orientation. Proximity is not advertised. Device-specific Omarchy autorotation and its touch compensation passed live tests |
 | 9 | M7.9 suspend | tested once: s2idle powered down but could not resume. Suspend/hibernate are blocked by systemd and removed from the Omamobile menu until kernel resume support exists |
 | 10 | M7.10 cameras, video codec | not started; Venus loads |
-| not in the plan | M8 Omarchy Mobile | running on the tablet: the 12-plugin mobile profile, hardware GPU, Hyprland, Quickshell, squeekboard and calibrated touch. The rebuilt image passed its offline verifiers and a full reinstall/reboot; SDDM autologin starts the Wayland session hands-off |
-| not in the plan | poweroff | working with USB connected: the PON driver selects PMIC shutdown and masks USB_CHG/CBLPWR, while preserving the power-key and RTC triggers |
+| not in the plan | M8 Omarchy Mobile | running on the tablet: the 13-plugin mobile profile, hardware GPU, Hyprland, Quickshell, squeekboard and calibrated touch. The rebuilt image passed its offline verifiers and a full reinstall/reboot; SDDM autologin starts the Wayland session hands-off |
+| not in the plan | poweroff | working: the PON driver performs secure PS_HOLD shutdown; if attached USB causes a CBL-only cold boot, initramfs enters display-off/USB-off charging mode instead of restarting Omarchy |
 | not in the plan | Bluetooth | done: phone music through the speakers; reconnection after a reboot untested, and the phone must be paired again on v6 |
 
 Open hazards still true: the ADSP must not be running at a reset; hardware numbers (`remoteprocN`, I2C

@@ -1,0 +1,12 @@
+[Unit]
+Description=Mark an intentional GTS4LV poweroff for cable-wake handling
+DefaultDependencies=no
+Before=poweroff.target umount.target
+Conflicts=reboot.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/gts4lv/mark-poweroff-request
+
+[Install]
+WantedBy=poweroff.target

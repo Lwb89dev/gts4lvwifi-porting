@@ -12,11 +12,21 @@ REQUIRED_FILES = ("usr/lib/dri/msm_dri.so", "usr/lib/libvulkan_freedreno.so",
                   "usr/share/wayland-sessions/hyprland-uwsm.desktop",
                   "usr/lib/gts4lv/hypr/tablet.lua", "usr/lib/gts4lv/autorotate.py",
                   "usr/lib/gts4lv/finalize-mobile-user",
+                  "usr/lib/gts4lv/set-initial-speaker-volume",
+                  "usr/lib/gts4lv/mark-poweroff-request",
                   "usr/lib/systemd/user/omamobile-autorotate.service",
+                  "usr/lib/systemd/user/gts4lv-initial-speaker-volume.service",
+                  "usr/lib/systemd/system/gts4lv-mark-poweroff.service",
                   "etc/systemd/user/graphical-session.target.wants/omamobile-autorotate.service",
-                  "etc/systemd/system/multi-user.target.wants/gts4lv-audio.service")
+                  "etc/systemd/user/graphical-session.target.wants/gts4lv-initial-speaker-volume.service",
+                  "etc/systemd/system/multi-user.target.wants/gts4lv-audio.service",
+                  "etc/systemd/system/poweroff.target.wants/gts4lv-mark-poweroff.service")
 CONFIG_FILES = ("home/alarm/.config/hypr/hyprland.lua",
                 "home/alarm/.config/omarchy/shell.json",
+                "usr/lib/gts4lv/set-initial-speaker-volume",
+                "usr/lib/gts4lv/mark-poweroff-request",
+                "usr/lib/systemd/user/gts4lv-initial-speaker-volume.service",
+                "usr/lib/systemd/system/gts4lv-mark-poweroff.service",
                 "etc/sddm.conf.d/90-gts4lv-autologin.conf",
                 "etc/systemd/system/sddm.service.d/10-gts4lv-display.conf",
                 "etc/systemd/sleep.conf.d/90-gts4lv-disable-suspend.conf",
@@ -96,6 +106,27 @@ def main():
                     "AllowSuspendThenHibernate=no", "AllowHybridSleep=no"):
         if setting not in sleep_policy.splitlines():
             problems.append(f"unsupported sleep mode is not disabled: {setting}")
+    volume_helper = members.get("usr/lib/gts4lv/set-initial-speaker-volume", "")
+    for setting in ("speaker-volume-initialized", "set-volume", "0.25"):
+        if setting not in volume_helper:
+            problems.append(f"initial speaker volume helper is missing: {setting}")
+    volume_unit = members.get(
+        "usr/lib/systemd/user/gts4lv-initial-speaker-volume.service", ""
+    )
+    for setting in ("ConditionPathExists=!%h/.local/state/gts4lv/speaker-volume-initialized",
+                    "ExecStart=/usr/lib/gts4lv/set-initial-speaker-volume"):
+        if setting not in volume_unit.splitlines():
+            problems.append(f"initial speaker volume unit is missing: {setting}")
+    power_helper = members.get("usr/lib/gts4lv/mark-poweroff-request", "")
+    for setting in ("/var/lib/gts4lv/poweroff-requested", "sync"):
+        if setting not in power_helper:
+            problems.append(f"poweroff marker helper is missing: {setting}")
+    power_unit = members.get("usr/lib/systemd/system/gts4lv-mark-poweroff.service", "")
+    for setting in ("Before=poweroff.target umount.target",
+                    "ExecStart=/usr/lib/gts4lv/mark-poweroff-request",
+                    "WantedBy=poweroff.target"):
+        if setting not in power_unit.splitlines():
+            problems.append(f"poweroff marker unit is missing: {setting}")
     patch_state = members.get("var/lib/omamobile/omarchy-patches/state.json", "")
     try:
         patch_state = json.loads(patch_state)

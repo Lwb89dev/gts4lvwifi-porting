@@ -239,6 +239,8 @@ chown -R alarm:alarm /home/alarm
 # device-specific implementation globally so it follows alarm's graphical
 # session from the first login; the tile can still lock it via its state file.
 systemctl --global enable omamobile-autorotate.service
+systemctl --global enable gts4lv-initial-speaker-volume.service
+systemctl enable gts4lv-mark-poweroff.service
 
 # The tablet has now completed the observable bring-up test. Start the same
 # UWSM-managed Omarchy session automatically on every boot.
