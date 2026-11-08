@@ -1,0 +1,59 @@
+#!/bin/bash
+# Configure one camera's raw V4L2 route on the Tab S5e.
+#
+#   gts4lv-camera setup rear|front
+#
+# The media graph is reset at boot.  `setup` only configures its volatile raw
+# route.  A camera application still needs to convert the raw Bayer stream and
+# provide preview/capture UI.
+set -euo pipefail
+
+media=/dev/media0
+
+die() { echo "gts4lv-camera: $*" >&2; exit 1; }
+
+set_format() { # <entity> <pad> <width> <height>
+	media-ctl -d "$media" --set-v4l2 "\"$1\":$2 [fmt:SGRBG10_1X10/$3x$4]"
+}
+
+set_link() { # <source entity> <source pad> <sink entity> <sink pad>
+	media-ctl -d "$media" --links "\"$1\":$2 -> \"$3\":$4 [1]"
+}
+
+setup() { # <front|rear>
+	local which sensor phy csid vfe video width height
+	which=$1
+	case $which in
+	rear)
+		sensor="s5k3m5 5-002d"; phy=msm_csiphy0; csid=msm_csid0
+		vfe=msm_vfe0_rdi0; video=/dev/video0; width=4128; height=3096
+		;;
+	front)
+		sensor="s5k4ha 4-002d"; phy=msm_csiphy1; csid=msm_csid1
+		vfe=msm_vfe1_rdi0; video=/dev/video4; width=3264; height=2448
+		;;
+	*) die "camera must be rear or front" ;;
+	esac
+
+	command -v media-ctl > /dev/null || die "media-ctl is not installed"
+	command -v v4l2-ctl > /dev/null || die "v4l2-ctl is not installed"
+	[ -e "$media" ] || die "no $media"
+	[ -e "$video" ] || die "no $video"
+
+	set_link "$phy" 1 "$csid" 0
+	set_link "$csid" 1 "$vfe" 0
+	set_format "$sensor" 0 "$width" "$height"
+	set_format "$phy" 0 "$width" "$height"
+	set_format "$phy" 1 "$width" "$height"
+	set_format "$csid" 0 "$width" "$height"
+	set_format "$csid" 1 "$width" "$height"
+	set_format "$vfe" 0 "$width" "$height"
+	set_format "$vfe" 1 "$width" "$height"
+	v4l2-ctl -d "$video" --set-fmt-video="width=$width,height=$height,pixelformat=pgAA"
+	echo "$which raw route ready on $video (${width}x${height}, SGRBG10)"
+}
+
+case ${1:-} in
+setup) [ $# -eq 2 ] || die "usage: gts4lv-camera setup rear|front"; setup "$2" ;;
+*) die "usage: gts4lv-camera setup rear|front" ;;
+esac
