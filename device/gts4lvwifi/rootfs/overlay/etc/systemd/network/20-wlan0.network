@@ -1,6 +1,8 @@
-# Wi-Fi as an ordinary DHCP client. Association is wpa_supplicant's job, with
-# credentials that belong to the owner and never go in this repository:
-#   /etc/wpa_supplicant/wpa_supplicant-wlan0.conf, systemctl enable --now wpa_supplicant@wlan0
+# Wi-Fi is an ordinary DHCP client when the owner elects to use the minimal
+# wpa_supplicant path. Omarchy Mobile uses NetworkManager by default; its
+# connection profiles stay on the tablet and never go in this repository.
+# This networkd definition remains a small no-profile fallback for a manual
+# wpa_supplicant@wlan0 setup.
 # The cable (usb0, 10-usb0.network) keeps its own address; the route over
 # Wi-Fi gets a higher metric so a Wi-Fi default route never replaces the cable's.
 [Match]

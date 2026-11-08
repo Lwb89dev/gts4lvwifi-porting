@@ -112,6 +112,7 @@ install -m 600 /keys/authorized_keys /root/.ssh/authorized_keys
 systemctl enable systemd-networkd.service sshd.service gts4lv-boot-ok.service \
 	gts4lv-firmware.service gts4lv-adsp-stop.service gts4lv-modem.service \
 	gts4lv-bluetooth.service gts4lv-sensors.service gts4lv-cpu-stability.service \
+	NetworkManager.service \
 	bluetooth.service \
 	systemd-timesyncd.service
 # Keep the recovery unit available, but never expose an unauthenticated root
