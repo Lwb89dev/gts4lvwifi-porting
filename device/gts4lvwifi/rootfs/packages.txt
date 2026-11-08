@@ -2,6 +2,7 @@
 # The bring-up tools: radio, sound, input, GPU and USB, nothing graphical yet.
 iw
 wpa_supplicant
+networkmanager
 wireless-regdb
 bluez
 bluez-utils

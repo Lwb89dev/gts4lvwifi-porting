@@ -7,10 +7,15 @@ set -eu
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 variant=${ROOTFS_VARIANT:-}
+root_mode=${GTS4LV_ROOT_MODE:-file}
 case $variant in
 "") rootfs_dir=$root/out/rootfs ;;
 *[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
 *) rootfs_dir=$root/out/rootfs-$variant ;;
+esac
+case $root_mode in
+file|native) ;;
+*) echo "GTS4LV_ROOT_MODE must be file or native" >&2; exit 1 ;;
 esac
 archive=$root/out/initramfs.cpio.gz
 work=$(mktemp -d)
@@ -41,7 +46,9 @@ file "$work/usr/sbin/rebootmode" | grep -q "ARM aarch64"
 file "$work/usr/sbin/rebootmode" | grep -q "statically linked"
 file "$work/usr/sbin/dmlinear" | grep -q "ARM aarch64"
 file "$work/usr/sbin/dmlinear" | grep -q "statically linked"
-if [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
+if [ "$root_mode" = native ]; then
+	grep -qx native "$work/etc/gts4lv-root-mode"
+elif [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
 	cmp "$rootfs_dir/rootfs-extents.txt" "$work/etc/rootfs-extents.txt"
 fi
 # The shells without a password must be killed before the root is switched,

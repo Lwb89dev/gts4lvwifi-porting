@@ -33,10 +33,12 @@ the power key starts the normal system.
 The tablet has one slot and eMMC. LineageOS stays in `boot`. Linux is in the
 `recovery` partition as an Android boot image (header v1, `Image.gz` with the
 DTB appended) together with Lineage's own `recovery_dtbo`, which the bootloader
-insists on. The initramfs brings up USB networking (`172.16.42.1`), then maps a
-root image that lives in a file in Android's `userdata` with dm-linear, without
-mounting `/data`, and switches to Arch. Going back to LineageOS is
-`boot-android`, from either system.
+insists on. The initramfs brings up USB networking (`172.16.42.1`), then either
+maps a root image in Android's `userdata` with dm-linear (the reversible
+bring-up mode), or mounts `userdata` directly as the native Arch root. The
+native mode replaces Android/Lineage userdata but leaves `boot`, `system`,
+`vendor`, `recovery`, calibration, modem and EFS partitions untouched. Going
+back to LineageOS is `boot-android`, from the reversible mode only.
 
 Do not point Omarchy's `tools/install-phone` at this tablet. That tool writes a
 fastboot slot B.
@@ -70,6 +72,7 @@ Known: after a LineageOS boot, `recovery` may be rewritten by Android
 | `build-packages.sh`, `build-rootfs.sh` | packages and the root image, in aarch64 containers | no |
 | `hw-matrix.py` | what the build has for every enabled device | no |
 | `rootfs-to-tablet.sh`, `rootfs-to-tablet-shell.sh` | copy the root image into userdata through Android or the deliberately stopped initramfs, then record its extents | replaces one file in `/data` |
+| `rootfs-to-tablet-native.sh` | copy a checked root image directly to GPT `userdata` from the recovery shell | destroys Android/Lineage userdata only |
 | `flash-recovery-adb.sh`, `flash-recovery-shell.sh` | write `recovery` from Android, or from the running tablet | writes `recovery` |
 | `lineage-recovery-check.sh` | read-only: what is in `recovery` and what could rewrite it | no writes (adb root, read) |
 | `sync-modules.sh`, `tablet-deploy.sh` | put modules, overlay and packages on the running Arch | writes `/usr`, `/etc` |
@@ -104,6 +107,28 @@ The Omarchy build verifies the pinned package versions, SHA-256 sums and pacman
 signatures from `device/gts4lvwifi/rootfs/omarchy-packages.lock`, applies and checks
 the mobile patch series, then runs both rootfs verifiers. The image deliberately
 ships with `root` and `alarm` locked. SSH permits key authentication only.
+
+## Native installation
+
+The normal file-backed root is useful for bring-up because Android userdata
+survives. Once that is no longer required, build a recovery that mounts the
+same GPT `userdata` partition directly:
+
+```sh
+ROOTFS_VARIANT=omarchy GTS4LV_ROOT_MODE=native scripts/build-initramfs.sh
+ROOTFS_VARIANT=omarchy GTS4LV_ROOT_MODE=native scripts/verify-initramfs.sh
+scripts/flash-recovery-shell.sh --reboot
+# wait for the recovery USB shell on 172.16.42.1:23
+ROOTFS_VARIANT=omarchy scripts/rootfs-to-tablet-native.sh --reboot
+```
+
+`rootfs-to-tablet-native.sh` discovers the unique GPT partition named
+`userdata`, checks its capacity, writes the image only there, and checks the
+exact SHA-256 through the tablet before it reboots. On this tablet it is
+`/dev/mmcblk0p57` (51.2 GiB); it never accepts a manually supplied block node.
+The initial 12 GiB ext4 image can be expanded online once Arch is up with
+`resize2fs /dev/mmcblk0p57`. The recovery shell stays available if a transfer
+is interrupted, but the former Android/Lineage user data cannot be recovered.
 
 On a machine with less than 12 GB of RAM the kernel script uses `-j2`. GitHub
 Actions has two workflows: `static` (shellcheck, yamllint, the C tools, the

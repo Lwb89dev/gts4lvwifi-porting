@@ -10,10 +10,15 @@ set -eu
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 variant=${ROOTFS_VARIANT:-}
+root_mode=${GTS4LV_ROOT_MODE:-file}
 case $variant in
 "") rootfs_dir=$root/out/rootfs ;;
 *[!a-z0-9-]*) echo "ROOTFS_VARIANT may contain only a-z, 0-9 and -" >&2; exit 1 ;;
 *) rootfs_dir=$root/out/rootfs-$variant ;;
+esac
+case $root_mode in
+file|native) ;;
+*) echo "GTS4LV_ROOT_MODE must be file or native" >&2; exit 1 ;;
 esac
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 bb=$root/src/busybox
@@ -105,8 +110,10 @@ cp "$root/device/gts4lvwifi/initramfs/boot-android" "$stage/usr/sbin/boot-androi
 	"$root/device/gts4lvwifi/initramfs/dmlinear.c"
 mkdir -p "$stage/etc" "$stage/mnt/root"
 # The extent list of the rootfs image in userdata, made on the tablet by
-# scripts/rootfs-to-tablet.sh. Without it the initramfs never leaves the shell.
-if [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
+# scripts/rootfs-to-tablet.sh. A native installation mounts userdata directly.
+if [ "$root_mode" = native ]; then
+	printf '%s\n' native > "$stage/etc/gts4lv-root-mode"
+elif [ -f "$rootfs_dir/rootfs-extents.txt" ]; then
 	cp "$rootfs_dir/rootfs-extents.txt" "$stage/etc/rootfs-extents.txt"
 fi
 for name in backlight drm drm_kms_helper drm_client_lib \

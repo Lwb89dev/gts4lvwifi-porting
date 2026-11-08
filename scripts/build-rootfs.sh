@@ -70,6 +70,7 @@ if [ -n "$test_password_file" ]; then
 		echo "GTS4LV_TEST_ALARM_PASSWORD_FILE is not readable" >&2
 		exit 1
 	}
+	test_password_file=$(realpath -e "$test_password_file")
 	test_password_mount=(-v "$test_password_file:/tmp/gts4lv-test-alarm-password:ro")
 	test_password_env=(-e GTS4LV_TEST_ALARM_PASSWORD=1)
 fi
