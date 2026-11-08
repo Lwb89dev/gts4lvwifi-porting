@@ -143,6 +143,8 @@ try_arch() {
 	if [ -e /mnt/root/boot-attempt ]; then
 		log "arch: the last attempt never finished, staying"
 		umount /mnt/root
+		# Leave userdata free for the recovery shell to replace rootfs.img.
+		dmlinear --remove arch || log "arch: could not remove stale dm map"
 		return 1
 	fi
 	: > /mnt/root/boot-attempt

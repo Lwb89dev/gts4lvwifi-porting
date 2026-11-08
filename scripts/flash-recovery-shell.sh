@@ -17,6 +17,7 @@ set -euo pipefail
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 host=${TABLET_IP:-172.16.42.1}
+bind=${TABLET_BIND:-}
 key=out/keys/gts4lv_ed25519
 known_hosts=${TABLET_KNOWN_HOSTS:-out/keys/known_hosts}
 part_bytes=72744960
@@ -31,11 +32,19 @@ transport=
 
 die() { echo "flash-recovery-shell: $*" >&2; exit 1; }
 
+ncc() {
+	if [ -n "$bind" ]; then
+		nc -s "$bind" "$@"
+	else
+		nc "$@"
+	fi
+}
+
 pick_transport() {
-	if nc -z -w2 "$host" 22 2>/dev/null; then
+	if ncc -z -w2 "$host" 22 2>/dev/null; then
 		[ -f "$key" ] || die "sshd answers but there is no $key"
 		transport=ssh
-	elif nc -z -w2 "$host" 23 2>/dev/null; then
+	elif ncc -z -w2 "$host" 23 2>/dev/null; then
 		transport=telnet
 	else
 		die "nothing answers on $host ports 22 or 23"
@@ -44,7 +53,9 @@ pick_transport() {
 }
 
 sshc() {
-	ssh -F /dev/null -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
+	local bind_args=()
+	[ -z "$bind" ] || bind_args=(-b "$bind")
+	ssh -F /dev/null "${bind_args[@]}" -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes \
 		-o ConnectTimeout=10 -o UserKnownHostsFile="$known_hosts" \
 		-o StrictHostKeyChecking=accept-new "root@$host" "$@"
 }
@@ -56,7 +67,7 @@ t() {
 		return
 	fi
 	printf 'echo __BEGIN__; %s\necho __END__\nexit\n' "$1" |
-		nc -w "${2:-30}" "$host" 23 |
+		ncc -w "${2:-30}" "$host" 23 |
 		LC_ALL=C tr -d '\r\000' |
 		LC_ALL=C sed 's/\x1b\[[0-9;]*m//g' |
 		sed -n '/^__BEGIN__$/,/^__END__$/p' | sed '1d;$d' |
@@ -101,7 +112,7 @@ send_image() {
 		sshc "cat > $staged" < "$image"
 	else
 		t "(nc -l -p 9003 > $staged &); sleep 1" >/dev/null
-		nc -w 10 "$host" 9003 < "$image"
+		ncc -w 10 "$host" 9003 < "$image"
 		sleep 2
 	fi
 	have=$(t "sha256sum $staged" | cut -d' ' -f1)

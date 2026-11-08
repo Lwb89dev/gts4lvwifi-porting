@@ -1,6 +1,6 @@
 # M8 plan: Omarchy Mobile on the tablet
 
-> Status 2026-11-07: the 12 GiB M8 image was rebuilt, verified, installed and boot-tested. The exact audio-inclusive artifact completed hands-off boot and reboot with systemd running and no failed units. The 13-plugin Omamobile profile, hardware OpenGL/Vulkan, Hyprland, Quickshell, squeekboard, calibrated touch, sensors, autorotation and protected speakers have live evidence. Suspend is safely disabled; reboot and the cable-aware off/charge path work. SSH is key-only and the bring-up debug console is disabled.
+> Status 2026-11-08: the installed 12 GiB M8 image completed hands-off boot, reboot and the cable-aware poweroff/Power path with systemd running and no failed units. The 13-plugin Omamobile profile, hardware OpenGL/Vulkan, Hyprland, Quickshell, squeekboard, calibrated touch, sensors, autorotation and protected speakers have live evidence. The clean rootfs built from the published closure commit passed both offline verifiers, was installed and completed the same boot check. Suspend is safely disabled; SSH is key-only and the bring-up debug console is disabled.
 
 Written 2026-11-04 night. Everything here was read from the repositories'
 published databases and packages, or measured with `pacman` in print-only mode
@@ -198,6 +198,11 @@ back once more. The earlier apparent bootloop was a recovery-selection/USB-obser
 rootfs regression: systemd, SDDM, Hyprland, Quickshell, the Omamobile session, touch, sensors,
 autorotation, PipeWire and all four protected speakers were active on the exact installed rootfs.
 
+The 2026-11-08 closure build from the contents of published commit `8568ef5` produced the installed 12 GiB
+rootfs (`02817fe573919a3252c48b57308817882af00fcc834483dccfc1f7bce81d1336`). `e2fsck`, the generic
+rootfs verifier and the Omarchy Mobile verifier all passed. Its 6,062 exact fiemap extents were embedded
+in recovery, and the tablet then reached systemd `running` with no failed units.
+
 The image locks both account passwords by design. Root SSH accepts the installed key only
 (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`).
 The owner must set a private `alarm` password after installation to unlock the graphical lock screen;
@@ -223,4 +228,5 @@ restores that hardware trigger after a full shutdown even when Linux masks it at
 records an intentional poweroff before unmount. On the CBL-only cold boot, initramfs consumes that marker,
 blanks the framebuffer, unbinds USB and waits in the minimal charging environment rather than starting
 Omarchy. Removing VBUS completes the physical shutdown; pressing Power clears the marker and continues
-the normal Arch boot.
+the normal Arch boot. The final live test held USB off for 35 seconds, then logged Power on `event1` and
+reached a new graphical boot with zero failed units; the owner confirmed rotation and touch remained correct.

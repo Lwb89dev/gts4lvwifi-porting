@@ -69,7 +69,7 @@ Known: after a LineageOS boot, `recovery` may be rewritten by Android
 | `pack-recovery.py`, `verify-recovery.py`, `verify-initramfs.sh` | packer and offline checks | no |
 | `build-packages.sh`, `build-rootfs.sh` | packages and the root image, in aarch64 containers | no |
 | `hw-matrix.py` | what the build has for every enabled device | no |
-| `rootfs-to-tablet.sh` | copy the root image into userdata and record its extents | writes one file in `/data` |
+| `rootfs-to-tablet.sh`, `rootfs-to-tablet-shell.sh` | copy the root image into userdata through Android or the deliberately stopped initramfs, then record its extents | replaces one file in `/data` |
 | `flash-recovery-adb.sh`, `flash-recovery-shell.sh` | write `recovery` from Android, or from the running tablet | writes `recovery` |
 | `lineage-recovery-check.sh` | read-only: what is in `recovery` and what could rewrite it | no writes (adb root, read) |
 | `sync-modules.sh`, `tablet-deploy.sh` | put modules, overlay and packages on the running Arch | writes `/usr`, `/etc` |
@@ -103,8 +103,7 @@ scripts/build-omarchy-rootfs.sh
 The Omarchy build verifies the pinned package versions, SHA-256 sums and pacman
 signatures from `device/gts4lvwifi/rootfs/omarchy-packages.lock`, applies and checks
 the mobile patch series, then runs both rootfs verifiers. The image deliberately
-ships with `root` and `alarm` locked; set a private `alarm` password locally after
-installation. SSH permits key authentication only.
+ships with `root` and `alarm` locked. SSH permits key authentication only.
 
 On a machine with less than 12 GB of RAM the kernel script uses `-j2`. GitHub
 Actions has two workflows: `static` (shellcheck, yamllint, the C tools, the
@@ -119,3 +118,22 @@ The bootloader chain, calibration, `efs`, `persist` and the modem's firmware
 are never written. Samsung firmware is read from the tablet's partitions at
 boot and never copied into the image or this repository. Licences and where
 each piece comes from: `docs/LICENSES.md`.
+## Test-image password
+
+For the local hardware-test workflow only, create the ignored file
+`out/keys/alarm-test-password` with mode `600`, then build with:
+
+```bash
+GTS4LV_TEST_ALARM_PASSWORD_FILE="$PWD/out/keys/alarm-test-password" \
+  scripts/build-omarchy-rootfs.sh
+```
+
+Verify that intentional test image with:
+
+```bash
+scripts/verify-rootfs.py --allow-test-alarm-password out/rootfs-omarchy/rootfs.tar
+```
+
+The file's single line becomes `alarm`'s graphical-unlock password. It is
+intentionally never committed; without this explicit variable, both interactive
+accounts remain locked and Omarchy's restricted sudo policy stays in effect.

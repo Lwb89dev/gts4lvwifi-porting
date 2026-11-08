@@ -10,6 +10,11 @@
 # ROOTFS_MB sets the image size (default 6144). ROOTFS_VARIANT writes to a
 # separate out/rootfs-<variant> directory (for example the Omarchy image), so
 # an experimental build cannot replace the known-good bring-up image.
+# GTS4LV_TEST_ALARM_PASSWORD_FILE is an explicit, ignored local file used only
+# for test images.  Its one-line value becomes alarm's graphical-unlock
+# password;
+# leave it unset for a release image, where both interactive accounts remain
+# locked.
 # The upgrade step takes
 # whatever Arch Linux ARM ships that day, so two builds differ: the package
 # list of each is written to out/rootfs/packages.txt.
@@ -32,6 +37,7 @@ tag=gts4lv-alarm-base:${sha%"${sha#????????}"}
 release=$(cat out/kernel/include/config/kernel.release)
 modules=$root/out/kernel/modules/lib/modules/$release
 key=$root/out/keys/gts4lv_ed25519
+test_password_file=${GTS4LV_TEST_ALARM_PASSWORD_FILE:-}
 
 # docker may not be usable from a session that predates the docker group
 if docker info >/dev/null 2>&1; then
@@ -52,6 +58,21 @@ if [ ! -f "$key" ]; then
 	ssh-keygen -q -t ed25519 -N '' -C gts4lvwifi-bringup -f "$key"
 fi
 cp "$key.pub" "$out/keys/authorized_keys"
+
+test_password_mount=()
+test_password_env=()
+if [ -n "$test_password_file" ]; then
+	[ -f "$test_password_file" ] || {
+		echo "GTS4LV_TEST_ALARM_PASSWORD_FILE is not a regular file" >&2
+		exit 1
+	}
+	[ -r "$test_password_file" ] || {
+		echo "GTS4LV_TEST_ALARM_PASSWORD_FILE is not readable" >&2
+		exit 1
+	}
+	test_password_mount=(-v "$test_password_file:/tmp/gts4lv-test-alarm-password:ro")
+	test_password_env=(-e GTS4LV_TEST_ALARM_PASSWORD=1)
+fi
 
 if ! d image inspect "$tag" >/dev/null 2>&1; then
 	echo "==> import $tarball as $tag"
@@ -78,6 +99,8 @@ d run --name gts4lv-rootfs-build --platform linux/arm64 \
 	-v "$root/$dev/rootfs/packages-omarchy.txt:/omarchy-packages.txt:ro" \
 	-v "$root/$dev/rootfs/omarchy-repos.lock:/omarchy-repos.lock:ro" \
 	-v "$root/$dev/rootfs/omarchy-packages.lock:/omarchy-packages.lock:ro" \
+	"${test_password_mount[@]}" \
+	"${test_password_env[@]}" \
 	-e OMARCHY_MOBILE="${OMARCHY_MOBILE:-0}" \
 	-e ALARM_BUILD_MIRROR="${ALARM_BUILD_MIRROR:-}" \
 	"${pkgs_mount[@]}" \

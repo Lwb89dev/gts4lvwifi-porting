@@ -7,8 +7,8 @@ diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64
  &soc {
 +	/*
 +	 * Match Samsung's SDM670 shutdown path: after qcom-pon has selected the
-+	 * PMIC reset type, use the platform PS_HOLD sys-off path instead of PSCI.
-+	 * The driver first asks secure firmware, then retains the MMIO fallback.
++	 * PMIC reset type, drop PS_HOLD directly instead of asking PSCI firmware
++	 * to power off. The latter can restore cable power-on policy.
 +	 */
 +	pshold@c264000 {
 +		compatible = "qcom,pshold";

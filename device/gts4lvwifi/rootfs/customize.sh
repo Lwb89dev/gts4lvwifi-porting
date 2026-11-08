@@ -82,6 +82,25 @@ say "configuration"
 install_tree /overlay /
 passwd -l root
 passwd -l alarm
+# A test build may explicitly supply a local, bind-mounted password file.  It
+# is deliberately opt-in: release images keep both interactive accounts
+# locked, and the secret never becomes a tracked repository file.
+if [ "${GTS4LV_TEST_ALARM_PASSWORD:-0}" = 1 ]; then
+	test -r /tmp/gts4lv-test-alarm-password || {
+		printf 'test password file is unavailable\n' >&2
+		exit 1
+	}
+	test_password=$(head -n 1 /tmp/gts4lv-test-alarm-password)
+	case $test_password in
+	''|*:*|*[[:cntrl:]]*)
+		printf 'test password must be one non-empty line without a colon\n' >&2
+		exit 1
+		;;
+	esac
+	printf 'alarm:%s\n' "$test_password" | chpasswd
+	unset test_password
+	say "enabled the local test password for alarm"
+fi
 # The audio server refuses to run as root: it runs for "alarm", with a user session that
 # stays up without a login (linger). Keep the account in every group needed by a local
 # graphical session; in particular, Omarchy Mobile also expects direct input access.

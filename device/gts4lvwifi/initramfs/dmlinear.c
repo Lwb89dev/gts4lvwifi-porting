@@ -6,7 +6,10 @@
  * <extents> has one line per extent, "logical physical length flags" (bytes),
  * as device/gts4lvwifi/tools/fiemap.c prints them. They must start at 0, follow
  * each other with no hole, and be multiples of 512. Prints "major:minor".
- * Needs /dev/mapper/control, so dm-mod must be loaded.
+ * Needs /dev/mapper/control, so dm-mod must be loaded.  The small
+ * "--remove <name>" form removes an inactive mapping after an intentionally
+ * stopped boot: otherwise the holder on userdata prevents the recovery shell
+ * from mounting userdata to replace the root image.
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -85,16 +88,20 @@ int main(int argc, char **argv)
 	FILE *list;
 	int fd;
 
-	if (argc != 4) {
-		fprintf(stderr, "usage: dmlinear <name> <blockdev> <extents>\n");
+	if (argc != 4 && !(argc == 3 && !strcmp(argv[1], "--remove"))) {
+		fprintf(stderr, "usage: dmlinear <name> <blockdev> <extents> | dmlinear --remove <name>\n");
 		return 2;
 	}
-	list = fopen(argv[3], "r");
+	list = argc == 4 ? fopen(argv[3], "r") : NULL;
 	io = calloc(1, BUF);
 	fd = open("/dev/mapper/control", O_RDWR);
-	if (!list || !io || fd < 0) {
+	if ((argc == 4 && !list) || !io || fd < 0) {
 		fprintf(stderr, "dmlinear: cannot open the extents or /dev/mapper/control\n");
 		return 1;
+	}
+	if (argc == 3) {
+		header(io, sizeof(*io), argv[2], 0);
+		return ioctl_or_die(fd, DM_DEV_REMOVE, io, "DM_DEV_REMOVE") ? 1 : 0;
 	}
 
 	header(io, BUF, argv[1], 0);

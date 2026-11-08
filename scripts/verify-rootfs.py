@@ -2,7 +2,7 @@
 """Offline checks of the root image's contents, read from the container export
 (out/rootfs/rootfs.tar) the image is made from. Reads only.
 
-    scripts/verify-rootfs.py [rootfs.tar]
+    scripts/verify-rootfs.py [--allow-test-alarm-password] [rootfs.tar]
 
 It looks for mistakes that were once made: files owned by the build user
 (uid 1000, "alarm"), system directories writable by group or world, a
@@ -54,7 +54,7 @@ EXECUTABLES = (
 )
 
 
-def check(path):
+def check(path, allow_test_alarm_password=False):
     problems = []
     seen = {"root_ssh": False, "authorized": False}
     ssh_config = ""
@@ -90,7 +90,10 @@ def check(path):
             if name == "etc/shadow":
                 for line in tar.extractfile(member).read().decode().splitlines():
                     user, _, hashed = line.partition(":")[0], None, line.split(":")[1]
-                    if user in ("root", "alarm") and not hashed.startswith(("!", "*")):
+                    if user == "root" and not hashed.startswith(("!", "*")):
+                        problems.append(f"{user} has a password hash: the published default is not locked")
+                    if (user == "alarm" and not allow_test_alarm_password
+                            and not hashed.startswith(("!", "*"))):
                         problems.append(f"{user} has a password hash: the published default is not locked")
     for unit in ENABLED:
         if unit not in wants:
@@ -116,8 +119,16 @@ def check(path):
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "out/rootfs/rootfs.tar"
-    problems = check(path)
+    args = sys.argv[1:]
+    allow_test_alarm_password = False
+    if "--allow-test-alarm-password" in args:
+        args.remove("--allow-test-alarm-password")
+        allow_test_alarm_password = True
+    if len(args) > 1:
+        print("usage: verify-rootfs.py [--allow-test-alarm-password] [rootfs.tar]", file=sys.stderr)
+        sys.exit(2)
+    path = args[0] if args else "out/rootfs/rootfs.tar"
+    problems = check(path, allow_test_alarm_password)
     if problems:
         for line in problems[:40]:
             print("FAIL", line)

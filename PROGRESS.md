@@ -1,6 +1,6 @@
 # gts4lvwifi port progress
 
-Updated 2026-11-07, branch `feat/gts4lvwifi-mainline-bringup`.
+Updated 2026-11-08, branch `feat/gts4lvwifi-mainline-bringup`.
 This is the single narrative of the work performed on the SM-T720. Line-by-line measurements are in
 `device/gts4lvwifi/NOTES.md`; the rollback runbook is in `docs/RECOVERY-RUNBOOK.md`.
 
@@ -46,7 +46,10 @@ This is the single narrative of the work performed on the SM-T720. Line-by-line 
   `scripts/flash-recovery-shell.sh --reboot` from a live tablet. Before rebooting into a new release,
   stage modules with `scripts/sync-modules.sh --stage`.
 - Rootfs workflow: `scripts/build-rootfs.sh` (Docker plus qemu-user) and `scripts/verify-rootfs.py`;
-  `scripts/rootfs-to-tablet.sh` copies it into `/data` from Lineage.
+  `scripts/rootfs-to-tablet.sh` copies it into `/data` from Lineage. The guarded
+  `scripts/rootfs-to-tablet-shell.sh` path performs the same replacement from the deliberately stopped
+  initramfs, avoiding an Android boot; it requires an explicit run because the old image may be removed
+  before the 12 GiB transfer.
 - Tablet helpers under `device/gts4lvwifi/rootfs/overlay/usr/local/sbin/` include
   `gts4lv-firmware`, `gts4lv-modem`, `gts4lv-dsp`, `gts4lv-tone`, `gts4lv-audio`,
   `gts4lv-display` and `boot-android`.
@@ -119,10 +122,9 @@ screen; it must never be sent through chat or committed.
 
 ### Next blocks, in order
 
-1. Set a private `alarm` password locally, then verify only that its status is `P`; do not record it.
-2. Commit and publish the closure changes, then rebuild from that exact GitHub commit if a release-grade
-   bit-for-bit provenance record is required.
-3. Test Bluetooth reconnection after reboot and decide whether speaker audio should start automatically.
+1. Commit and publish the guarded initramfs-shell installer and final evidence.
+2. Rebuild once from that exact published commit before declaring a release artifact.
+3. Test Bluetooth reconnection after reboot.
 4. Investigate microphone/headphone support only if the ADSP codec path can be made safe.
 5. Optional hardware work: microSD, suspend/resume, cameras, video decode, display console and touch
    resume after display-off.
@@ -366,6 +368,13 @@ rootfs reached systemd `running` with zero failed units; SDDM, Hyprland, Quicksh
 sensors, autorotation, PipeWire and all four protected speakers were active. Wi-Fi credentials remain
 private and are not part of the image.
 
+A clean build from the contents published as `8568ef5` then produced the installed rootfs image
+SHA-256 `02817fe573919a3252c48b57308817882af00fcc834483dccfc1f7bce81d1336`, rootfs tar
+`88ba87f1e5c0fbb9ae4fa03b8749a18558871fa9be57f7c7f64eb7d9ef5492d8` and package list
+`8ab98a56f9fb593eeb0df476814d913cf1df4cbf9ce1ee404793f57a55a880f4`. It contains 983 packages,
+passed `e2fsck` and both rootfs verifiers, was mapped with 6,062 exact fiemap extents, and booted to
+systemd `running` with zero failed units.
+
 ### Mobile profile, suspend policy and real poweroff (2026-11-07)
 
 The installed packages were already Omamobile, but `alarm` still used the desktop Omarchy shell profile:
@@ -386,8 +395,14 @@ MMIO fallback alone ended in a watchdog restart. With SCM, fresh registers recor
 (`POFF_REASON=0x02`) followed by CBL power-on (`PON_REASON=0x40`). The runtime USB_CHG/CBLPWR mask is
 lost across that full PMIC cycle, so initramfs now handles an intentional cable-only cold boot as an
 off/charge state: display and USB stay off, removing the cable finishes poweroff, and Power starts Arch.
-The current recovery candidate (`2f82fd38077957b092bcd3283d14c54e7d61c8bc25b975fa9d05247b0bd6e41a`)
-was written only to `recovery` and read back exactly.
+The final recovery (`2301de23fb46eaabd49a1b6641d3388e0074b13a3079ec7c5769a349190d2e76`)
+was written only to `recovery` and read back exactly. With USB attached, poweroff removed the gadget and
+kept it absent for the 35-second observation. Initramfs later logged the cable-only wake, registered
+`pm8941_pwrkey` as `/dev/input/event1`, accepted one Power press and switched to Arch. The new boot reached
+systemd `running` with zero failed units and no display-manager restart; the marker was gone, all 13 mobile
+plugins, touch `event3`, accelerometer, light sensor, protected speaker sink and saved 30 percent software
+volume were present. The owner then confirmed that image rotation and calibrated touch still followed
+the tablet correctly.
 
 ## Rollback
 
@@ -404,7 +419,7 @@ The full command sequence, stop conditions and risks are in `docs/RECOVERY-RUNBO
 ## Git and publication
 
 The bring-up branch is `feat/gts4lvwifi-mainline-bringup`. The current porting work was committed and
-pushed normally as `6cb33ffef0d1e29dde565eaa35150b90c07293df`, authored by
+pushed normally as `8568ef5e8614ab32323e2482c4396620aab6061d`, authored by
 `Lwb89dev <luigi.antona89@protonmail.com>`. Ignored photos, `src/`, `out/`, temporary files and keys are
 not in GitHub. Do not force-push or publish backup refs.
 
@@ -412,6 +427,7 @@ not in GitHub. Do not force-push or publish backup refs.
 
 The core Omarchy Mobile port is usable on the tablet. The exact audio-inclusive image, 13-plugin mobile
 profile, touch, sensors, autorotation, rejected suspend, reboot, cable-aware poweroff, key-only SSH,
-debug-console cleanup and automatic protected speaker path all have live evidence. The mandatory private
-action left is setting the owner's `alarm` password locally. Optional hardware work can continue with
-Bluetooth reconnection, display-off touch resume, microSD, cameras/video and the blocked internal codec.
+debug-console cleanup and automatic protected speaker path all have live evidence. The owner has a local
+test `alarm` password; it is not recorded here or in Git. The reproducible-release rebuild and publication
+remain, while optional hardware work can continue with Bluetooth reconnection, display-off touch resume,
+microSD, cameras/video and the blocked internal codec.

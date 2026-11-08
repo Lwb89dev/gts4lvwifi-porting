@@ -8,6 +8,10 @@ cd "$root"
 
 ROOTFS_VARIANT=omarchy OMARCHY_MOBILE=1 ROOTFS_MB=${ROOTFS_MB:-12288} \
 	scripts/build-rootfs.sh
-scripts/verify-rootfs.py out/rootfs-omarchy/rootfs.tar
+verify_args=()
+if [ -n "${GTS4LV_TEST_ALARM_PASSWORD_FILE:-}" ]; then
+	verify_args=(--allow-test-alarm-password)
+fi
+scripts/verify-rootfs.py "${verify_args[@]}" out/rootfs-omarchy/rootfs.tar
 scripts/verify-omarchy-rootfs.py out/rootfs-omarchy/rootfs.tar \
 	out/rootfs-omarchy/packages.txt
