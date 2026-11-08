@@ -92,7 +92,24 @@ echo "WARNING: writing $image_bytes bytes directly to /dev/$userdata; Android/Li
 echo "sending $image ($want)"
 t "rm -f $listener_pid; (setsid nc -l -p $image_port > /dev/$userdata </dev/null 2>&1 & echo \$! > $listener_pid); sleep 1" >/dev/null
 dd if="$image" bs=4M status=progress | ncc -w "$transfer_timeout" "$host" "$image_port"
-t "test -r $listener_pid && kill \$(cat $listener_pid) 2>/dev/null || true; rm -f $listener_pid; sync" 120 >/dev/null
+# A local TCP sender can finish once its payload has been acknowledged into
+# the tablet's network buffers, before netcat has drained those bytes to eMMC.
+# Never kill the receiver at that point: wait for its normal EOF exit first.
+receiver_done=no
+attempt=0
+while [ "$attempt" -lt 180 ]; do
+	state=$(t "if test -r $listener_pid && kill -0 \$(cat $listener_pid) 2>/dev/null; then echo alive; else echo done; fi" | tail -n 1)
+	case $state in
+	done)
+		receiver_done=yes
+		break
+		;;
+	esac
+	attempt=$((attempt + 1))
+	sleep 1
+done
+[ "$receiver_done" = yes ] || die "receiver did not drain to eMMC within 180 seconds; it was left running"
+t "rm -f $listener_pid; sync" 120 >/dev/null
 have=$(t "dd if=/dev/$userdata bs=4M count=$((image_bytes / 4194304)) 2>/dev/null | sha256sum" 1800 | awk '{print $1}')
 [ "$have" = "$want" ] || die "tablet rootfs hash is $have, wanted $want"
 echo "native root written and verified: $have"
