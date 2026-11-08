@@ -121,6 +121,9 @@ userdata=$(t 'for u in /sys/class/block/mmcblk0p*/uevent; do grep -q "^PARTNAME=
 if [ -z "$userdata" ] || [ "$(printf '%s\n' "$userdata" | wc -l)" -ne 1 ]; then
 	die "userdata partition not found or not unique ($userdata)"
 fi
+# A failed switch_root leaves its dm-linear map open over userdata.  Release
+# only that named map before mounting the raw partition for image replacement.
+t 'dmlinear --remove arch 2>/dev/null || true' >/dev/null
 t "mkdir -p /mnt/data; mountpoint -q /mnt/data || mount -t ext4 -o rw,noatime /dev/$userdata /mnt/data; grep ' /mnt/data ' /proc/mounts" | grep -q ' ext4 ' ||
 	die "could not mount userdata as ext4"
 

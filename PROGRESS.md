@@ -71,7 +71,8 @@ This is the single narrative of the work performed on the SM-T720. Line-by-line 
 | ADSP | Starts and stops cleanly when handled by name | Measured |
 | SSC sensors | Working after synchronized testing: light, magnetometer, compass, accelerometer and autorotation; no proximity sensor | `ssccli`, D-Bus and live rotation tests |
 | Suspend/resume | Unsupported: s2idle powered the tablet down but did not resume; all systemd sleep modes and the Omamobile menu action are disabled | Live test and `CanSuspend = no` |
-| microSD, cameras, video codec in use | Not completed | — |
+| microSD | Partly working: the Samsung `sdhc_2` host now probes as `mmc1`; card insertion and read/write await a physical card | Live boot, `sdhci_msm 8804000.mmc` and `/sys/class/mmc_host/mmc1` |
+| Cameras, video codec in use | Not completed | — |
 | Poweroff/reboot | Working: reboot returns normally; secure PS_HOLD performs a real shutdown, and a cable-triggered cold boot is intercepted in display-off/USB-off charging mode instead of restarting Omarchy | PMIC reason registers and live poweroff tests |
 | M8 Omarchy | The exact audio-inclusive image passed a clean reinstall, hands-off boot and reboot with systemd running, zero failed units and the mobile graphical/audio stack active | Offline verifiers and live tablet |
 | M9 packages/CI | Partial: build and verification scripts exist; final release workflow remains | Repository |
@@ -126,7 +127,7 @@ screen; it must never be sent through chat or committed.
 2. Rebuild once from that exact published commit before declaring a release artifact.
 3. Test Bluetooth reconnection after reboot.
 4. Investigate microphone/headphone support only if the ADSP codec path can be made safe.
-5. Optional hardware work: microSD, suspend/resume, cameras, video decode, display console and touch
+5. Optional hardware work: microSD card read/write, suspend/resume, cameras, video decode, display console and touch
    resume after display-off.
 
 The following historical sections record the evidence that led here.

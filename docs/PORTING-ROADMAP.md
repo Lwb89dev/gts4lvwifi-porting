@@ -16,7 +16,7 @@ measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
 | 0 | Lineage rewriting `recovery`, firmware access, services | done: `recovery` is written after the last Android boot (as for the v6 image); firmware is read from the tablet's partitions; `rmtfs` and `tqftpserv` start the modem at boot |
 | 1 | M7.7 battery | done |
 | 2 | M7.5 Wi-Fi | done, reconnects by itself after a reboot |
-| 3 | M7.1 microSD | not started (needs a card and a `sdhc_2` node) |
+| 3 | M7.1 microSD | host integrated and detected as `mmc1` from Samsung's `sdhc_2` wiring; card insertion and read/write await a physical card |
 | 4 | M7.4 touch | done through evdev and Hyprland (own driver); the DSI panel uses persistent touch transform 3. Resume after display-off remains open |
 | 5 | M7.6 audio | speakers done and automatic before SDDM (ADSP, LPI pins, protection firmware, -12 dB hardware ceiling, PipeWire and WirePlumber rules); microphones and headphones blocked by the ADSP crash in the internal codec |
 | 6 | M7.2 display | done (colour bars, brightness, about 63 Hz); text console on msm and compositor behaviour open |

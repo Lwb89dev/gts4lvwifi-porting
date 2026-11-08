@@ -1,0 +1,155 @@
+diff --git a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+--- a/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
++++ b/arch/arm64/boot/dts/qcom/sdm670-samsung-gts4lvwifi.dts
+@@ -393,6 +392,13 @@ vreg_l1b_0p925: ldo1 {
+ 			regulator-enable-ramp-delay = <250>;
+ 		};
+ 
++		/* Removable SD-card I/O rail (Samsung downstream: pm660l_l2). */
++		vreg_l2b_1p8_2p95: ldo2 {
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <2952000>;
++			regulator-enable-ramp-delay = <250>;
++		};
++
+ 		/* Downstream's icnss "vdd-3.3"; the mainline binding has no such supply. */
+ 		vreg_l3b_3p3: ldo3 {
+ 			regulator-min-microvolt = <3000000>;
+@@ -407,6 +413,13 @@ vreg_l4b_2p95: ldo4 {
+ 			regulator-enable-ramp-delay = <250>;
+ 		};
+ 
++		/* Removable SD-card power rail (Samsung downstream: pm660l_l5). */
++		vreg_l5b_2p95: ldo5 {
++			regulator-min-microvolt = <2960000>;
++			regulator-max-microvolt = <2960000>;
++			regulator-enable-ramp-delay = <250>;
++		};
++
+ 		/* Touchscreen AVDD (downstream stm,regulator_avdd = "pm660l_l6"). */
+ 		vreg_l6b_3p3: ldo6 {
+ 			regulator-min-microvolt = <3000000>;
+@@ -484,7 +496,68 @@ &sdhc_1 {
+ 	status = "okay";
+ };
+ 
++/*
++ * Removable microSD slot.  SDM670's upstream base DTS lacks SDCC2, while
++ * Samsung's own gts4lvwifi DTS wires it at 0x8804000 with card-detect on
++ * GPIO3 and PM660L L5/L2 supplies.  Keep the initial mainline profile at
++ * SDR50 (100 MHz) until a range of cards has been qualified.
++ */
++&soc {
++	sdhc_2: mmc@8804000 {
++		compatible = "qcom,sdm670-sdhci", "qcom,sdhci-msm-v5";
++		reg = <0 0x08804000 0 0x1000>;
++
++		interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
++			     <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
++		interrupt-names = "hc_irq", "pwr_irq";
++
++		clocks = <&gcc GCC_SDCC2_AHB_CLK>,
++			 <&gcc GCC_SDCC2_APPS_CLK>,
++			 <&rpmhcc RPMH_CXO_CLK>;
++		clock-names = "iface", "core", "xo";
++		iommus = <&apps_smmu 0xa0 0xf>;
++		power-domains = <&rpmhpd SDM670_CX>;
++		operating-points-v2 = <&sdhc2_opp_table>;
++
++		bus-width = <4>;
++		max-frequency = <100000000>;
++		no-sdio;
++		no-mmc;
++
++		vmmc-supply = <&vreg_l5b_2p95>;
++		vqmmc-supply = <&vreg_l2b_1p8_2p95>;
++		cd-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default", "sleep";
++		pinctrl-0 = <&sdc2_state_on &sd_card_detect>;
++		pinctrl-1 = <&sdc2_state_off &sd_card_detect>;
++
++		status = "okay";
++
++		sdhc2_opp_table: opp-table {
++			compatible = "operating-points-v2";
++
++			opp-9600000 {
++				opp-hz = /bits/ 64 <9600000>;
++				required-opps = <&rpmhpd_opp_min_svs>;
++			};
++
++			opp-100000000 {
++				opp-hz = /bits/ 64 <100000000>;
++				required-opps = <&rpmhpd_opp_svs>;
++			};
++
++			/* The controller probes by briefly requesting its 201.5 MHz boost. */
++			opp-201500000 {
++				opp-hz = /bits/ 64 <201500000>;
++				required-opps = <&rpmhpd_opp_svs_l1>;
++			};
++		};
++	};
++};
++
+ /* Secure-world GPIOs on SDM670 phones; touching them resets the SoC. */
+ &tlmm {
+--	gpio-reserved-ranges = <0 4>, <81 4>;
++	/* GPIO3 is the Samsung microSD card-detect line; 0-2 remain secure-owned. */
++	gpio-reserved-ranges = <0 3>, <81 4>;
+ 
+@@ -523,6 +589,53 @@ panel_tcon_rdy_default: panel-tcon-rdy-state {
+ 		bias-pull-down;
+ 	};
+ 
++	sdc2_state_on: sdc2-on-state {
++		clk-pins {
++			pins = "sdc2_clk";
++			bias-disable;
++			drive-strength = <16>;
++		};
++
++		cmd-pins {
++			pins = "sdc2_cmd";
++			bias-pull-up;
++			drive-strength = <10>;
++		};
++
++		data-pins {
++			pins = "sdc2_data";
++			bias-pull-up;
++			drive-strength = <10>;
++		};
++	};
++
++	sdc2_state_off: sdc2-off-state {
++		clk-pins {
++			pins = "sdc2_clk";
++			bias-disable;
++			drive-strength = <2>;
++		};
++
++		cmd-pins {
++			pins = "sdc2_cmd";
++			bias-pull-up;
++			drive-strength = <2>;
++		};
++
++		data-pins {
++			pins = "sdc2_data";
++			bias-pull-up;
++			drive-strength = <2>;
++		};
++	};
++
++	sd_card_detect: sd-card-detect-state {
++		pins = "gpio3";
++		function = "gpio";
++		bias-disable;
++		drive-strength = <2>;
++	};
++
+ 	panel_reset_default: panel-reset-state {
+ 		pins = "gpio126";
+ 		function = "gpio";
