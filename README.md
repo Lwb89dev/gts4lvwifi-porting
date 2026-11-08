@@ -4,7 +4,7 @@ Mainline Linux, Arch Linux ARM and Omarchy Mobile for the Samsung
 Galaxy Tab S5e Wi-Fi (`gts4lvwifi`, SM-T720 / SM-T720N, Snapdragon 670). The
 LTE models (SM-T725) are a different board and are out of scope.
 
-## Status, 2026-11-07
+## Status, 2026-11-08
 
 | Milestone | State |
 | --- | --- |
@@ -12,7 +12,7 @@ LTE models (SM-T725) are a different board and are out of scope.
 | M4, M5: recovery plan, first boot | passed: a Linux shell on the tablet, return to LineageOS verified |
 | M6: Arch Linux ARM | passed: systemd, ssh over USB, `pacman`; the root image is now v6 |
 | M7: hardware | in progress. Working and tested: USB networking, battery, modem DSP, Wi-Fi (reconnects by itself after a reboot), Bluetooth (phone music through the speakers), touch through evdev and Hyprland, display, Freedreno/Turnip, the four speakers through PipeWire, sensors through ADSP SSC, Omarchy autorotation with calibrated touch, reboot and poweroff. Open: microphones and headphones (the ADSP crashes in the internal codec), microSD, cameras and video decode. Suspend cannot resume on this kernel and is deliberately disabled. Per subsystem: `docs/HARDWARE-MATRIX.md`, `docs/PORTING-ROADMAP.md` |
-| M8: Omarchy Mobile | usable and boot-tested: the 12 GiB image pins Omarchy 4.0.6, applies all 27 Omarchy Mobile patches, and runs the 13-plugin mobile profile, Hyprland, Quickshell, squeekboard and hardware GL/Vulkan on DSI-1. The exact audio-inclusive rootfs completed a hands-off boot and normal reboot with systemd running and no failed units |
+| M8: Omarchy Mobile | deployed and boot-tested from a clean checkout of the published commit: the 12 GiB image pins Omarchy 4.0.6, applies all 27 Omarchy Mobile patches, includes the device Qualcomm packages, and runs the 13-plugin mobile profile, Hyprland, Quickshell, squeekboard and hardware GL/Vulkan on DSI-1. The installed rootfs completed a recovery rewrite, verified readback and normal graphical boot with systemd running |
 | M9: CI | a static workflow runs on every push; the kernel build stays manual |
 
 The state in detail, with every measurement and what went wrong, is in

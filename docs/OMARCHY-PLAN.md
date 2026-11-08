@@ -198,15 +198,28 @@ back once more. The earlier apparent bootloop was a recovery-selection/USB-obser
 rootfs regression: systemd, SDDM, Hyprland, Quickshell, the Omamobile session, touch, sensors,
 autorotation, PipeWire and all four protected speakers were active on the exact installed rootfs.
 
-The 2026-11-08 closure build from the contents of published commit `8568ef5` produced the installed 12 GiB
-rootfs (`02817fe573919a3252c48b57308817882af00fcc834483dccfc1f7bce81d1336`). `e2fsck`, the generic
-rootfs verifier and the Omarchy Mobile verifier all passed. Its 6,062 exact fiemap extents were embedded
-in recovery, and the tablet then reached systemd `running` with no failed units.
+The 2026-11-08 closure build was rebuilt from a clean worktree at the published GitHub commit
+`1c9ec386682b3542ee8d67772687e61e87049ee8`. It compiled the pinned kernel and modules, then the four
+device packages (`qrtr`, `rmtfs`, `tqftpserv` and `hexagonrpc`), and finally rebuilt the Omarchy image with
+those packages mounted as a local repository. The installed artifacts were:
 
-The image locks both account passwords by design. Root SSH accepts the installed key only
+- rootfs image: `fbb25b50baf505fb90d961c1fa08b6dcd00ec28f881e1bbc7ca13376660a7c8d`;
+- rootfs tar: `1bfd0d4173b6d0ae426f9dd6f461e2664c90f4948d35895bbab09a76b0961263`;
+- package list: `3122c5f9b9e65aa6365e33540b0b958b2bb99e41a5197a6f5e1b15523cf184ca`;
+- recovery image: `070711acf0497a857cbcce3a04918c63b922c6a70307ec674a51d8c5128be739`.
+
+`e2fsck`, the generic rootfs verifier, the Omarchy Mobile verifier, initramfs verification and recovery
+packing verification all passed. The rootfs copy in userdata matched the source SHA-256, its 5,644 exact
+fiemap extents were embedded in recovery, and recovery was read back byte-for-byte before reboot. The
+tablet then reached `/dev/dm-0`, systemd `running`, SDDM and an `alarm` graphical session; the sensor,
+Bluetooth, audio and Omarchy autorotation units were active after that reboot.
+
+Release images lock both account passwords by design. Root SSH accepts the installed key only
 (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`).
 The owner must set a private `alarm` password after installation to unlock the graphical lock screen;
-that secret is never put in the image, repository or build log. The recovery debug console remains
+that secret is never put in the image, repository or build log. This hardware-test deployment deliberately
+used the explicit ignored test-password input described in the README; it must be replaced with a private
+password before treating the installation as a personal daily-use system. The recovery debug console remains
 installed for deliberate recovery work but is disabled and inactive during a normal boot.
 
 ## 12. Omamobile account provisioning and power policy (2026-11-07)
