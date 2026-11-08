@@ -23,7 +23,7 @@ measurements: `HARDWARE-MATRIX.md` and `PROGRESS.md`.
 | 7 | M7.3 GPU | done: Freedreno `FD615` (OpenGL 4.6 / ES 3.2), Turnip `Adreno 615` (Vulkan 1.3) and Hyprland mobile scan-out on DSI-1 |
 | 8 | M7.8 sensors | working for light, magnetometer, compass and LSM6DSM motion through ADSP SSC; synchronized movement changed both raw acceleration and the proxy orientation. Proximity is not advertised. Device-specific Omarchy autorotation and its touch compensation passed live tests |
 | 9 | M7.9 suspend | tested once: s2idle powered down but could not resume. Suspend/hibernate are blocked by systemd and removed from the Omamobile menu until kernel resume support exists |
-| 10 | M7.10 cameras, video codec | not started; Venus loads |
+| 10 | M7.10 cameras, video codec | CAMSS and both sensor drivers are detected; a one-frame capture reaches the media pipeline but returns `-EPIPE` until its raw format is configured. Venus loads its firmware and modules but currently creates no encoder/decoder video node |
 | not in the plan | M8 Omarchy Mobile | running on the tablet: the 13-plugin mobile profile, hardware GPU, Hyprland, Quickshell, squeekboard and calibrated touch. The rebuilt image passed its offline verifiers and a full reinstall/reboot; SDDM autologin starts the Wayland session hands-off |
 | not in the plan | poweroff | working: the PON driver performs secure PS_HOLD shutdown; if attached USB causes a CBL-only cold boot, initramfs enters display-off/USB-off charging mode instead of restarting Omarchy |
 | not in the plan | Bluetooth | done: phone music through the speakers; reconnection after a reboot untested, and the phone must be paired again on v6 |
