@@ -72,7 +72,7 @@ This is the single narrative of the work performed on the SM-T720. Line-by-line 
 | SSC sensors | Working after synchronized testing: light, magnetometer, compass, accelerometer and autorotation; no proximity sensor | `ssccli`, D-Bus and live rotation tests |
 | Suspend/resume | Unsupported: s2idle powered the tablet down but did not resume; all systemd sleep modes and the Omamobile menu action are disabled | Live test and `CanSuspend = no` |
 | microSD | Partly working: the Samsung `sdhc_2` host now probes as `mmc1`; card insertion and read/write await a physical card | Live boot, `sdhci_msm 8804000.mmc` and `/sys/class/mmc_host/mmc1` |
-| Cameras and video codec | Detected but not working: CAMSS and both sensors enumerate, but an unconfigured one-frame capture returns `-EPIPE`; Venus loads firmware and modules yet exposes no codec node | Live V4L2/media graph and one-frame `/dev/null` capture |
+| Cameras and video codec | Partly working: both cameras capture one raw V4L2 frame after their CSI media graph is configured; preview/conversion and Venus encode/decode remain open | Live V4L2/media graph and one-frame `/dev/null` capture from each sensor |
 | Poweroff/reboot | Working: reboot returns normally; secure PS_HOLD performs a real shutdown, and a cable-triggered cold boot is intercepted in display-off/USB-off charging mode instead of restarting Omarchy | PMIC reason registers and live poweroff tests |
 | M8 Omarchy | The exact audio-inclusive image passed a clean reinstall, hands-off boot and reboot with systemd running, zero failed units and the mobile graphical/audio stack active | Offline verifiers and live tablet |
 | M9 packages/CI | Partial: build and verification scripts exist; final release workflow remains | Repository |
@@ -273,7 +273,8 @@ speakers. Reconnection after tablet reboot, source/headphone mode and HFP remain
 `venus_core` loads `venus_dec` and `venus_enc` after `venus.mdt` is exposed from the tablet's own firmware
 partition. On the current image this logs `non legacy binding` but creates no encoder/decoder node, so video
 decode is not usable yet. CAMSS registers the `s5k4ha` front and `s5k3m5` rear sensors with a complete media
-graph; a one-frame capture reaches it but returns `-EPIPE` until the raw media formats are configured.
+graph. Once the raw media formats and CSI routes are configured, each sensor captures one frame to `/dev/null`;
+the original unconfigured attempt returned `-EPIPE`. Preview/conversion and a camera application remain open.
 
 ### Touch
 
